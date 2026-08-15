@@ -1,0 +1,1 @@
+"""Tiny Qt practice project."""
