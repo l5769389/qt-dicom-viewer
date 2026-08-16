@@ -44,9 +44,6 @@ def main() -> None:
     finally:
         engine.app_controller.shutdown()
 
-    sys.exit(app.exec())
-
-
 
 def bind_controller() -> QQmlApplicationEngine:
     engine = QQmlApplicationEngine()

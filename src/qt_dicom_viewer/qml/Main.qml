@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "sections" as Sections
+import "sections/center" as CenterSections
 
 ApplicationWindow {
     id: window
@@ -23,7 +24,7 @@ ApplicationWindow {
             panelController: appController.panelController
         }
 
-        Sections.CenterPanel {
+        CenterSections.CenterPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
             workspaceController: appController.workspaceController
