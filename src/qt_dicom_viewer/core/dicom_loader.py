@@ -10,7 +10,7 @@ from pydicom.multival import MultiValue
 from qt_dicom_viewer.core.dicom_models import (
     DicomLoadResult,
     InstanceDisplayMeta,
-    WindowLevel,
+    WindowLevel, RenderRequest,
 )
 
 
@@ -91,10 +91,14 @@ def _read_series_dataset(file_path) -> FileDataset | None:
 
 class DicomLoader():
     def load_a_dicom(self, instance_path: Path,
-                            request_window:WindowLevel | None) -> DicomLoadResult | None:
+                            render_request: RenderRequest,
+
+                     ) -> DicomLoadResult | None:
         dataset = _read_series_dataset(instance_path)
         if dataset is not None:
-            return self.apply_window(dataset,request_window)
+            request_window: WindowLevel | None = render_request.window
+            inverted = render_request.inverted
+            return self.apply_window(dataset,request_window, inverted)
         return None
 
     def _iter_get_pixel_data(self,ordered_instance_paths: list[Path]):
@@ -103,7 +107,10 @@ class DicomLoader():
             yield dataset
 
 
-    def apply_window(self,dataset: FileDataset, target_window: WindowLevel | None) -> DicomLoadResult:
+    def apply_window(self,dataset: FileDataset,
+                        target_window: WindowLevel | None,
+                     inverted: bool
+                     ) -> DicomLoadResult:
         slope = float(getattr(dataset, "RescaleSlope", 1))
         intercept = float(getattr(dataset, "RescaleIntercept", 0))
         values = dataset.pixel_array.astype(np.float32) * slope + intercept
@@ -124,7 +131,8 @@ class DicomLoader():
 
         displayed = np.clip(values, lower, upper)
         displayed = (displayed - lower) / (upper - lower)
-
+        if inverted:
+            displayed = 1.0 - displayed
         # 5. 转成 QImage 可显示的 8-bit 灰度
         image_8bit = (displayed * 255).astype(np.uint8)
         image_8bit = np.ascontiguousarray(image_8bit)
@@ -134,6 +142,7 @@ class DicomLoader():
                 window_center,
                 window_width,
             ),
+            inverted=inverted,
             image= image_8bit,
             instance_meta=InstanceDisplayMeta(
                 instance_number=_optional_int(

@@ -35,7 +35,7 @@ class DicomSeriesSummary:
     series_instance_uid: str
     series_number: int | None
     modality: str
-    file_count: int
+    dicom_file_count: int
     first_file: Path
     rows: int | None
     columns: int | None
@@ -105,6 +105,7 @@ class ViewportState:
     rotation_degrees: float = 0.0
     horizontal_flip: bool = False
     vertical_flip: bool = False
+    inverted: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,12 +120,20 @@ class TabType(StrEnum):
     TWO_D = "2d"
     MPR = "mpr"
 
+class ToolType(StrEnum):
+    WINDOW = 'window'
+    PAN = 'pan'
+
 
 @dataclass(frozen=True, slots=True)
 class WindowLevel:
     center: float
     width: float
 
+@dataclass(frozen=True, slots=True)
+class WindowLevelOperationResult:
+    window: WindowLevel
+    inverted: bool
 
 @dataclass(frozen=True, slots=True)
 class RenderRequest:
@@ -133,6 +142,7 @@ class RenderRequest:
     series_uid: str
     slice_index: int
     window: WindowLevel | None
+    inverted: bool
 
 @dataclass(frozen=True, slots=True)
 class RenderResult:
@@ -146,6 +156,7 @@ class RenderResult:
 @dataclass(frozen=True, slots=True)
 class DicomLoadResult:
     window: WindowLevel
+    inverted: bool
     image: np.ndarray | None
     instance_meta: InstanceDisplayMeta
 
@@ -170,4 +181,23 @@ class FrameDisplayMeta:
     slice_index: int
     slice_count: int
     window: WindowLevel
+    inverted: bool
     instance_meta: InstanceDisplayMeta
+
+
+@dataclass(frozen=True, slots=True)
+class Point:
+    x: float
+    y: float
+
+@dataclass(frozen=True, slots=True)
+class Offset:
+    x: float
+    y: float
+
+@dataclass(frozen=True, slots=True)
+class DragUpdateEvent:
+    start_position: Point
+    current_position: Point
+    step_offset: Offset
+    total_offset: Offset

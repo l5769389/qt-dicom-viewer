@@ -24,3 +24,4 @@ class SeriesCatalog:
             study_description=series.study_description,
             series_description=series.series_description,
         )
+

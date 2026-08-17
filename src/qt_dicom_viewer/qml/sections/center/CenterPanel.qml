@@ -34,7 +34,6 @@ Rectangle {
         ViewportSection.Viewport {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: 4
             activeViewport: centerPanel.activeViewport
             hasTabs: centerPanel.hasTabs
         }

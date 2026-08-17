@@ -15,7 +15,7 @@ from qt_dicom_viewer.core.dicom_models import (
     ViewportConfig,
     WindowLevel,
 )
-from qt_dicom_viewer.ui.controller.viewport_controller import (
+from qt_dicom_viewer.ui.controller.viewport.viewport_controller import (
     ViewportController,
 )
 from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
@@ -210,7 +210,7 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
                     series_instance_uid="series-1",
                     series_number=1,
                     modality="CT",
-                    file_count=1,
+                    dicom_file_count=1,
                     first_file=instance_path,
                     rows=2,
                     columns=2,

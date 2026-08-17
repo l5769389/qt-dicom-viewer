@@ -1,4 +1,5 @@
 import logging
+from operator import invert
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
@@ -47,7 +48,7 @@ class DicomRenderWorker(QObject):
 
             dicom_load_result = DicomLoader().load_a_dicom(
                 instance_path=Path(file_paths[actual_slice_index]),
-                request_window=request.window
+                render_request=request,
             )
             if dicom_load_result is not None:
                 result = RenderResult(
@@ -60,6 +61,7 @@ class DicomRenderWorker(QObject):
                         slice_count=slice_count,
                         window=dicom_load_result.window,
                         instance_meta=dicom_load_result.instance_meta,
+                        inverted = dicom_load_result.inverted
                     ),
                 )
                 self.render_finished.emit(result)

@@ -1,7 +1,9 @@
+from typing import Dict
+
 from PySide6.QtCore import QObject, Signal, QThread, Slot, Property
 from PySide6.QtWidgets import QFileDialog
 
-from qt_dicom_viewer.core.dicom_models import DicomFolderScanSnapshot
+from qt_dicom_viewer.core.dicom_models import DicomFolderScanSnapshot, DicomSeriesSummary
 from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.DicomScanWorker import (
     DicomScanWorker,
@@ -20,14 +22,12 @@ class PanelController(QObject):
         self._scan_thread: QThread | None = None
         self._scan_worker: DicomScanWorker | None = None
         self._scanning = False
-        self._series_items = []
+        self._scan_series_record:Dict[str, DicomSeriesSummary] = {}
         self._series_catalog:SeriesCatalog = series_catalog
 
 
     def _start_folder_scan(self, folder: str) -> None:
         self._set_scanning(True)
-        self._set_series_items(None)
-
         thread = QThread(self)
         worker = DicomScanWorker(folder)
 
@@ -53,7 +53,7 @@ class PanelController(QObject):
         worker.process.connect(self._handle_scan_process)
 
     def _handle_scan_process(self, result:DicomFolderScanSnapshot) -> None:
-        self._set_series_items(result)
+        self._update_series_record(result)
         self.update_series_session(result)
 
     def update_series_session(self, dicom_scan_snapshot:DicomFolderScanSnapshot):
@@ -62,7 +62,7 @@ class PanelController(QObject):
 
     def _handle_scan_finished(self, result: DicomFolderScanSnapshot | None) -> None:
         if result is not None:
-            self._set_series_items(result)
+            self._update_series_record(result)
             self.update_series_session(result)
 
     def _handle_scan_failed(self, error) -> None:
@@ -84,15 +84,12 @@ class PanelController(QObject):
         self._scanning = scanning
         self.scanningChanged.emit()
 
-    def _set_series_items(self, process:DicomFolderScanSnapshot | None) -> None:
+    def _update_series_record(self, process:DicomFolderScanSnapshot | None) -> None:
         if process is None:
-            self._series_items =  None
-        else:
-            self._series_items = [{
-                "seriesInstanceUid":  each_series.series_instance_uid,
-                "fileCount": each_series.file_count
-            }for each_series in process.series]
-            self.seriesItemsChanged.emit()
+            return
+        for each_series in process.series:
+            self._scan_series_record[each_series.series_instance_uid] = each_series
+        self.seriesItemsChanged.emit()
 
     @Slot()
     def openFolderDialog(self) -> None:
@@ -106,7 +103,12 @@ class PanelController(QObject):
 
     @Property("QVariantList", notify=seriesItemsChanged)
     def seriesItems(self):
-        return self._series_items
+       return [{
+            "patientName": summary.patient_name,
+            "seriesInstanceUid": summary.series_instance_uid,
+            "dicomFileCount": summary.dicom_file_count,
+            "modality": summary.modality,
+        } for series_id,summary  in self._scan_series_record.items()]
 
 
     @Slot(str)

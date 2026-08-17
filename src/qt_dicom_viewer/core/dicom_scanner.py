@@ -65,7 +65,7 @@ def _summarize_series(
         series_instance_uid=first.series_instance_uid,
         series_number=first.series_number,
         modality=first.modality,
-        file_count=len(ordered),
+        dicom_file_count=len(ordered),
         first_file=first.path,
         ordered_file_paths = [file.path for file in ordered],
         rows=first.rows,

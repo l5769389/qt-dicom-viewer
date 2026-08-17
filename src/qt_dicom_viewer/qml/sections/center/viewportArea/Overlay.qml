@@ -5,9 +5,8 @@ pragma ComponentBehavior: Bound
 Item {
     id: viewportOverlay
     required property var activeViewport
-    readonly property int overlayMargin: 10
+    readonly property int overlayMargin: 2
     readonly property var overlay: activeViewport ? activeViewport.overlayInfo : ({})
-
 
 
     component OverlayText: Text {

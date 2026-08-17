@@ -141,7 +141,7 @@ Rectangle {
                             Text {
                                 id: fileCountText
                                 anchors.centerIn: parent
-                                text: seriesDelegate.modelData.fileCount + " files"
+                                text: seriesDelegate.modelData.dicomFileCount + " files"
                                 color: "#91b9d6"
                                 font.pixelSize: 10
                             }
