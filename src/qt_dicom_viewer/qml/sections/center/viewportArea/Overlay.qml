@@ -1,12 +1,15 @@
 import QtQuick
 import QtQuick.Layouts
-pragma ComponentBehavior: Bound
+
+pragma
+ComponentBehavior: Bound
 
 Item {
     id: viewportOverlay
     required property var activeViewport
     readonly property int overlayMargin: 2
     readonly property var overlay: activeViewport ? activeViewport.overlayInfo : ({})
+    readonly property var cursorInfo: activeViewport ? activeViewport.cursorInfo : ({})
 
 
     component OverlayText: Text {
@@ -24,6 +27,12 @@ Item {
 
     function overlayValue(key) {
         const value = overlay[key]
+        return value === undefined || value === null || value === ""
+            ? "--" : value
+    }
+
+    function cursorValue(key) {
+        const value = cursorInfo[key]
         return value === undefined || value === null || value === ""
             ? "--" : value
     }
@@ -75,9 +84,9 @@ Item {
         anchors.margins: viewportOverlay.overlayMargin
         width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
         horizontalAlignment: Text.AlignRight
-        text: "X: " + overlayValue("cursorX")
-            + "   Y: " + overlayValue("cursorY")
-            + "\nCT: " + overlayValue("pixelValue")
-            + " HU"
+        text: "X: " + cursorValue("x")
+            + "   Y: " + cursorValue("y")
+            + "\nCT: " + cursorValue("value")
+            + cursorValue("unit")
     }
 }

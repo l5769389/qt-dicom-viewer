@@ -1,6 +1,6 @@
 from PySide6.QtCore import Signal, QObject, Property, Slot
 
-from qt_dicom_viewer.core.dicom_models import ToolType
+from qt_dicom_viewer.model import ToolType
 
 
 class ToolController(QObject):

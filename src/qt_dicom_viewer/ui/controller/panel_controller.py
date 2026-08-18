@@ -3,9 +3,9 @@ from typing import Dict
 from PySide6.QtCore import QObject, Signal, QThread, Slot, Property
 from PySide6.QtWidgets import QFileDialog
 
-from qt_dicom_viewer.core.dicom_models import DicomFolderScanSnapshot, DicomSeriesSummary
-from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
-from qt_dicom_viewer.ui.workers.DicomScanWorker import (
+from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesSummary
+from qt_dicom_viewer.application.series_catalog import SeriesCatalog
+from qt_dicom_viewer.ui.workers.dicom_scan_worker import (
     DicomScanWorker,
 )
 

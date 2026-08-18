@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from qt_dicom_viewer.core.dicom_models import  DicomSeriesSummary
+from qt_dicom_viewer.model import  DicomSeriesSummary
 from qt_dicom_viewer.service.render_serivce import RenderService
 from qt_dicom_viewer.ui.controller.panel_controller import  PanelController
 from qt_dicom_viewer.ui.controller.workspace_controller import WorkspaceController
-from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
+from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 
 
 class AppController(QObject):

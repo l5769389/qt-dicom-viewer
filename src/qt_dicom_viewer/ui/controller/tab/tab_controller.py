@@ -4,7 +4,7 @@ from types import MappingProxyType
 
 from PySide6.QtCore import QObject, Signal
 
-from qt_dicom_viewer.core.dicom_models import TabConfig, ViewportConfig, SeriesDisplayMeta
+from qt_dicom_viewer.model import TabConfig, ViewportConfig, SeriesDisplayMeta
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 

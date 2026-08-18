@@ -2,11 +2,11 @@ import logging
 
 from PySide6.QtCore import QObject, Slot, Property, Signal
 
-from qt_dicom_viewer.core.dicom_models import TabConfig, TabType, RenderRequest, RenderResult
+from qt_dicom_viewer.model import TabConfig, TabType, RenderRequest, RenderResult
 from qt_dicom_viewer.ui.controller.tab.tab_controller import TabController
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
-from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
+from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 
 logger = logging.getLogger(__name__)
 

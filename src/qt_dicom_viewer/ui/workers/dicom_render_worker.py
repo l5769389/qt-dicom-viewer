@@ -1,16 +1,15 @@
 import logging
-from operator import invert
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
 
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
-from qt_dicom_viewer.core.dicom_models import (
+from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     RenderRequest,
     RenderResult,
 )
-from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
+from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 
 logger = logging.getLogger(__name__)
 

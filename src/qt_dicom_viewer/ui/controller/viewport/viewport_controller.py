@@ -5,8 +5,9 @@ from math import isfinite
 
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
-from qt_dicom_viewer.core.dicom_models import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
-    WindowLevel, FrameDisplayMeta, ToolType, Point, WindowLevelOperationResult, Offset, DragUpdateEvent
+from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
+    WindowLevel, FrameDisplayMeta, ToolType, Point, WindowLevelOperationResult, Offset, DragUpdateEvent, \
+    PointerDisplayMeta
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.drag_operation import DragOperation
 from qt_dicom_viewer.ui.controller.viewport.scroll_operation import ScrollOperation
@@ -37,6 +38,9 @@ class ViewportController(QObject):
     renderRequested = Signal(object)
     imageSourceChanged = Signal()
     overlayChanged = Signal()
+    imageDimensionChanged = Signal()
+    transformChanged = Signal()
+    cursorInfoChanged = Signal()
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
         super().__init__(parent)
@@ -45,6 +49,7 @@ class ViewportController(QObject):
         self._image_revision = 0
         self._has_image = False
         self._frame_meta: FrameDisplayMeta | None = None
+        self._pointer_meta: PointerDisplayMeta | None = None
         self._tool_controller = tool_controller
         self._scroll_operation = ScrollOperation(
             threshold=120.0,
@@ -122,7 +127,7 @@ class ViewportController(QObject):
             inverted =result.frame_meta.inverted,
         )
         self.overlayChanged.emit()
-
+        self.imageDimensionChanged.emit()
         if result.image is None:
             return
 
@@ -201,10 +206,46 @@ class ViewportController(QObject):
                 frame.window.width * (-1 if frame.inverted else 1) if frame else None, 0
             ),
             "zoom": f"{self._state.zoom * 100:.0f}%",
-            "cursorX": "--",
-            "cursorY": "--",
-            "pixelValue": "--",
         }
+
+    @Property(
+        "QVariantMap",
+        notify=cursorInfoChanged,
+    )
+    def cursorInfo(self) -> dict:
+        pointer = self._pointer_meta
+
+        if pointer is None:
+            return {
+                "inside": False,
+                "x": "--",
+                "y": "--",
+                "value": "--",
+                "unit": "",
+            }
+
+        return {
+            "inside": True,
+            "x": _display_number(
+                pointer.pointer_x,
+                precision=0,
+            ),
+            "y": _display_number(
+                pointer.pointer_y,
+                precision=0,
+            ),
+            "value": _display_number(
+                pointer.pointer_ct_value,
+                precision=1,
+            ),
+            "unit": (
+                "HU"
+                if self.viewport_config.series_meta.modality
+                   == "CT"
+                else ""
+            ),
+        }
+
 
     @Slot(float, float, int)
     def beginInteraction(
@@ -255,6 +296,39 @@ class ViewportController(QObject):
     ) -> None:
         ...
 
+
+    @Slot(QPointF)
+    def handlePointerMoved(self, point: QPointF) -> None:
+        current_point = Point(
+                x=point.x(),
+                y=point.y()),
+        ...
+
+    @Slot(float, float,float,float, int, int)
+    def updateCursorPosition(
+            self,
+            column: float,
+            row: float,
+            clipColumn: float,
+            clipRow: float,
+            column_index: int,
+            row_index: int,
+    ) -> None:
+        logger.debug(f'updateCursorPosition,{column},{row},{clipColumn},{clipRow}')
+        if self._pointer_meta is None:
+            self._pointer_meta = PointerDisplayMeta(
+                pointer_x=clipColumn,
+                pointer_y=clipRow,
+                pointer_ct_value=None
+            )
+        else:
+            self._pointer_meta = replace(
+                self._pointer_meta,
+                pointer_x=clipColumn,
+                pointer_y=clipRow
+            )
+        self.cursorInfoChanged.emit()
+
     @Slot(float, float, float, float, int)
     def handleWheel(
             self,
@@ -301,3 +375,43 @@ class ViewportController(QObject):
         )
         self.overlayChanged.emit()
         self.request_render()
+
+    @Property(int, notify=imageDimensionChanged)
+    def imageColumns(self) -> int:
+        if self._frame_meta is None:
+            return 0
+
+        columns = self._frame_meta.instance_meta.columns
+        return columns or 0
+
+    @Property(int, notify=imageDimensionChanged)
+    def imageRows(self) -> int:
+        if self._frame_meta is None:
+            return 0
+
+        rows = self._frame_meta.instance_meta.rows
+        return rows or 0
+
+    @Property(float, notify=transformChanged)
+    def zoom(self) -> float:
+        return self._state.zoom
+
+    @Property(float, notify=transformChanged)
+    def panX(self) -> float:
+        return self._state.pan_x
+
+    @Property(float, notify=transformChanged)
+    def panY(self) -> float:
+        return self._state.pan_y
+
+    @Property(float, notify=transformChanged)
+    def rotationDegrees(self) -> float:
+        return self._state.rotation_degrees
+
+    @Property(bool, notify=transformChanged)
+    def horizontalFlip(self) -> bool:
+        return self._state.horizontal_flip
+
+    @Property(bool, notify=transformChanged)
+    def verticalFlip(self) -> bool:
+        return self._state.vertical_flip

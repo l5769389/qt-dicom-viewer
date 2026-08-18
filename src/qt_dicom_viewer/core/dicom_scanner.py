@@ -1,12 +1,11 @@
 import os
-import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Generator, Iterator
+from typing import Iterator
 
 import pydicom
 
-from qt_dicom_viewer.core.dicom_models import  DicomInstanceMeta, DicomSeriesSummary, \
+from qt_dicom_viewer.model import  DicomInstanceMeta, DicomSeriesSummary, \
     DicomFolderScanSnapshot
 from qt_dicom_viewer.utils.utils import _as_str, _as_int, _transfer_syntax_name
 

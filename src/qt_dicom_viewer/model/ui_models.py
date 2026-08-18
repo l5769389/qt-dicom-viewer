@@ -1,11 +1,8 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
-from enum import StrEnum
+from typing import List
 
-import numpy as np
+from qt_dicom_viewer.model import WindowLevel
 
 
 @dataclass(frozen=True)
@@ -23,6 +20,9 @@ class DicomInstanceMeta:
     rows: int | None
     columns: int | None
     transfer_syntax: str
+
+
+
 
 
 @dataclass(frozen=True)
@@ -114,90 +114,3 @@ class TabConfig:
     tab_label: str
     tab_type: str
     series_metas: tuple[SeriesDisplayMeta, ...]
-
-
-class TabType(StrEnum):
-    TWO_D = "2d"
-    MPR = "mpr"
-
-class ToolType(StrEnum):
-    WINDOW = 'window'
-    PAN = 'pan'
-
-
-@dataclass(frozen=True, slots=True)
-class WindowLevel:
-    center: float
-    width: float
-
-@dataclass(frozen=True, slots=True)
-class WindowLevelOperationResult:
-    window: WindowLevel
-    inverted: bool
-
-@dataclass(frozen=True, slots=True)
-class RenderRequest:
-    request_id: str
-    viewport_id: str
-    series_uid: str
-    slice_index: int
-    window: WindowLevel | None
-    inverted: bool
-
-@dataclass(frozen=True, slots=True)
-class RenderResult:
-    response_id: str
-    viewport_id: str
-    series_uid: str
-    image: np.ndarray | None
-    frame_meta: FrameDisplayMeta
-
-
-@dataclass(frozen=True, slots=True)
-class DicomLoadResult:
-    window: WindowLevel
-    inverted: bool
-    image: np.ndarray | None
-    instance_meta: InstanceDisplayMeta
-
-
-@dataclass(frozen=True, slots=True)
-class InstanceDisplayMeta:
-    instance_number: int | None
-    sop_instance_uid: str | None
-    manufacturer: str | None
-    kvp: float | None
-    tube_current_ma: float | None
-    slice_thickness: float | None
-    rows: int | None
-    columns: int | None
-    pixel_spacing: tuple[float, float] | None
-    image_position: tuple[float, float, float] | None
-    slice_location: float | None
-
-
-@dataclass(frozen=True, slots=True)
-class FrameDisplayMeta:
-    slice_index: int
-    slice_count: int
-    window: WindowLevel
-    inverted: bool
-    instance_meta: InstanceDisplayMeta
-
-
-@dataclass(frozen=True, slots=True)
-class Point:
-    x: float
-    y: float
-
-@dataclass(frozen=True, slots=True)
-class Offset:
-    x: float
-    y: float
-
-@dataclass(frozen=True, slots=True)
-class DragUpdateEvent:
-    start_position: Point
-    current_position: Point
-    step_offset: Offset
-    total_offset: Offset

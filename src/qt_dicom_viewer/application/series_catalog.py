@@ -1,4 +1,4 @@
-from qt_dicom_viewer.core.dicom_models import DicomSeriesSummary, DicomFolderScanSnapshot, SeriesDisplayMeta
+from qt_dicom_viewer.model import DicomSeriesSummary, DicomFolderScanSnapshot, SeriesDisplayMeta
 
 
 class SeriesCatalog:

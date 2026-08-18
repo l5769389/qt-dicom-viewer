@@ -1,16 +1,14 @@
 import logging
-from dataclasses import dataclass
 
 from PySide6.QtCore import (
     QObject,
     QThread,
-    Qt,
     Signal,
     Slot,
 )
 
-from qt_dicom_viewer.core.dicom_models import RenderRequest, RenderResult
-from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
+from qt_dicom_viewer.model import RenderRequest, RenderResult
+from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.dicom_render_worker import DicomRenderWorker
 
 

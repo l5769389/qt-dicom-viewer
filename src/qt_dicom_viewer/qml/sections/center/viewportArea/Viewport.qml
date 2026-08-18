@@ -2,132 +2,153 @@ import QtQuick
 import QtQuick.Layouts
 
 Item {
-    id: viewport
+    id: viewportRoot
     required property var activeViewport
     required property bool hasTabs
 
     function syncViewportSize() {
-        if (!viewport.activeViewport)
+        if (!viewportRoot.activeViewport)
             return
 
-        viewport.activeViewport.setViewportSize(
-            viewport.width,
-            viewport.height
+        viewportRoot.activeViewport.setViewportSize(
+            viewportRoot.width,
+            viewportRoot.height
         )
     }
+
 
     onWidthChanged: syncViewportSize()
     onHeightChanged: syncViewportSize()
     onActiveViewportChanged: syncViewportSize()
 
     Component.onCompleted: syncViewportSize()
-    Rectangle {
-        id: viewportArea
+
+    ImageCanvas {
+        id: imageCanvas
         anchors.fill: parent
-        color: "#080a0d"
-        clip: true
+        z: 0
+        anchors.margins: 8
+        activeViewport: viewportRoot.activeViewport
+    }
 
-        DicomImage {
-            anchors.fill: parent
-            z: 0
-            anchors.margins: 8
-            activeViewport: viewport.activeViewport
+    Column {
+        id: emptyView
+        anchors.centerIn: parent
+        spacing: 6
+        visible: !hasTabs
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "No viewportRoot open"
+            color: "#778392"
+            font.pixelSize: 16
+            font.weight: Font.DemiBold
         }
 
-        Column {
-            anchors.centerIn: parent
-            spacing: 6
-            visible: !hasTabs
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "Select a series from the left panel"
+            color: "#505a67"
+            font.pixelSize: 12
+        }
+    }
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "No viewport open"
-                color: "#778392"
-                font.pixelSize: 16
-                font.weight: Font.DemiBold
-            }
+    Overlay {
+        anchors.fill: parent
+        z: 10
+        anchors.margins: 8
+        activeViewport: viewportRoot.activeViewport
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "Select a series from the left panel"
-                color: "#505a67"
-                font.pixelSize: 12
-            }
+    }
+
+    InteractionLayer {
+        id: interactionLayer
+        anchors.fill: parent
+        z: 20
+        enabled: viewportRoot.activeViewport !== null
+
+        onDragStarted: (startPosition, buttons) => {
+            if (!viewportRoot.activeViewport)
+                return
+
+            viewportRoot.activeViewport.beginInteraction(
+                startPosition.x,
+                startPosition.y,
+                buttons
+            )
         }
 
-        Overlay {
-            anchors.fill: parent
-            z: 10
-            anchors.margins: 8
-            activeViewport: viewport.activeViewport
+        onDragMoved: (
+            startPosition,
+            currentPosition,
+            stepDelta,
+            totalDelta
+        ) => {
+            if (!viewportRoot.activeViewport)
+                return
 
-        }
-
-        InteractionLayer {
-            anchors.fill: parent
-            z: 20
-            enabled: viewport.activeViewport !== null
-
-            onDragStarted: (startPosition, buttons) => {
-                if (!viewport.activeViewport)
-                    return
-
-                viewport.activeViewport.beginInteraction(
-                    startPosition.x,
-                    startPosition.y,
-                    buttons
-                )
-            }
-
-            onDragMoved: (
+            viewportRoot.activeViewport.updateInteraction(
                 startPosition,
                 currentPosition,
                 stepDelta,
                 totalDelta
-            ) => {
-                if (!viewport.activeViewport)
-                    return
+            )
+        }
 
-                viewport.activeViewport.updateInteraction(
-                    startPosition,
-                    currentPosition,
-                    stepDelta,
-                    totalDelta
-                )
-            }
+        onDragFinished: (
+            startPosition,
+            endPosition,
+            totalDelta
+        ) => {
+            if (!viewportRoot.activeViewport)
+                return
 
-            onDragFinished: (
-                startPosition,
-                endPosition,
-                totalDelta
-            ) => {
-                if (!viewport.activeViewport)
-                    return
+            viewportRoot.activeViewport.endInteraction(
+                endPosition.x,
+                endPosition.y
+            )
+        }
 
-                viewport.activeViewport.endInteraction(
-                    endPosition.x,
-                    endPosition.y
-                )
-            }
+        onWheelMoved: (
+            position,
+            angleDeltaY,
+            pixelDeltaY,
+            modifiers
+        ) => {
+            if (!viewportRoot.activeViewport)
+                return
 
-            onWheelMoved: (
-                position,
+            viewportRoot.activeViewport.handleWheel(
                 angleDeltaY,
                 pixelDeltaY,
+                position.x,
+                position.y,
                 modifiers
-            ) => {
-                if (!viewport.activeViewport)
-                    return
+            )
+        }
 
-                viewport.activeViewport.handleWheel(
-                    angleDeltaY,
-                    pixelDeltaY,
-                    position.x,
-                    position.y,
-                    modifiers
-                )
+        onPointerMoved: position => {
+            if (!viewportRoot.activeViewport)
+                return
+
+            const hit = imageCanvas.mapToDicomPixel(
+                interactionLayer,
+                position
+            )
+
+            if (!hit.valid) {
+                return
             }
 
+            viewportRoot.activeViewport.updateCursorPosition(
+                hit.column,
+                hit.row,
+                hit.clipColumn,
+                hit.clipRow,
+                hit.columnIndex,
+                hit.rowIndex
+            )
         }
+
     }
 }

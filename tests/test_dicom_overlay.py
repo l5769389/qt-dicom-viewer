@@ -3,7 +3,7 @@ from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
-from qt_dicom_viewer.core.dicom_models import (
+from qt_dicom_viewer.model import (
     DicomFolderScanSnapshot,
     DicomLoadResult,
     DicomSeriesSummary,
@@ -18,7 +18,7 @@ from qt_dicom_viewer.core.dicom_models import (
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import (
     ViewportController,
 )
-from qt_dicom_viewer.ui.state.series_catalog import SeriesCatalog
+from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.dicom_render_worker import (
     DicomRenderWorker,
 )

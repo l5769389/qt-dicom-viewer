@@ -7,7 +7,7 @@ import pydicom
 from pydicom import FileDataset
 from pydicom.multival import MultiValue
 
-from qt_dicom_viewer.core.dicom_models import (
+from qt_dicom_viewer.model import (
     DicomLoadResult,
     InstanceDisplayMeta,
     WindowLevel, RenderRequest,
