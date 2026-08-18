@@ -9,30 +9,14 @@ from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, 
     WindowLevel, FrameDisplayMeta, ToolType, Point, WindowLevelOperationResult, Offset, DragUpdateEvent, \
     PointerDisplayMeta
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
-from qt_dicom_viewer.ui.controller.viewport.drag_operation import DragOperation
-from qt_dicom_viewer.ui.controller.viewport.scroll_operation import ScrollOperation
-from qt_dicom_viewer.ui.controller.viewport.window_level_operation import WindowLevelOperation
+from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
+from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import OverlayPresenter
+from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
+from qt_dicom_viewer.utils.utils import _display_text, _display_number
 
 logger = logging.getLogger(__name__)
-
-
-def _display_text(value: str | None) -> str:
-    if value is None:
-        return "--"
-    text = str(value).strip()
-    return text or "--"
-
-
-def _display_number(value: float | int | None, precision: int = 2) -> str:
-    if value is None:
-        return "--"
-    number = float(value)
-    if not isfinite(number):
-        return "--"
-    if number.is_integer():
-        return str(int(number))
-    return f"{number:.{precision}f}".rstrip("0").rstrip(".")
-
 
 class ViewportController(QObject):
     renderRequested = Signal(object)
@@ -40,7 +24,7 @@ class ViewportController(QObject):
     overlayChanged = Signal()
     imageDimensionChanged = Signal()
     transformChanged = Signal()
-    cursorInfoChanged = Signal()
+
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
         super().__init__(parent)
@@ -49,13 +33,20 @@ class ViewportController(QObject):
         self._image_revision = 0
         self._has_image = False
         self._frame_meta: FrameDisplayMeta | None = None
-        self._pointer_meta: PointerDisplayMeta | None = None
+
         self._tool_controller = tool_controller
         self._scroll_operation = ScrollOperation(
             threshold=120.0,
         )
+        self._cursor_controller = CursorController(viewport_config = self.viewport_config, parent= self)
+        self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation(self)
+
+    @Property(QObject, constant=True)
+    def cursorController(self):
+        return self._cursor_controller
+
 
     def request_first_loader(self) -> None:
         request = RenderRequest(
@@ -156,96 +147,12 @@ class ViewportController(QObject):
     def overlayInfo(self) -> dict:
         series = self.viewport_config.series_meta
         frame = self._frame_meta
-        instance = frame.instance_meta if frame else None
-        position = instance.image_position if instance else None
-        spacing = instance.pixel_spacing if instance else None
 
-        return {
-            "patientName": _display_text(series.patient_name),
-            "patientId": _display_text(series.patient_id),
-            "studyDescription": _display_text(series.study_description),
-            "seriesDescription": _display_text(series.series_description),
-            "modality": _display_text(series.modality),
-            "manufacturer": _display_text(
-                instance.manufacturer if instance else None
-            ),
-            "kvp": _display_number(instance.kvp if instance else None),
-            "tubeCurrentMa": _display_number(
-                instance.tube_current_ma if instance else None
-            ),
-            "sliceThickness": _display_number(
-                instance.slice_thickness if instance else None
-            ),
-            "sliceIndex": str(frame.slice_index + 1) if frame else "--",
-            "sliceCount": str(frame.slice_count) if frame else "--",
-            "instanceNumber": _display_number(
-                instance.instance_number if instance else None,
-                precision=0,
-            ),
-            "rows": _display_number(
-                instance.rows if instance else None,
-                precision=0,
-            ),
-            "columns": _display_number(
-                instance.columns if instance else None,
-                precision=0,
-            ),
-            # DICOM PixelSpacing 的顺序是 row(Y), column(X)。
-            "pixelSpacingX": _display_number(spacing[1] if spacing else None),
-            "pixelSpacingY": _display_number(spacing[0] if spacing else None),
-            "positionX": _display_number(position[0] if position else None),
-            "positionY": _display_number(position[1] if position else None),
-            "positionZ": _display_number(position[2] if position else None),
-            "sliceLocation": _display_number(
-                instance.slice_location if instance else None
-            ),
-            "windowCenter": _display_number(
-                frame.window.center if frame else None, 0
-            ),
-            "windowWidth": _display_number(
-                frame.window.width * (-1 if frame.inverted else 1) if frame else None, 0
-            ),
-            "zoom": f"{self._state.zoom * 100:.0f}%",
-        }
-
-    @Property(
-        "QVariantMap",
-        notify=cursorInfoChanged,
-    )
-    def cursorInfo(self) -> dict:
-        pointer = self._pointer_meta
-
-        if pointer is None:
-            return {
-                "inside": False,
-                "x": "--",
-                "y": "--",
-                "value": "--",
-                "unit": "",
-            }
-
-        return {
-            "inside": True,
-            "x": _display_number(
-                pointer.pointer_x,
-                precision=0,
-            ),
-            "y": _display_number(
-                pointer.pointer_y,
-                precision=0,
-            ),
-            "value": _display_number(
-                pointer.pointer_ct_value,
-                precision=1,
-            ),
-            "unit": (
-                "HU"
-                if self.viewport_config.series_meta.modality
-                   == "CT"
-                else ""
-            ),
-        }
-
+        return self._overlay_presenter.build(
+            series=series,
+            frame=frame,
+            state=self._state,
+        )
 
     @Slot(float, float, int)
     def beginInteraction(
@@ -314,20 +221,7 @@ class ViewportController(QObject):
             column_index: int,
             row_index: int,
     ) -> None:
-        logger.debug(f'updateCursorPosition,{column},{row},{clipColumn},{clipRow}')
-        if self._pointer_meta is None:
-            self._pointer_meta = PointerDisplayMeta(
-                pointer_x=clipColumn,
-                pointer_y=clipRow,
-                pointer_ct_value=None
-            )
-        else:
-            self._pointer_meta = replace(
-                self._pointer_meta,
-                pointer_x=clipColumn,
-                pointer_y=clipRow
-            )
-        self.cursorInfoChanged.emit()
+        self._cursor_controller.updatePosition(clipColumn, clipRow)
 
     @Slot(float, float, float, float, int)
     def handleWheel(

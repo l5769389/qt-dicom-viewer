@@ -9,7 +9,7 @@ Item {
     required property var activeViewport
     readonly property int overlayMargin: 2
     readonly property var overlay: activeViewport ? activeViewport.overlayInfo : ({})
-    readonly property var cursorInfo: activeViewport ? activeViewport.cursorInfo : ({})
+    readonly property var cursorInfo: activeViewport ? activeViewport.cursorController.cursorInfo : ({})
 
 
     component OverlayText: Text {

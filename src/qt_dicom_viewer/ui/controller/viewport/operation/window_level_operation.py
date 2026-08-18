@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from qt_dicom_viewer.model import Point, WindowLevel, WindowLevelOperationResult, DragUpdateEvent
-from qt_dicom_viewer.ui.controller.viewport.drag_operation import DragOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 
 if TYPE_CHECKING:
     from qt_dicom_viewer.ui.controller.viewport.viewport_controller import (
