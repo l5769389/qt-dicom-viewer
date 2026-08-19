@@ -54,13 +54,13 @@ Item {
     }
 
     readonly property real fitScale: {
-        if (!viewportRoot.activeViewport)
+        if (!imageCanvasRoot.activeViewport)
             return 1
 
         const columns =
-            viewportRoot.activeViewport.imageColumns
+            imageCanvasRoot.activeViewport.imageColumns
         const rows =
-            viewportRoot.activeViewport.imageRows
+            imageCanvasRoot.activeViewport.imageRows
 
         if (columns <= 0 || rows <= 0)
             return 1
@@ -75,7 +75,7 @@ Item {
     Item {
         id: imageScene
 
-        readonly property var controller: viewportRoot.activeViewport
+        readonly property var controller: imageCanvasRoot.activeViewport
 
         width: controller
             ? controller.imageColumns : 0

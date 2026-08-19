@@ -7,13 +7,10 @@ import 'viewportArea' as ViewportSection
 
 Rectangle {
     id: centerPanel
-
     required property var workspaceController
-    readonly property bool hasTabs: workspaceController.tabs.length > 0
-    readonly property var activeViewport:
-            workspaceController.activeViewports.length > 0
-        ? workspaceController.activeViewports[0]
-        : null
+    required property var activeViewport
+    readonly property bool hasTabs:
+        workspaceController.tabs.length > 0
 
     color: "#15191f"
     border.color: "#303744"

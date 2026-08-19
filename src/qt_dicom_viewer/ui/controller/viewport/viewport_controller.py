@@ -6,15 +6,16 @@ from math import isfinite
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
-    WindowLevel, FrameDisplayMeta, ToolType, Point, WindowLevelOperationResult, Offset, DragUpdateEvent, \
+    WindowLevel, FrameDisplayMeta, ToolType, Point, Offset, DragUpdateEvent, \
     PointerDisplayMeta
+from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
+    ZoomChange, WindowLevelContext, ScrollContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
 from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import OverlayPresenter
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
-from qt_dicom_viewer.utils.utils import _display_text, _display_number
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,7 @@ class ViewportController(QObject):
         self._frame_meta: FrameDisplayMeta | None = None
 
         self._tool_controller = tool_controller
-        self._scroll_operation = ScrollOperation(
-            threshold=120.0,
-        )
+        self._scroll_operation = ScrollOperation()
         self._cursor_controller = CursorController(viewport_config = self.viewport_config, parent= self)
         self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
@@ -131,6 +130,10 @@ class ViewportController(QObject):
             result.viewport_id,
             self._image_revision,
         )
+    @property
+    def viewport_state(self) -> ViewportState:
+        return self._state
+
 
     @Property(str, notify=imageSourceChanged)
     def imageSource(self) -> str:
@@ -162,15 +165,27 @@ class ViewportController(QObject):
             buttons: int,
     ) -> None:
         logger.debug(f'beginInteraction,{x},{y},{buttons}')
-        operation = None
 
-        if self._tool_controller.activeTool == ToolType.WINDOW:
-            operation = self._window_level_operation
+        strategies = {
+            ToolType.WINDOW : self._window_level_operation,
+            ToolType.SCROLL: self._scroll_operation
+        }
 
-        self._active_drag_operation = operation
+        context_strategies = {
+            ToolType.WINDOW: WindowLevelContext(
+            viewport_size = self.viewport_size,
+            inverted = self.inverted,
+            current_window = self.current_window,
+            ),
+            ToolType.SCROLL: ScrollContext(
+                slice_index=self._state.slice_index,
+                slice_count=self._state.slice_count,
+            )
+        }
+        self._active_drag_operation = strategies.get(self._tool_controller.activeTool, None)
 
-        if operation is not None:
-            operation.begin(Point(x, y))
+        if self._active_drag_operation is not None:
+            self._active_drag_operation.begin(Point(x, y), context_strategies.get(self._tool_controller.activeTool, None))
 
     @Slot(QPointF, QPointF, QPointF, QPointF)
     def updateInteraction(
@@ -193,7 +208,8 @@ class ViewportController(QObject):
             step_offset=Offset(x=step_offset.x(), y=step_offset.y()),
             total_offset=Offset(x=total_offest.x(), y=total_offest.y())
         )
-        self._active_drag_operation.update(event)
+        result = self._active_drag_operation.update(event)
+        self._apply_interaction_result(result)
 
     @Slot(float, float)
     def endInteraction(
@@ -232,19 +248,38 @@ class ViewportController(QObject):
             y: float,
             modifiers: int,
     ) -> None:
-        next_index = self._scroll_operation.handle_wheel(
+        slice_change = self._scroll_operation.handle_wheel(
             angle_delta_y=angle_delta_y,
             current_index=self._state.slice_index,
             slice_count=self._state.slice_count,
         )
-        if next_index is None:
-            return
-        logger.debug(f'scroll next_index,{next_index}')
-        self._state = replace(
-            self._state,
-            slice_index=next_index,
-        )
-        self.request_render()
+        self._apply_interaction_result(slice_change)
+
+    def _apply_interaction_result(
+            self,
+            result: InteractionResult | None,
+    ) -> None:
+        match result:
+            case SliceIndexChange(slice_index=index):
+                self.apply_slice_index(index)
+
+            case WindowLevelChange(window=window, inverted=inverted):
+                self.apply_window_level(
+                    WindowLevelChange(
+                        window=window,
+                        inverted=inverted,
+                    )
+                )
+
+            case PanChange(offset_x=x, offset_y=y):
+                self.apply_pan(x, y)
+
+            case ZoomChange(zoom=zoom):
+                self.apply_zoom(zoom)
+
+            case None:
+                return
+
 
     @property
     def current_window(self) -> WindowLevel | None:
@@ -258,7 +293,7 @@ class ViewportController(QObject):
     def inverted(self) -> bool:
         return self._state.inverted
 
-    def apply_window_level(self, result: WindowLevelOperationResult) -> None:
+    def apply_window_level(self, result: WindowLevelChange) -> None:
         if result.window == self._state.window and result.inverted == self.inverted:
             return
         logger.debug(f'apply_window_level,{result}')
@@ -269,6 +304,18 @@ class ViewportController(QObject):
         )
         self.overlayChanged.emit()
         self.request_render()
+
+    def apply_slice_index(self, index: int) -> None:
+        if index == self._state.slice_index:
+            return
+        logger.debug(f'apply_slice_index,{index}')
+
+        self._state = replace(
+            self._state,
+            slice_index=index,
+        )
+        self.request_render()
+
 
     @Property(int, notify=imageDimensionChanged)
     def imageColumns(self) -> int:
@@ -309,3 +356,9 @@ class ViewportController(QObject):
     @Property(bool, notify=transformChanged)
     def verticalFlip(self) -> bool:
         return self._state.vertical_flip
+
+    def apply_pan(self, x, y):
+        pass
+
+    def apply_zoom(self, zoom):
+        pass

@@ -2,7 +2,7 @@ import logging
 import uuid
 from types import MappingProxyType
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot, Property
 
 from qt_dicom_viewer.model import TabConfig, ViewportConfig, SeriesDisplayMeta
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -11,6 +11,7 @@ from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportC
 logger = logging.getLogger(__name__)
 class TabController(QObject):
     renderRequested = Signal(object)
+    activeToolChanged = Signal(object)
 
     def __init__(self, tab_config: TabConfig,parent = None):
         super().__init__(parent)
@@ -23,10 +24,19 @@ class TabController(QObject):
         }
         self._create_viewport_dict()
 
+    @Property(str, notify=activeToolChanged)
+    def activeTool(self):
+        return self._tool_controller.activeTool
+
+    @Property(QObject,constant= True)
+    def toolController(self) -> QObject:
+        return self._tool_controller
+
     def _create_tool_controller(self) -> None:
         self._tool_controller = ToolController(
             parent=self
         )
+
 
     def init_render(self):
         for viewport in self._viewport_dict.values():

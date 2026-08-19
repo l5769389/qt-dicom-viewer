@@ -88,6 +88,10 @@ class WorkspaceController(QObject):
     def activeTabId(self) -> str | None:
         return self._active_tab_id
 
+    @Property(QObject,notify=activeTabChanged)
+    def activeTab(self) -> TabController | None:
+        return self._tab_dict.get(self._active_tab_id, None)
+
 
     @Slot(str, str, str)
     def createTab(self,series_uid: str,
@@ -160,3 +164,4 @@ class WorkspaceController(QObject):
             return
         label = f'{series.patient_name}'
         self.createTab(series_uid,label,TabType.TWO_D)
+

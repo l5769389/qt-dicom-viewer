@@ -6,6 +6,10 @@ import "sections/center" as CenterSections
 
 ApplicationWindow {
     id: window
+    readonly property var workspaceController: appController.workspaceController
+    readonly property bool hasTabs: workspaceController.tabs.length > 0
+    readonly property var activeViewport: workspaceController.activeViewports.length > 0 ? workspaceController.activeViewports[0] : null
+    readonly property var toolController: workspaceController.activeTab ? workspaceController.activeTab.toolController : null
 
     width: 1200
     height: 760
@@ -27,12 +31,15 @@ ApplicationWindow {
         CenterSections.CenterPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            workspaceController: appController.workspaceController
+            workspaceController: window.workspaceController
+            activeViewport: window.activeViewport
         }
 
         Sections.RightPanel {
+            toolVisible: window.hasTabs
             Layout.preferredWidth: 260
             Layout.fillHeight: true
+            toolController: window.toolController
         }
     }
 }

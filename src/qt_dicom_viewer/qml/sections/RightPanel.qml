@@ -8,16 +8,17 @@ import "../components" as Components
 Rectangle {
     id: rightPanel
 
-    property int currentToolIndex: 0
+    required property var toolController
+    required property bool toolVisible
 
     readonly property var primaryTools: [
-        { "iconName": "window", "label": "调窗" },
-        { "iconName": "scroll", "label": "翻页" },
-        { "iconName": "pan", "label": "平移" },
-        { "iconName": "zoom", "label": "缩放" },
-        { "iconName": "measure", "label": "测量" },
-        { "iconName": "annotate", "label": "标注" },
-        { "iconName": "reset", "label": "重置" }
+        { "iconName": "window", "label": "调窗", opType: "window" },
+        { "iconName": "scroll", "label": "翻页", opType: "scroll" },
+        { "iconName": "pan", "label": "平移" , opType: "pan"},
+        { "iconName": "zoom", "label": "缩放" , opType: "zoom"},
+        { "iconName": "measure", "label": "测量" , opType: "measure"},
+        { "iconName": "annotate", "label": "标注" , opType: "annotate"},
+        { "iconName": "reset", "label": "重置",  opType: "reset" }
     ]
 
     color: "#1b1f26"
@@ -29,6 +30,7 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
+        visible: rightPanel.toolVisible
 
         Rectangle {
             Layout.fillWidth: true
@@ -93,15 +95,16 @@ Rectangle {
                     delegate: Basic.Button {
                         id: primaryButton
 
-                        required property int index
                         required property var modelData
 
                         width: toolFlow.buttonWidth
                         height: toolFlow.buttonHeight
-                        checked: primaryButton.index === rightPanel.currentToolIndex
+                        checked: primaryButton.modelData.opType === rightPanel.toolController?.activeTool
 
                         onClicked: {
-                            rightPanel.currentToolIndex = primaryButton.index
+                            rightPanel.toolController.selectTool(
+                                primaryButton.modelData.opType
+                            )
                         }
 
                         Basic.ToolTip.visible: primaryButton.hovered

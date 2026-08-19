@@ -6,7 +6,6 @@ from qt_dicom_viewer.model import ToolType
 class ToolController(QObject):
     activeToolChanged = Signal()
 
-
     def __init__(self,default_tool_type:ToolType = ToolType.WINDOW ,parent=None):
         super().__init__(parent)
         self._active_tool = default_tool_type
@@ -20,5 +19,5 @@ class ToolController(QObject):
         if tool == self._active_tool:
             return
 
-        self._active_tool = tool
+        self._active_tool = ToolType(tool)
         self.activeToolChanged.emit()

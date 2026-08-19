@@ -14,6 +14,11 @@ class TabType(StrEnum):
 class ToolType(StrEnum):
     WINDOW = 'window'
     PAN = 'pan'
+    ZOOM = 'zoom'
+    SCROLL = 'scroll'
+    MEASURE = 'measure'
+    ANNOTATE = 'annotate'
+    RESET = 'reset'
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,10 +26,7 @@ class WindowLevel:
     center: float
     width: float
 
-@dataclass(frozen=True, slots=True)
-class WindowLevelOperationResult:
-    window: WindowLevel
-    inverted: bool
+
 
 @dataclass(frozen=True, slots=True)
 class RenderRequest:

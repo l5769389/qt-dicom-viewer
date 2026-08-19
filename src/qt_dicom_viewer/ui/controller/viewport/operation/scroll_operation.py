@@ -1,21 +1,37 @@
 import math
+from dataclasses import dataclass
+
+from qt_dicom_viewer.model import Point, DragUpdateEvent
+from qt_dicom_viewer.model.interaction import SliceIndexChange, ScrollContext, OperationStartContext
+from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 
 
-class ScrollOperation:
-    def __init__(
-        self,
-        threshold: float = 80.0,
-    ) -> None:
-        self._threshold = threshold
+@dataclass(frozen=True, slots=True)
+class ScrollInteractionConfig:
+    swap_direction: bool = False
+    wheel_threshold: float = 120
+    touch_threshold: float = 60
+
+
+DEFAULT_SCROLL_CONFIG = ScrollInteractionConfig()
+
+
+class ScrollOperation(DragOperation):
+
+    def __init__(self, config: ScrollInteractionConfig = DEFAULT_SCROLL_CONFIG) -> None:
+        super().__init__()
+        self._config = config
         self._accumulator = 0.0
+        self._start_slice = 0
+        self._slice_count  = 0
 
     def handle_wheel(
-        self,
-        *,
-        angle_delta_y: float,
-        current_index: int,
-        slice_count: int,
-    ) -> int | None:
+            self,
+            *,
+            angle_delta_y: float,
+            current_index: int,
+            slice_count: int,
+    ) -> SliceIndexChange | None:
         if angle_delta_y == 0:
             return None
 
@@ -24,8 +40,8 @@ class ScrollOperation:
 
         # 滚动方向改变时清理之前的残余量。
         if (
-            self._accumulator != 0
-            and self._accumulator
+                self._accumulator != 0
+                and self._accumulator
                 * angle_delta_y < 0
         ):
             self._accumulator = 0.0
@@ -33,17 +49,19 @@ class ScrollOperation:
         self._accumulator += angle_delta_y
 
         steps = math.trunc(
-            self._accumulator / self._threshold
+            self._accumulator / self._config.wheel_threshold
         )
 
         if steps == 0:
             return None
 
         self._accumulator -= (
-            steps * self._threshold
+                steps * self._config.wheel_threshold
         )
-
-        next_index = current_index - steps
+        if self._config.swap_direction:
+            next_index = current_index + steps
+        else:
+            next_index = current_index - steps
 
         next_index = max(
             0,
@@ -53,7 +71,30 @@ class ScrollOperation:
         if next_index == current_index:
             return None
 
-        return next_index
+        return SliceIndexChange(slice_index=next_index)
+
+    def begin(self, position: Point, context: OperationStartContext) -> None:
+        if not isinstance(context, ScrollContext):
+            raise TypeError(
+                "WindowLevelOperation requires WindowLevelContext"
+            )
+        self._start_slice = context.slice_index
+        self._slice_count = context.slice_count
+        self.reset()
+
+    def update(self, drag_event: DragUpdateEvent) -> SliceIndexChange:
+        delta = math.trunc(drag_event.total_offset.y / self._config.touch_threshold)
+        direction = -1 if self._config.swap_direction else 1
+        next_index = self._start_slice + direction * delta
+        slice_count = self._slice_count
+        next_index = max(
+            0,
+            min(next_index, slice_count - 1),
+        )
+        return SliceIndexChange(slice_index=next_index)
+
+    def end(self, position: Point) -> None:
+        pass
 
     def reset(self) -> None:
         self._accumulator = 0.0

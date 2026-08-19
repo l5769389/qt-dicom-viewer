@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from qt_dicom_viewer.model import Point, WindowLevel, WindowLevelOperationResult, DragUpdateEvent
+from qt_dicom_viewer.model import Point, WindowLevel,  DragUpdateEvent
+from qt_dicom_viewer.model.interaction import WindowLevelChange, WindowLevelContext, OperationStartContext
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 
 if TYPE_CHECKING:
@@ -30,10 +31,9 @@ DEFAULT_WINDOW_LEVEL_CONFIG = WindowLevelInteractionConfig()
 class WindowLevelOperation(DragOperation):
     def __init__(
         self,
-        viewport: "ViewportController",
         config: WindowLevelInteractionConfig = DEFAULT_WINDOW_LEVEL_CONFIG,
     ) -> None:
-        super().__init__(viewport)
+        super().__init__()
 
         self._config = config
         self._start_window: WindowLevel | None = None
@@ -41,20 +41,25 @@ class WindowLevelOperation(DragOperation):
         self._viewport_height = 1.0
         self._start_inverted = False
 
-    def begin(self, position: Point) -> None:
-        self._start_window = self.viewport.current_window
-        self._start_inverted = self.viewport.inverted
+    def begin(self, position: Point, context:OperationStartContext) -> None:
+        if not isinstance(context, WindowLevelContext):
+            raise TypeError(
+                "WindowLevelOperation requires WindowLevelContext"
+            )
 
-        width, height = self.viewport.viewport_size
+        self._start_window = context.current_window
+        self._start_inverted = context.inverted
+
+        width, height = context.viewport_size
         self._viewport_width = max(width, 1.0)
         self._viewport_height = max(height, 1.0)
 
     def update(
             self,
             drag_event: DragUpdateEvent,
-    ) -> None:
+    ) -> WindowLevelChange | None:
         if self._start_window is None:
-            return
+            return None
 
         config = self._config
         start = self._start_window
@@ -70,17 +75,14 @@ class WindowLevelOperation(DragOperation):
             width_axis_size = self._viewport_width
             center_axis_size = self._viewport_height
 
-
-        width_control_range = max(
-            start.width,
-            config.minimum_width_control_range,
-            config.max_width_control_range
+        width_control_range = min(
+            max(start.width, config.minimum_width_control_range),
+            config.max_width_control_range,
         )
 
-        center_control_range = max(
-            start.width,
-            config.minimum_center_control_range,
-            config.max_center_control_range
+        center_control_range = min(
+            max(start.width, config.minimum_center_control_range),
+            config.max_center_control_range,
         )
         # 100 / 视口的宽度 * 灵敏度
         width_step = (
@@ -124,12 +126,12 @@ class WindowLevelOperation(DragOperation):
             ),
         )
 
-        result = WindowLevelOperationResult(
+        result = WindowLevelChange(
             window=window,
             inverted=signed_width < 0,
         )
+        return result
 
-        self.viewport.apply_window_level(result)
 
     def end(self, position: Point) -> None:
         self._start_window = None
