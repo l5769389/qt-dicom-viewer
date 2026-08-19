@@ -3,6 +3,7 @@ import uuid
 from dataclasses import replace
 from math import isfinite
 
+import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
@@ -29,6 +30,7 @@ class ViewportController(QObject):
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
         super().__init__(parent)
+        self._modality_pixel: np.ndarray | None = None
         self.viewport_config = viewport_config
         self._state = ViewportState()
         self._image_revision = 0
@@ -116,6 +118,7 @@ class ViewportController(QObject):
             window=result.frame_meta.window,
             inverted =result.frame_meta.inverted,
         )
+        self._modality_pixel = result.modality_pixel
         self.overlayChanged.emit()
         self.imageDimensionChanged.emit()
         if result.image is None:
@@ -237,7 +240,8 @@ class ViewportController(QObject):
             column_index: int,
             row_index: int,
     ) -> None:
-        self._cursor_controller.updatePosition(clipColumn, clipRow)
+        ct_value = self._modality_pixel[int(clipRow)][int(clipColumn)]
+        self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
 
     @Slot(float, float, float, float, int)
     def handleWheel(

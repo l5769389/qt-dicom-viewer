@@ -136,7 +136,11 @@ class DicomLoader():
         # 5. 转成 QImage 可显示的 8-bit 灰度
         image_8bit = (displayed * 255).astype(np.uint8)
         image_8bit = np.ascontiguousarray(image_8bit)
-
+        modality_pixels = (
+                dataset.pixel_array.astype(np.float32)
+                * slope
+                + intercept
+        )
         return DicomLoadResult(
             window=WindowLevel(
                 window_center,
@@ -144,6 +148,7 @@ class DicomLoader():
             ),
             inverted=inverted,
             image= image_8bit,
+            modality_pixel = modality_pixels,
             instance_meta=InstanceDisplayMeta(
                 instance_number=_optional_int(
                     getattr(dataset, "InstanceNumber", None)

@@ -43,6 +43,7 @@ class RenderResult:
     viewport_id: str
     series_uid: str
     image: np.ndarray | None
+    modality_pixel: np.ndarray | None
     frame_meta: FrameDisplayMeta
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +51,9 @@ class DicomLoadResult:
     window: WindowLevel
     inverted: bool
     image: np.ndarray | None
+    modality_pixel: np.ndarray | None
     instance_meta: InstanceDisplayMeta
+
 
 @dataclass(frozen=True, slots=True)
 class InstanceDisplayMeta:

@@ -55,6 +55,7 @@ class DicomRenderWorker(QObject):
                     series_uid=request.series_uid,
                     viewport_id=request.viewport_id,
                     image=dicom_load_result.image,
+                    modality_pixel=dicom_load_result.modality_pixel,
                     frame_meta=FrameDisplayMeta(
                         slice_index=actual_slice_index,
                         slice_count=slice_count,
