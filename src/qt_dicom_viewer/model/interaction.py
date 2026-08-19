@@ -50,8 +50,14 @@ class PanContext:
     current_pan_x: float
     current_pan_y: float
 
+@dataclass(frozen=True, slots=True)
+class ZoomContext:
+    viewport_size: Tuple[float, float]
+    current_zoom: float
+
 OperationStartContext:TypeAlias = (
     WindowLevelContext
     | ScrollContext
     | PanContext
+    | ZoomContext
 )

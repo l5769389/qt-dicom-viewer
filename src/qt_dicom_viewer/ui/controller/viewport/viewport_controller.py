@@ -10,7 +10,7 @@ from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, 
     WindowLevel, FrameDisplayMeta, ToolType, Point, Offset, DragUpdateEvent, \
     PointerDisplayMeta, DisplayStyle
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
-    ZoomChange, WindowLevelContext, ScrollContext, PanContext
+    ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
 from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import OverlayPresenter
@@ -18,6 +18,7 @@ from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import Drag
 from qt_dicom_viewer.ui.controller.viewport.operation.pan_operation import PanOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.zoom_operation import ZoomOperation
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class ViewportController(QObject):
         self._tool_controller = tool_controller
         self._scroll_operation = ScrollOperation()
         self._pan_operation = PanOperation()
+        self._zoom_operation = ZoomOperation()
         self._cursor_controller = CursorController(viewport_config = self.viewport_config, parent= self)
         self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
@@ -191,7 +193,8 @@ class ViewportController(QObject):
         strategies = {
             ToolType.WINDOW : self._window_level_operation,
             ToolType.SCROLL: self._scroll_operation,
-            ToolType.PAN: self._pan_operation
+            ToolType.PAN: self._pan_operation,
+            ToolType.ZOOM: self._zoom_operation
         }
 
         context_strategies = {
@@ -207,6 +210,10 @@ class ViewportController(QObject):
             ToolType.PAN: PanContext(
                 current_pan_x=self._state.pan_x,
                 current_pan_y=self._state.pan_y,
+            ),
+            ToolType.ZOOM: ZoomContext(
+                viewport_size=self.viewport_size,
+                current_zoom=self._state.zoom,
             )
         }
         self._active_drag_operation = strategies.get(self._tool_controller.activeTool, None)
@@ -244,7 +251,13 @@ class ViewportController(QObject):
             x: float,
             y: float,
     ) -> None:
-        ...
+        operation = self._active_drag_operation
+        self._active_drag_operation = None
+
+        if operation is not None:
+            operation.end(
+                Point(x=x, y=y)
+            )
 
 
     @Slot(QPointF)
@@ -392,11 +405,24 @@ class ViewportController(QObject):
                               )
         self.transformChanged.emit()
 
-    def apply_zoom(self, zoom):
-        self._state = replace(self._state,
-                              zoom=zoom,
-                              )
+    def apply_zoom(self, zoom: float) -> None:
+        if not isfinite(zoom):
+            return
+
+        zoom = max(0.1, min(zoom, 20.0))
+
+        if abs(zoom - self._state.zoom) < 0.0001:
+            return
+
+        self._state = replace(
+            self._state,
+            zoom=zoom,
+        )
+
         self.transformChanged.emit()
+
+        # overlayInfo 中显示了 zoom，因此也要更新
+        self.overlayChanged.emit()
 
     @Property(str, notify=displayStyleChanged)
     def canvasBackgroundColor(self) -> str:
