@@ -60,7 +60,6 @@ class CursorController(QObject):
         row: float,
         ct_value: float,
     ) -> None:
-        logger.debug(f'updateCursorPosition,{column},{row}')
         self._pointer_meta = PointerDisplayMeta(
             pointer_x=column,
             pointer_y=row,

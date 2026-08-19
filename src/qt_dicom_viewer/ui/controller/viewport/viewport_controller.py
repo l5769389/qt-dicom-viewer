@@ -8,17 +8,35 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, ToolType, Point, Offset, DragUpdateEvent, \
-    PointerDisplayMeta
+    PointerDisplayMeta, DisplayStyle
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
-    ZoomChange, WindowLevelContext, ScrollContext
+    ZoomChange, WindowLevelContext, ScrollContext, PanContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
 from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import OverlayPresenter
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.pan_operation import PanOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
 
 logger = logging.getLogger(__name__)
+
+
+
+DISPLAY_STYLES = {
+    "grayscale": DisplayStyle(
+        color_map="grayscale",
+        no_data_color="#000000",
+    ),
+    "hotIron": DisplayStyle(
+        color_map="hotIron",
+        no_data_color="#090000",
+    ),
+    "rainbow": DisplayStyle(
+        color_map="rainbow",
+        no_data_color="#000020",
+    ),
+}
 
 class ViewportController(QObject):
     renderRequested = Signal(object)
@@ -26,7 +44,7 @@ class ViewportController(QObject):
     overlayChanged = Signal()
     imageDimensionChanged = Signal()
     transformChanged = Signal()
-
+    displayStyleChanged = Signal()
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
         super().__init__(parent)
@@ -39,10 +57,11 @@ class ViewportController(QObject):
 
         self._tool_controller = tool_controller
         self._scroll_operation = ScrollOperation()
+        self._pan_operation = PanOperation()
         self._cursor_controller = CursorController(viewport_config = self.viewport_config, parent= self)
         self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
-        self._window_level_operation = WindowLevelOperation(self)
+        self._window_level_operation = WindowLevelOperation()
 
     @Property(QObject, constant=True)
     def cursorController(self):
@@ -171,7 +190,8 @@ class ViewportController(QObject):
 
         strategies = {
             ToolType.WINDOW : self._window_level_operation,
-            ToolType.SCROLL: self._scroll_operation
+            ToolType.SCROLL: self._scroll_operation,
+            ToolType.PAN: self._pan_operation
         }
 
         context_strategies = {
@@ -183,6 +203,10 @@ class ViewportController(QObject):
             ToolType.SCROLL: ScrollContext(
                 slice_index=self._state.slice_index,
                 slice_count=self._state.slice_count,
+            ),
+            ToolType.PAN: PanContext(
+                current_pan_x=self._state.pan_x,
+                current_pan_y=self._state.pan_y,
             )
         }
         self._active_drag_operation = strategies.get(self._tool_controller.activeTool, None)
@@ -362,7 +386,18 @@ class ViewportController(QObject):
         return self._state.vertical_flip
 
     def apply_pan(self, x, y):
-        pass
+        self._state = replace(self._state,
+                              pan_x=x,
+                              pan_y=y
+                              )
+        self.transformChanged.emit()
 
     def apply_zoom(self, zoom):
-        pass
+        self._state = replace(self._state,
+                              zoom=zoom,
+                              )
+        self.transformChanged.emit()
+
+    @Property(str, notify=displayStyleChanged)
+    def canvasBackgroundColor(self) -> str:
+        return self._state.display_style.no_data_color

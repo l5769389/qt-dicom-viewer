@@ -27,7 +27,6 @@ Item {
         id: imageCanvas
         anchors.fill: parent
         z: 0
-        anchors.margins: 8
         activeViewport: viewportRoot.activeViewport
     }
 

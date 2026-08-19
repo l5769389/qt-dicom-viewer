@@ -1,8 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
 from qt_dicom_viewer.model import WindowLevel
+
+@dataclass(frozen=True, slots=True)
+class DisplayStyle:
+    color_map: str = "grayscale"
+    no_data_color: str = "#000000"
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,7 @@ class DicomInstanceMeta:
     rows: int | None
     columns: int | None
     transfer_syntax: str
+
 
 
 
@@ -106,6 +112,9 @@ class ViewportState:
     horizontal_flip: bool = False
     vertical_flip: bool = False
     inverted: bool = False
+    display_style: DisplayStyle = field(
+        default_factory=DisplayStyle
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,3 +123,5 @@ class TabConfig:
     tab_label: str
     tab_type: str
     series_metas: tuple[SeriesDisplayMeta, ...]
+
+

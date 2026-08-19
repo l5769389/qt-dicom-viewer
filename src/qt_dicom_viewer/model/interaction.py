@@ -44,7 +44,14 @@ class ScrollContext:
     slice_index: int
     slice_count: int
 
+
+@dataclass(frozen=True, slots=True)
+class PanContext:
+    current_pan_x: float
+    current_pan_y: float
+
 OperationStartContext:TypeAlias = (
     WindowLevelContext
     | ScrollContext
+    | PanContext
 )

@@ -1,15 +1,16 @@
 import QtQuick
 import QtQuick.Layouts
 
-Item {
+Rectangle {
     id: imageCanvasRoot
     required property var activeViewport
     anchors.fill: parent
-    anchors.margins: 8
+    color: activeViewport
+    ? activeViewport.canvasBackgroundColor
+    : "#000000"
     clip: true
 
     function mapToDicomPixel(interactionLayer,position) {
-        console.log(position.x, position.y, pixelLayer.width, pixelLayer.height)
         if (
             pixelLayer.width <= 0
             || pixelLayer.height <= 0
