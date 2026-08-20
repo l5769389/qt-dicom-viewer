@@ -40,7 +40,6 @@ Rectangle {
             toolController: rightPanel.toolController
             activePanel: rightPanel.toolController ? rightPanel.toolController.activePanel : ""
             activeViewport: rightPanel.activeViewport
-
         }
     }
 }

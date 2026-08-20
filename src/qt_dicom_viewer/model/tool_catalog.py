@@ -106,3 +106,26 @@ ROTATE_ACTIONS = (
         icon_name="rotate-ccw90",
     ),
 )
+
+MEASURE_ACTIONS = (
+    ToolActionDefinition(
+        action= InteractionType.MEASURE_LENGTH,
+        label="长度",
+        icon_name="measure-line",
+    ),
+    ToolActionDefinition(
+        action=InteractionType.MEASURE_ANGLE,
+        label="角度",
+        icon_name="measure-angle",
+    ),
+    ToolActionDefinition(
+        action=InteractionType.MEASURE_RECT,
+        label="区域",
+        icon_name="measure-rect",
+    ),
+    ToolActionDefinition(
+        action=InteractionType.MEASURE_ELLIPSE,
+        label="椭圆",
+        icon_name="measure-ellipse",
+    ),
+)

@@ -10,7 +10,7 @@ from qt_dicom_viewer.model import (
 from qt_dicom_viewer.model.tool_catalog import (
     ROTATE_ACTIONS,
     TOOL_CATALOG,
-    TOOL_DEFINITIONS,
+    TOOL_DEFINITIONS, MEASURE_ACTIONS,
 )
 from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
 
@@ -72,7 +72,7 @@ class ToolController(QObject):
 
             case ToolBehavior.PANEL:
                 self._set_active_tool(definition.tool_type)
-                self._set_active_interaction(InteractionType.NONE)
+                self._set_active_interaction(definition.default_interaction)
                 self._set_active_panel(definition.tool_type)
 
             case ToolBehavior.COMMAND:
@@ -127,6 +127,17 @@ class ToolController(QObject):
                 "iconName": item.icon_name,
             }
             for item in ROTATE_ACTIONS
+        ]
+
+    @Property(list, constant=True)
+    def measureActions(self) -> list[dict]:
+        return [
+            {
+                "action": item.action,
+                "label": item.label,
+                "iconName": item.icon_name,
+            }
+            for item in MEASURE_ACTIONS
         ]
 
 

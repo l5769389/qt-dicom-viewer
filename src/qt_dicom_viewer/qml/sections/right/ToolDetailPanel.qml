@@ -63,7 +63,12 @@ Rectangle {
     Component {
         id: measureComponent
         Panels.MeasurePanel {
-
+            toolController: detailPanel.toolController
+            onActionTriggered: action => {
+                if (detailPanel.toolController) {
+                    detailPanel.toolController.selectInteraction(action)
+                }
+            }
         }
     }
 
