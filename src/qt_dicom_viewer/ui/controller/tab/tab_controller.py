@@ -32,6 +32,7 @@ class TabController(QObject):
     def toolController(self) -> QObject:
         return self._tool_controller
 
+
     def _create_tool_controller(self) -> None:
         self._tool_controller = ToolController(
             parent=self

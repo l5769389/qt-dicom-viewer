@@ -36,10 +36,17 @@ ApplicationWindow {
         }
 
         Sections.RightPanel {
-            toolVisible: window.hasTabs
             Layout.preferredWidth: 260
             Layout.fillHeight: true
             toolController: window.toolController
+            activeViewport: window.activeViewport
+            toolVisible: window.hasTabs
+            // onRotationActionTriggered: action => {
+            //     if (window.activeViewport) {
+            //         window.activeViewport.applyTransformAction(action)
+            //     }
+            // }
+
         }
     }
 }

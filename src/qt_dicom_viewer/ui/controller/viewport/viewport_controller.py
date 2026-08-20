@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, ToolType, Point, Offset, DragUpdateEvent, \
-    PointerDisplayMeta, DisplayStyle
+    PointerDisplayMeta, DisplayStyle, ViewportTransformAction
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -424,6 +424,72 @@ class ViewportController(QObject):
         # overlayInfo 中显示了 zoom，因此也要更新
         self.overlayChanged.emit()
 
+    @Slot(str)
+    def applyTransformAction(self, action: str) -> None:
+        try:
+            transform_action = ViewportTransformAction(action)
+        except ValueError:
+            logger.warning(
+                "Unsupported viewport transform action: %s",
+                action,
+            )
+            return
+
+        state = self._state
+
+        match transform_action:
+            case ViewportTransformAction.ROTATE_CLOCKWISE_90:
+                next_state = replace(
+                    state,
+                    rotation_degrees=(
+                        state.rotation_degrees + 90.0
+                    ) % 360.0,
+                )
+
+            case ViewportTransformAction.ROTATE_COUNTERCLOCKWISE_90:
+                next_state = replace(
+                    state,
+                    rotation_degrees=(
+                        state.rotation_degrees - 90.0
+                    ) % 360.0,
+                )
+
+            case ViewportTransformAction.MIRROR_HORIZONTAL:
+                next_state = replace(
+                    state,
+                    horizontal_flip=not state.horizontal_flip,
+                )
+
+            case ViewportTransformAction.MIRROR_VERTICAL:
+                next_state = replace(
+                    state,
+                    vertical_flip=not state.vertical_flip,
+                )
+
+        if next_state == state:
+            return
+
+        self._state = next_state
+        self.transformChanged.emit()
+
     @Property(str, notify=displayStyleChanged)
     def canvasBackgroundColor(self) -> str:
         return self._state.display_style.no_data_color
+
+    @Slot(float, float)
+    def applyWindowPreset(
+            self,
+            center: float,
+            width: float,
+    ) -> None:
+        window = WindowLevel(
+            center=center,
+            width=width,
+        )
+
+        self._state = replace(
+            self._state,
+            window=window,
+        )
+
+        self.request_render()

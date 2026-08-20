@@ -11,6 +11,7 @@ class TabType(StrEnum):
     TWO_D = "2d"
     MPR = "mpr"
 
+# 一级按钮
 class ToolType(StrEnum):
     WINDOW = 'window'
     PAN = 'pan'
@@ -18,14 +19,15 @@ class ToolType(StrEnum):
     SCROLL = 'scroll'
     MEASURE = 'measure'
     ANNOTATE = 'annotate'
+    ROTATE = 'rotate'
     RESET = 'reset'
+
 
 
 @dataclass(frozen=True, slots=True)
 class WindowLevel:
     center: float
     width: float
-
 
 
 @dataclass(frozen=True, slots=True)
