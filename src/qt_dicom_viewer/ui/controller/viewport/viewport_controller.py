@@ -7,7 +7,7 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
-    WindowLevel, FrameDisplayMeta, ToolType, Point, Offset, DragUpdateEvent, \
+    WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
     PointerDisplayMeta, DisplayStyle, ViewportTransformAction
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext
@@ -191,35 +191,39 @@ class ViewportController(QObject):
         logger.debug(f'beginInteraction,{x},{y},{buttons}')
 
         strategies = {
-            ToolType.WINDOW : self._window_level_operation,
-            ToolType.SCROLL: self._scroll_operation,
-            ToolType.PAN: self._pan_operation,
-            ToolType.ZOOM: self._zoom_operation
+            InteractionType.WINDOW: self._window_level_operation,
+            InteractionType.SCROLL: self._scroll_operation,
+            InteractionType.PAN: self._pan_operation,
+            InteractionType.ZOOM: self._zoom_operation,
         }
 
         context_strategies = {
-            ToolType.WINDOW: WindowLevelContext(
+            InteractionType.WINDOW: WindowLevelContext(
             viewport_size = self.viewport_size,
             inverted = self.inverted,
             current_window = self.current_window,
             ),
-            ToolType.SCROLL: ScrollContext(
+            InteractionType.SCROLL: ScrollContext(
                 slice_index=self._state.slice_index,
                 slice_count=self._state.slice_count,
             ),
-            ToolType.PAN: PanContext(
+            InteractionType.PAN: PanContext(
                 current_pan_x=self._state.pan_x,
                 current_pan_y=self._state.pan_y,
             ),
-            ToolType.ZOOM: ZoomContext(
+            InteractionType.ZOOM: ZoomContext(
                 viewport_size=self.viewport_size,
                 current_zoom=self._state.zoom,
             )
         }
-        self._active_drag_operation = strategies.get(self._tool_controller.activeTool, None)
+        active_interaction = self._tool_controller.active_interaction
+        self._active_drag_operation = strategies.get(active_interaction)
 
         if self._active_drag_operation is not None:
-            self._active_drag_operation.begin(Point(x, y), context_strategies.get(self._tool_controller.activeTool, None))
+            self._active_drag_operation.begin(
+                Point(x, y),
+                context_strategies.get(active_interaction),
+            )
 
     @Slot(QPointF, QPointF, QPointF, QPointF)
     def updateInteraction(

@@ -65,18 +65,11 @@ Rectangle {
 
                 required property var modelData
                 readonly property bool feedbackActive: primaryButton.modelData.toolType === toolBar.feedbackTool
-                readonly property bool toolActive: toolBar.toolController
-                    ? primaryButton.modelData.toolType
-                    === toolBar.toolController.activeTool
-                    : false
-                readonly property bool panelActive: toolBar.toolController
-                    ? primaryButton.modelData.toolType
-                    === toolBar.toolController.activePanel
-                    : false
+                readonly property bool toolActive: toolBar.toolController ? primaryButton.modelData.toolType === toolBar.toolController.activeTool : false
 
                 width: toolFlow.buttonWidth
                 height: toolFlow.buttonHeight
-                checked: primaryButton.toolActive || primaryButton.panelActive   || primaryButton.feedbackActive
+                checked: primaryButton.toolActive || primaryButton.feedbackActive
 
                 onClicked: {
                     if (modelData.behavior === "command") {

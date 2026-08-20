@@ -20,7 +20,9 @@ ColumnLayout {
     }
 
     Repeater {
-        model: toolController.rotateActions
+        model: rotatePanel.toolController
+            ? rotatePanel.toolController.rotateActions
+            : []
 
         delegate: Components.ToolActionButton
         {

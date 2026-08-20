@@ -7,7 +7,7 @@ import "panels" as Panels
 Rectangle {
     id: detailPanel
 
-    required property var activePanel
+    required property string activePanel
     required property var activeViewport
     required property var toolController
 
@@ -20,23 +20,24 @@ Rectangle {
 
         active: detailPanel.activePanel !== ""
         sourceComponent: {
-            switch (detailPanel.activePanel) {
-                case 'rotate':
-                    return rotatePanelComponent
-                case 'window':
-                    return windowLevelComponent
-                default:
-                    return null
+            const map = {
+                'rotate': rotatePanelComponent,
+                'window': windowLevelComponent,
+                'measure': measureComponent,
+                "annotate": annotateComponent
             }
+            return map[detailPanel.activePanel] ?? null
         }
     }
 
     Component {
         id: rotatePanelComponent
         Panels.RotateToolPanel {
-            toolController:detailPanel.toolController
+            toolController: detailPanel.toolController
             onActionTriggered: action => {
-                activeViewport?.applyTransformAction(action)
+                if (detailPanel.activeViewport) {
+                    detailPanel.activeViewport.applyTransformAction(action)
+                }
             }
         }
     }
@@ -44,15 +45,32 @@ Rectangle {
     Component {
         id: windowLevelComponent
         Panels.WindowLevelToolPanel {
-            presets: toolController.windowPresets
+            presets: detailPanel.toolController
+                ? detailPanel.toolController.windowPresets
+                : []
 
             onActionTriggered: (presetId, center, width) => {
-                activeViewport?.windowPresetRequested(
-                    presetId,
-                    center,
-                    width
-                )
+                if (detailPanel.activeViewport) {
+                    detailPanel.activeViewport.applyWindowPreset(
+                        center,
+                        width
+                    )
+                }
             }
+        }
+    }
+
+    Component {
+        id: measureComponent
+        Panels.MeasurePanel {
+
+        }
+    }
+
+    Component {
+        id: annotateComponent
+        Panels.AnnotatePanel {
+
         }
     }
 
