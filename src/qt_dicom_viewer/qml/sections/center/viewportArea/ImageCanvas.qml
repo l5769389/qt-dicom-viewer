@@ -1,16 +1,16 @@
 import QtQuick
 import QtQuick.Layouts
-
+import 'measurementLayer' as MeasurementLayer
 Rectangle {
     id: imageCanvasRoot
     required property var activeViewport
     anchors.fill: parent
     color: activeViewport
-    ? activeViewport.canvasBackgroundColor
-    : "#000000"
+        ? activeViewport.canvasBackgroundColor
+        : "#000000"
     clip: true
 
-    function mapToDicomPixel(interactionLayer,position) {
+    function mapToDicomPixel(interactionLayer, position) {
         if (
             pixelLayer.width <= 0
             || pixelLayer.height <= 0
@@ -34,7 +34,9 @@ Rectangle {
 
         if (!inside) {
             return {
-                valid: false
+                valid: false,
+                column: local.x - 0.5,
+                row: local.y - 0.5,
             }
         }
 
@@ -138,8 +140,12 @@ Rectangle {
                 smooth: true
             }
 
-            MeasurementLayer {
+            MeasurementLayer.MeasurementLayer {
                 anchors.fill: parent
+                measurementController:
+                    imageCanvasRoot.activeViewport
+                        ? imageCanvasRoot.activeViewport.measurementController
+                        : null
             }
         }
     }

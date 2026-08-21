@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass
 
-from qt_dicom_viewer.model import Point, DragUpdateEvent
+from qt_dicom_viewer.model import Point, DragUpdateEvent, PointerPosition
 from qt_dicom_viewer.model.interaction import (
     InteractionResult,
     OperationStartContext,
@@ -35,8 +35,8 @@ class ZoomOperation(DragOperation):
 
     def begin(
         self,
-        position: Point,
-        context: OperationStartContext,
+        position: PointerPosition,
+        context: OperationStartContext | None,
     ) -> None:
         if not isinstance(context, ZoomContext):
             raise TypeError(
@@ -57,7 +57,7 @@ class ZoomOperation(DragOperation):
 
     def update(
         self,
-        event: DragUpdateEvent,
+        drag_event: DragUpdateEvent,
     ) -> InteractionResult | None:
         start_zoom = self._start_zoom
 
@@ -68,7 +68,7 @@ class ZoomOperation(DragOperation):
 
         # 转换为相对于 viewport 高度的拖动比例
         normalized_drag = (
-            -event.total_offset.y
+            -drag_event.total_offset.y
             / self._viewport_height
         )
 

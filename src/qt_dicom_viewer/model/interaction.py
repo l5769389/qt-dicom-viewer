@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import TypeAlias, Tuple
 
-from qt_dicom_viewer.model import WindowLevel
+from qt_dicom_viewer.model import WindowLevel, Point
+from qt_dicom_viewer.model.measure import LengthMeasurement, LengthMeasurementDraft
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,8 @@ InteractionResult: TypeAlias = (
     | WindowLevelChange
     | PanChange
     | ZoomChange
+    | LengthMeasurementDraft
+    | LengthMeasurement
 )
 
 @dataclass(frozen=True, slots=True)
@@ -55,9 +58,21 @@ class ZoomContext:
     viewport_size: Tuple[float, float]
     current_zoom: float
 
+
+
+@dataclass(frozen=True, slots=True)
+class MeasureContext:
+    series_uid: str
+    sop_instance_uid: str
+    slice_index: int
+
+
 OperationStartContext:TypeAlias = (
     WindowLevelContext
     | ScrollContext
     | PanContext
     | ZoomContext
+    | MeasureContext
 )
+
+

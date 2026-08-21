@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from qt_dicom_viewer.model import Point, WindowLevel,  DragUpdateEvent
+from qt_dicom_viewer.model import Point, WindowLevel, DragUpdateEvent, PointerPosition
 from qt_dicom_viewer.model.interaction import WindowLevelChange, WindowLevelContext, OperationStartContext
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 
@@ -41,7 +41,8 @@ class WindowLevelOperation(DragOperation):
         self._viewport_height = 1.0
         self._start_inverted = False
 
-    def begin(self, position: Point, context:OperationStartContext) -> None:
+    def begin(self, position: PointerPosition,
+                    context:OperationStartContext | None) -> None:
         if not isinstance(context, WindowLevelContext):
             raise TypeError(
                 "WindowLevelOperation requires WindowLevelContext"

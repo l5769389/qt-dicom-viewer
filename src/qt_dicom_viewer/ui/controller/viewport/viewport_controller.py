@@ -8,17 +8,20 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
-    PointerDisplayMeta, DisplayStyle, ViewportTransformAction
+    PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, LengthMeasurementDraft, \
+    LengthMeasurement
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
-    ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext
+    ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
+from qt_dicom_viewer.ui.controller.viewport.controller.measure.measure_controller import MeasurementController
 from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import OverlayPresenter
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.pan_operation import PanOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.zoom_operation import ZoomOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.length_measure_operation import LengthMeasureOperation
 
 logger = logging.getLogger(__name__)
 
@@ -55,15 +58,17 @@ class ViewportController(QObject):
         self._image_revision = 0
         self._has_image = False
         self._frame_meta: FrameDisplayMeta | None = None
-
+        self._measure_controller = MeasurementController(self)
         self._tool_controller = tool_controller
         self._scroll_operation = ScrollOperation()
         self._pan_operation = PanOperation()
         self._zoom_operation = ZoomOperation()
+        self._length_measure_operation = LengthMeasureOperation()
         self._cursor_controller = CursorController(viewport_config = self.viewport_config, parent= self)
         self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation()
+        self._active_drag_start_position: PointerPosition | None = None
 
     @Property(QObject, constant=True)
     def cursorController(self):
@@ -181,20 +186,52 @@ class ViewportController(QObject):
             state=self._state,
         )
 
-    @Slot(float, float, int)
+    def _make_pointer_position(
+            self,
+            viewport_x: float,
+            viewport_y: float,
+            image_valid: bool,
+            column: float,
+            row: float,
+    ) -> PointerPosition:
+        image_point = None
+
+        if (
+                image_valid
+                and isfinite(column)
+                and isfinite(row)
+        ):
+            image_point = ImagePoint(
+                column=column,
+                row=row,
+            )
+
+        return PointerPosition(
+            viewport=Point(
+                x=viewport_x,
+                y=viewport_y,
+            ),
+            image=image_point,
+        )
+
+    @Slot(float, float, int, bool, float, float)
     def beginInteraction(
             self,
             x: float,
             y: float,
             buttons: int,
+            image_valid: bool,
+            column: float,
+            row: float,
     ) -> None:
-        logger.debug(f'beginInteraction,{x},{y},{buttons}')
+        logger.debug(f'beginInteraction,x:{x},y:{y},btn:{buttons}, col:{column}, row:{row}')
 
         strategies = {
             InteractionType.WINDOW: self._window_level_operation,
             InteractionType.SCROLL: self._scroll_operation,
             InteractionType.PAN: self._pan_operation,
             InteractionType.ZOOM: self._zoom_operation,
+            InteractionType.MEASURE_LENGTH: self._length_measure_operation,
         }
 
         context_strategies = {
@@ -214,55 +251,110 @@ class ViewportController(QObject):
             InteractionType.ZOOM: ZoomContext(
                 viewport_size=self.viewport_size,
                 current_zoom=self._state.zoom,
+            ),
+            InteractionType.MEASURE_LENGTH: MeasureContext(
+                series_uid = self.viewport_config.series_uid,
+                sop_instance_uid='',
+                slice_index=self._state.slice_index,
             )
         }
+        position = self._make_pointer_position(
+            viewport_x=x,
+            viewport_y=y,
+            image_valid=image_valid,
+            column=column,
+            row=row,
+        )
+
+        self._active_drag_start_position = position
         active_interaction = self._tool_controller.active_interaction
         self._active_drag_operation = strategies.get(active_interaction)
+        if self._active_drag_operation is None:
+            return None
+        result = self._active_drag_operation.begin(
+            position,
+            context_strategies.get(active_interaction),
+        )
+        if result is not None:
+            self._apply_interaction_result(result)
+        return None
 
-        if self._active_drag_operation is not None:
-            self._active_drag_operation.begin(
-                Point(x, y),
-                context_strategies.get(active_interaction),
-            )
-
-    @Slot(QPointF, QPointF, QPointF, QPointF)
+    @Slot(
+        QPointF,
+        QPointF,
+        QPointF,
+        QPointF,
+        bool,
+        float,
+        float,
+    )
     def updateInteraction(
             self,
             start_point: QPointF,
             current_point: QPointF,
             step_offset: QPointF,
-            total_offest: QPointF,
+            total_offset: QPointF,
+            image_valid: bool,
+            column: float,
+            row: float,
     ) -> None:
-        if self._active_drag_operation is None:
+        operation = self._active_drag_operation
+        start_position = self._active_drag_start_position
+
+        if operation is None or start_position is None:
             return
-        event = DragUpdateEvent(
-            start_position=Point(
-                x=start_point.x(),
-                y=start_point.y()),
-            current_position=Point(
-                x=current_point.x(),
-                y=current_point.y()
-            ),
-            step_offset=Offset(x=step_offset.x(), y=step_offset.y()),
-            total_offset=Offset(x=total_offest.x(), y=total_offest.y())
+
+        current_position = self._make_pointer_position(
+            viewport_x=current_point.x(),
+            viewport_y=current_point.y(),
+            image_valid=image_valid,
+            column=column,
+            row=row,
         )
-        result = self._active_drag_operation.update(event)
+
+        event = DragUpdateEvent(
+            start_position=start_position,
+            current_position=current_position,
+            step_offset=Offset(
+                x=step_offset.x(),
+                y=step_offset.y(),
+            ),
+            total_offset=Offset(
+                x=total_offset.x(),
+                y=total_offset.y(),
+            ),
+        )
+
+        result = operation.update(event)
         self._apply_interaction_result(result)
 
-    @Slot(float, float)
+    @Slot(float, float, bool, float, float)
     def endInteraction(
             self,
             x: float,
             y: float,
+            image_valid: bool,
+            column: float,
+            row: float,
     ) -> None:
         operation = self._active_drag_operation
+
         self._active_drag_operation = None
+        self._active_drag_start_position = None
 
-        if operation is not None:
-            operation.end(
-                Point(x=x, y=y)
-            )
+        if operation is None:
+            return
 
+        position = self._make_pointer_position(
+            viewport_x=x,
+            viewport_y=y,
+            image_valid=image_valid,
+            column=column,
+            row=row,
+        )
+
+        result = operation.end(position)
+        self._apply_interaction_result(result)
 
     @Slot(QPointF)
     def handlePointerMoved(self, point: QPointF) -> None:
@@ -271,13 +363,14 @@ class ViewportController(QObject):
                 y=point.y()),
         ...
 
-    @Slot(float, float,float,float, int, int)
+    @Slot(float, float,float,float,bool, int, int)
     def updateCursorPosition(
             self,
             column: float,
             row: float,
             clipColumn: float,
             clipRow: float,
+            image_valid: bool,
             column_index: int,
             row_index: int,
     ) -> None:
@@ -322,6 +415,11 @@ class ViewportController(QObject):
             case ZoomChange(zoom=zoom):
                 self.apply_zoom(zoom)
 
+            case LengthMeasurementDraft():
+                self._measure_controller.update_draft(result)
+            case LengthMeasurement():
+                self._measure_controller.commit(result)
+
             case None:
                 return
 
@@ -361,6 +459,9 @@ class ViewportController(QObject):
         )
         self.request_render()
 
+    @Property(QObject, constant=True)
+    def measurementController(self) -> QObject:
+        return self._measure_controller
 
     @Property(int, notify=imageDimensionChanged)
     def imageColumns(self) -> int:
@@ -427,6 +528,7 @@ class ViewportController(QObject):
 
         # overlayInfo 中显示了 zoom，因此也要更新
         self.overlayChanged.emit()
+
 
     @Slot(str)
     def applyTransformAction(self, action: str) -> None:

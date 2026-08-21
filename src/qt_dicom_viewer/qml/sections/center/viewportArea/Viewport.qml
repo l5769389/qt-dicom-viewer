@@ -69,11 +69,17 @@ Item {
         onDragStarted: (startPosition, buttons) => {
             if (!viewportRoot.activeViewport)
                 return
-
+            const hit = imageCanvas.mapToDicomPixel(
+                interactionLayer,
+                startPosition
+            )
             viewportRoot.activeViewport.beginInteraction(
                 startPosition.x,
                 startPosition.y,
-                buttons
+                buttons,
+                hit.valid,
+                hit.column,
+                hit.row
             )
         }
 
@@ -85,12 +91,18 @@ Item {
         ) => {
             if (!viewportRoot.activeViewport)
                 return
-
+            const hit = imageCanvas.mapToDicomPixel(
+                interactionLayer,
+                currentPosition
+            )
             viewportRoot.activeViewport.updateInteraction(
                 startPosition,
                 currentPosition,
                 stepDelta,
-                totalDelta
+                totalDelta,
+                hit.valid,
+                hit.column,
+                hit.row
             )
         }
 
@@ -101,10 +113,16 @@ Item {
         ) => {
             if (!viewportRoot.activeViewport)
                 return
-
+            const hit = imageCanvas.mapToDicomPixel(
+                interactionLayer,
+                endPosition
+            )
             viewportRoot.activeViewport.endInteraction(
                 endPosition.x,
-                endPosition.y
+                endPosition.y,
+                hit.valid,
+                hit.column,
+                hit.row
             )
         }
 
@@ -136,7 +154,7 @@ Item {
             )
 
             if (!hit.valid) {
-                return
+                return;
             }
 
             viewportRoot.activeViewport.updateCursorPosition(
@@ -144,6 +162,7 @@ Item {
                 hit.row,
                 hit.clipColumn,
                 hit.clipRow,
+                hit.valid,
                 hit.columnIndex,
                 hit.rowIndex
             )
