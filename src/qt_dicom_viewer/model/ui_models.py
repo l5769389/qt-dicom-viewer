@@ -1,9 +1,7 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import List
-
-from qt_dicom_viewer.model import WindowLevel, ToolType
+from qt_dicom_viewer.model.dicom_models import WindowLevel, PixelSpacing
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +17,7 @@ class ViewportTransformAction(StrEnum):
     MIRROR_VERTICAL = "rotate:mirror-v"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DicomInstanceMeta:
     path: Path
     patient_name: str
@@ -30,13 +28,23 @@ class DicomInstanceMeta:
     series_instance_uid: str
     series_number: int | None
     instance_number: int | None
+    sop_instance_uid: str
+    pixel_spacing: PixelSpacing | None
     modality: str
     rows: int | None
     columns: int | None
     transfer_syntax: str
+    image_position_patient: (
+        tuple[float, float, float] | None
+    )
+    image_orientation_patient: (
+        tuple[float, float, float, float, float, float]
+        | None
+    )
+    slice_thickness: float | None
 
-@dataclass(frozen=True)
-class DicomSeriesSummary:
+@dataclass(frozen=True, slots=True)
+class DicomSeriesRecord:
     patient_name: str
     patient_id: str
     study_description: str
@@ -45,11 +53,23 @@ class DicomSeriesSummary:
     series_instance_uid: str
     series_number: int | None
     modality: str
-    dicom_file_count: int
-    first_file: Path
-    rows: int | None
-    columns: int | None
-    ordered_file_paths: List[Path] | None
+    instances: tuple[DicomInstanceMeta, ...]
+
+    @property
+    def dicom_file_count(self) -> int:
+        return len(self.instances)
+
+    @property
+    def first_file(self) -> Path | None:
+        return self.instances[0].path if self.instances else None
+
+    @property
+    def rows(self) -> int | None:
+        return self.instances[0].rows if self.instances else None
+
+    @property
+    def columns(self) -> int | None:
+        return self.instances[0].columns if self.instances else None
 
     @property
     def display_name(self) -> str:
@@ -73,7 +93,7 @@ class DicomFolderScanResult:
     total_file_count: int
     dicom_file_count: int
     skipped_file_count: int
-    series: list[DicomSeriesSummary]
+    series: list[DicomSeriesRecord]
 
 
 @dataclass(frozen=True)
@@ -82,7 +102,7 @@ class DicomFolderScanSnapshot:
     total_file_count: int
     dicom_file_count: int
     skipped_file_count: int
-    series: list[DicomSeriesSummary]
+    series: list[DicomSeriesRecord]
 
 @dataclass(frozen=True, slots=True)
 class SeriesDisplayMeta:

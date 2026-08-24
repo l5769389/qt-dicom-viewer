@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypeAlias, Tuple
 
-from qt_dicom_viewer.model import WindowLevel, Point
+from qt_dicom_viewer.model import WindowLevel, Point, ImageGeometryMeta
 from qt_dicom_viewer.model.measure import LengthMeasurement, LengthMeasurementDraft
 
 
@@ -65,6 +65,8 @@ class MeasureContext:
     series_uid: str
     sop_instance_uid: str
     slice_index: int
+    geometry: ImageGeometryMeta
+
 
 
 OperationStartContext:TypeAlias = (

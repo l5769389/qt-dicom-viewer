@@ -5,10 +5,13 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
 from qt_dicom_viewer.model import (
     DicomFolderScanSnapshot,
+    DicomInstanceMeta,
     DicomLoadResult,
-    DicomSeriesSummary,
+    DicomSeriesRecord,
     FrameDisplayMeta,
+    ImageGeometryMeta,
     InstanceDisplayMeta,
+    PixelSpacing,
     RenderRequest,
     RenderResult,
     SeriesDisplayMeta,
@@ -22,6 +25,7 @@ from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.dicom_render_worker import (
     DicomRenderWorker,
 )
+from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 
 
 def _ct_dataset() -> FileDataset:
@@ -64,7 +68,7 @@ def _ct_dataset() -> FileDataset:
 
 
 def test_dicom_loader_extracts_overlay_metadata() -> None:
-    result = DicomLoader().apply_window(_ct_dataset(), None)
+    result = DicomLoader().apply_window(_ct_dataset(), None, False)
 
     assert result.image is not None
     assert result.image.shape == (2, 2)
@@ -95,7 +99,7 @@ def test_dicom_loader_allows_missing_optional_overlay_tags() -> None:
     ):
         delattr(dataset, keyword)
 
-    result = DicomLoader().apply_window(dataset, None)
+    result = DicomLoader().apply_window(dataset, None, False)
 
     assert result.image is not None
     assert result.instance_meta.manufacturer is None
@@ -117,13 +121,14 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
         series_uid="series-1",
     )
     controller = ViewportController(
-        ViewportConfig(
+        viewport_config=ViewportConfig(
             viewport_id="viewport-1",
             tab_id="tab-1",
             viewport_type="2d",
             series_uid="series-1",
             series_meta=series_meta,
-        )
+        ),
+        tool_controller=ToolController(),
     )
     instance_meta = InstanceDisplayMeta(
         instance_number=7,
@@ -144,11 +149,20 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
             viewport_id="viewport-1",
             series_uid="series-1",
             image=np.zeros((2, 2), dtype=np.uint8),
+            modality_pixel=np.zeros((2, 2), dtype=np.float32),
             frame_meta=FrameDisplayMeta(
                 slice_index=6,
                 slice_count=100,
                 window=WindowLevel(center=40.0, width=400.0),
+                inverted=False,
                 instance_meta=instance_meta,
+                geometry=ImageGeometryMeta(
+                    rows=512,
+                    columns=512,
+                    pixel_spacing=PixelSpacing(row=0.7, column=0.8),
+                    image_position_patient=(-120.5, -90.25, 42.0),
+                    image_orientation_patient=None,
+                ),
             ),
         )
     )
@@ -162,9 +176,6 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
     assert overlay["positionZ"] == "42"
     assert overlay["windowCenter"] == "40"
     assert overlay["windowWidth"] == "400"
-    assert overlay["cursorX"] == "--"
-    assert overlay["cursorY"] == "--"
-    assert overlay["pixelValue"] == "--"
 
 
 def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
@@ -183,13 +194,15 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
     )
     load_result = DicomLoadResult(
         window=WindowLevel(center=40, width=400),
+        inverted=False,
         image=np.zeros((2, 2), dtype=np.uint8),
+        modality_pixel=np.zeros((2, 2), dtype=np.float32),
         instance_meta=instance_meta,
     )
     monkeypatch.setattr(
         DicomLoader,
         "load_a_dicom",
-        lambda self, instance_path, request_window: load_result,
+        lambda self, instance_path, render_request: load_result,
     )
 
     instance_path = tmp_path / "slice.dcm"
@@ -201,7 +214,7 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
             dicom_file_count=1,
             skipped_file_count=0,
             series=[
-                DicomSeriesSummary(
+                DicomSeriesRecord(
                     patient_name="Example Patient",
                     patient_id="P001",
                     study_description="Chest",
@@ -210,11 +223,31 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
                     series_instance_uid="series-1",
                     series_number=1,
                     modality="CT",
-                    dicom_file_count=1,
-                    first_file=instance_path,
-                    rows=2,
-                    columns=2,
-                    ordered_file_paths=[instance_path],
+                    instances=(
+                        DicomInstanceMeta(
+                            path=instance_path,
+                            patient_name="Example Patient",
+                            patient_id="P001",
+                            study_description="Chest",
+                            study_instance_uid="study-1",
+                            series_description="Axial CT",
+                            series_instance_uid="series-1",
+                            series_number=1,
+                            instance_number=1,
+                            sop_instance_uid="sop-1",
+                            pixel_spacing=PixelSpacing(row=0.7, column=0.8),
+                            modality="CT",
+                            rows=2,
+                            columns=2,
+                            transfer_syntax="Explicit VR Little Endian",
+                            image_position_patient=(0.0, 0.0, 0.0),
+                            image_orientation_patient=(
+                                1.0, 0.0, 0.0,
+                                0.0, 1.0, 0.0,
+                            ),
+                            slice_thickness=1.0,
+                        ),
+                    ),
                 )
             ],
         )
@@ -230,6 +263,7 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
             series_uid="series-1",
             slice_index=0,
             window=None,
+            inverted=False,
         )
     )
 
@@ -237,3 +271,7 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
     assert results[0].frame_meta.slice_index == 0
     assert results[0].frame_meta.slice_count == 1
     assert results[0].frame_meta.instance_meta is instance_meta
+    assert results[0].frame_meta.geometry.pixel_spacing == PixelSpacing(
+        row=0.7,
+        column=0.8,
+    )

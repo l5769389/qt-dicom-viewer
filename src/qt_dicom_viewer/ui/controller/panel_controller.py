@@ -3,7 +3,7 @@ from typing import Dict
 from PySide6.QtCore import QObject, Signal, QThread, Slot, Property
 from PySide6.QtWidgets import QFileDialog
 
-from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesSummary
+from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesRecord
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.dicom_scan_worker import (
     DicomScanWorker,
@@ -22,7 +22,7 @@ class PanelController(QObject):
         self._scan_thread: QThread | None = None
         self._scan_worker: DicomScanWorker | None = None
         self._scanning = False
-        self._scan_series_record:Dict[str, DicomSeriesSummary] = {}
+        self._scan_series_record: Dict[str, DicomSeriesRecord] = {}
         self._series_catalog:SeriesCatalog = series_catalog
 
 
@@ -116,5 +116,4 @@ class PanelController(QObject):
         series = self._series_catalog.get_series(active_series_uid)
         if series is not None:
             self.activeSeriesChanged.emit(active_series_uid)
-
 

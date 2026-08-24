@@ -1,15 +1,15 @@
-from qt_dicom_viewer.model import DicomSeriesSummary, DicomFolderScanSnapshot, SeriesDisplayMeta
+from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesRecord, SeriesDisplayMeta
 
 
 class SeriesCatalog:
     def __init__(self) -> None:
-        self._series_by_uid: dict[str, DicomSeriesSummary] = {}
+        self._series_by_uid: dict[str, DicomSeriesRecord] = {}
 
     def update(self, process: DicomFolderScanSnapshot) -> None:
         for series in process.series:
             self._series_by_uid[series.series_instance_uid] = series
 
-    def get_series(self, series_uid: str) -> DicomSeriesSummary | None:
+    def get_series(self, series_uid: str) -> DicomSeriesRecord | None:
         return self._series_by_uid.get(series_uid)
 
     def get_series_display_meta(self, series_uid: str) -> SeriesDisplayMeta | None:
@@ -24,4 +24,3 @@ class SeriesCatalog:
             study_description=series.study_description,
             series_description=series.series_description,
         )
-

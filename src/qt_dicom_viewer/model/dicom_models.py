@@ -56,6 +56,25 @@ class DicomLoadResult:
     modality_pixel: np.ndarray | None
     instance_meta: InstanceDisplayMeta
 
+@dataclass(frozen=True, slots=True)
+class PixelSpacing:
+    row: float
+    column: float
+
+
+@dataclass(frozen=True, slots=True)
+class ImageGeometryMeta:
+    rows: int
+    columns: int
+    pixel_spacing: PixelSpacing
+
+    image_position_patient: tuple[float, float, float] | None
+    image_orientation_patient: (
+        tuple[float, float, float, float, float, float]
+        | None
+    )
+
+
 
 @dataclass(frozen=True, slots=True)
 class InstanceDisplayMeta:
@@ -79,6 +98,7 @@ class FrameDisplayMeta:
     window: WindowLevel
     inverted: bool
     instance_meta: InstanceDisplayMeta
+    geometry: ImageGeometryMeta
 
 @dataclass(frozen=True, slots=True)
 class PointerDisplayMeta:

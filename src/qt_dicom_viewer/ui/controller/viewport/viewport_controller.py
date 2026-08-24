@@ -2,6 +2,7 @@ import logging
 import uuid
 from dataclasses import replace
 from math import isfinite
+from operator import contains
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
@@ -9,7 +10,7 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
     PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, LengthMeasurementDraft, \
-    LengthMeasurement
+    LengthMeasurement, ImageGeometryMeta
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -226,38 +227,62 @@ class ViewportController(QObject):
     ) -> None:
         logger.debug(f'beginInteraction,x:{x},y:{y},btn:{buttons}, col:{column}, row:{row}')
 
-        strategies = {
-            InteractionType.WINDOW: self._window_level_operation,
-            InteractionType.SCROLL: self._scroll_operation,
-            InteractionType.PAN: self._pan_operation,
-            InteractionType.ZOOM: self._zoom_operation,
-            InteractionType.MEASURE_LENGTH: self._length_measure_operation,
-        }
+        # strategies = {
+        #     InteractionType.WINDOW: self._window_level_operation,
+        #     InteractionType.SCROLL: self._scroll_operation,
+        #     InteractionType.PAN: self._pan_operation,
+        #     InteractionType.ZOOM: self._zoom_operation,
+        #     InteractionType.MEASURE_LENGTH: self._length_measure_operation,
+        # }
 
-        context_strategies = {
-            InteractionType.WINDOW: WindowLevelContext(
-            viewport_size = self.viewport_size,
-            inverted = self.inverted,
-            current_window = self.current_window,
-            ),
-            InteractionType.SCROLL: ScrollContext(
+        match self._tool_controller.active_interaction:
+            case InteractionType.WINDOW:
+                self._active_drag_operation = self._window_level_operation
+                context = WindowLevelContext(
+                            viewport_size = self.viewport_size,
+                            inverted = self.inverted,
+                            current_window = self.current_window,
+                            )
+            case InteractionType.SCROLL:
+                self._active_drag_operation = self._scroll_operation
+                context = ScrollContext(
                 slice_index=self._state.slice_index,
                 slice_count=self._state.slice_count,
-            ),
-            InteractionType.PAN: PanContext(
+                )
+            case InteractionType.PAN:
+                self._active_drag_operation = self._pan_operation
+                context = PanContext(
                 current_pan_x=self._state.pan_x,
                 current_pan_y=self._state.pan_y,
-            ),
-            InteractionType.ZOOM: ZoomContext(
+                )
+            case InteractionType.ZOOM:
+                self._active_drag_operation = self._zoom_operation
+                context =  ZoomContext(
                 viewport_size=self.viewport_size,
                 current_zoom=self._state.zoom,
-            ),
-            InteractionType.MEASURE_LENGTH: MeasureContext(
+            )
+            case InteractionType.MEASURE_LENGTH:
+                if self._frame_meta is None:
+                    logger.error(
+                        "Cannot measure before an image is loaded"
+                    )
+                    return None
+                self._active_drag_operation = self._length_measure_operation
+                context = MeasureContext(
                 series_uid = self.viewport_config.series_uid,
                 sop_instance_uid='',
                 slice_index=self._state.slice_index,
+                geometry= ImageGeometryMeta(
+                    pixel_spacing= self._frame_meta.geometry.pixel_spacing,
+                    rows = self._frame_meta.geometry.rows,
+                    columns =self._frame_meta.geometry.columns,
+                    image_position_patient = self._frame_meta.geometry.image_position_patient,
+                    image_orientation_patient=self._frame_meta.geometry.image_orientation_patient,
+                )
             )
-        }
+            case _:
+                context = None
+
         position = self._make_pointer_position(
             viewport_x=x,
             viewport_y=y,
@@ -267,13 +292,11 @@ class ViewportController(QObject):
         )
 
         self._active_drag_start_position = position
-        active_interaction = self._tool_controller.active_interaction
-        self._active_drag_operation = strategies.get(active_interaction)
         if self._active_drag_operation is None:
             return None
         result = self._active_drag_operation.begin(
             position,
-            context_strategies.get(active_interaction),
+            context,
         )
         if result is not None:
             self._apply_interaction_result(result)
@@ -377,6 +400,8 @@ class ViewportController(QObject):
         ct_value = self._modality_pixel[int(clipRow)][int(clipColumn)]
         self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
 
+
+
     @Slot(float, float, float, float, int)
     def handleWheel(
             self,
@@ -418,10 +443,10 @@ class ViewportController(QObject):
             case LengthMeasurementDraft():
                 self._measure_controller.update_draft(result)
             case LengthMeasurement():
-                self._measure_controller.commit(result)
-
+                self._measure_controller.try_commit(result)
             case None:
                 return
+
 
 
     @property

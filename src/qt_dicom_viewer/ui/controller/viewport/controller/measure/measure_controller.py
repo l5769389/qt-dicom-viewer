@@ -9,6 +9,14 @@ from qt_dicom_viewer.model.measure import LengthMeasurement, LengthMeasurementDr
 logger = logging.getLogger(__name__)
 
 
+def _is_valid_for_commit(
+        measurement: LengthMeasurement,
+) -> bool:
+    if measurement.length_mm is None or measurement.length_mm < 1.0:
+        return False
+    return True
+
+
 class MeasurementController(QObject):
     measurementsChanged = Signal()
     draftChanged = Signal()
@@ -75,14 +83,23 @@ class MeasurementController(QObject):
         )
         self.selectedMeasurementChanged.emit()
 
-    def commit(self, commit: LengthMeasurement):
+    def try_commit(self, commit: LengthMeasurement) -> bool | None:
         if self._draft is None or self._draft.measurement_id != commit.measurement_id:
             logger.warning(f'Adding new measurement error {commit.measurement_id}')
+            return
+        if not _is_valid_for_commit(commit):
+            self.clear_draft()
             return
         self._measurements[self._draft.measurement_id] = commit
         self.clear_draft()
         self.measurementsChanged.emit()
         self.selectedMeasurementChanged.emit()
+
+    def cancel_draft(self) -> None:
+        self._draft = None
+        self._selected_measurement_id = None
+        self.draftChanged.emit()
+
 
     def clear_draft(self):
         self._draft = None

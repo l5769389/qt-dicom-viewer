@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from qt_dicom_viewer.model import  DicomSeriesSummary
+from qt_dicom_viewer.model import DicomSeriesRecord
 from qt_dicom_viewer.service.render_serivce import RenderService
 from qt_dicom_viewer.ui.controller.panel_controller import  PanelController
 from qt_dicom_viewer.ui.controller.workspace_controller import WorkspaceController
@@ -21,7 +21,7 @@ class AppController(QObject):
         self._image_provider = image_provider
         self._summary_text = "No DICOM folder loaded"
         self._series_items = []
-        self._series_info: dict[str, DicomSeriesSummary] = {}
+        self._series_info: dict[str, DicomSeriesRecord] = {}
         self._series_catalog = SeriesCatalog()
         self._workspace_controller = WorkspaceController(self._series_catalog,self._image_provider,parent= self)
         self._panel_controller = PanelController(parent = self, series_catalog = self._series_catalog)

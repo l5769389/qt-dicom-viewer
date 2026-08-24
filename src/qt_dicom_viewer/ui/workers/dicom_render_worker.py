@@ -1,11 +1,11 @@
 import logging
-from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
 
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
+    ImageGeometryMeta,
     RenderRequest,
     RenderResult,
 )
@@ -32,8 +32,8 @@ class DicomRenderWorker(QObject):
                     f"series_uid={request.series_uid}"
                 )
 
-            file_paths = series.ordered_file_paths or []
-            slice_count = len(file_paths)
+            instances = series.instances
+            slice_count = len(instances)
             if slice_count == 0:
                 raise LookupError(
                     "Series has no renderable instances: "
@@ -45,8 +45,9 @@ class DicomRenderWorker(QObject):
                 slice_count - 1,
             )
 
+            instance = instances[actual_slice_index]
             dicom_load_result = DicomLoader().load_a_dicom(
-                instance_path=Path(file_paths[actual_slice_index]),
+                instance_path=instance.path,
                 render_request=request,
             )
             if dicom_load_result is not None:
@@ -61,7 +62,14 @@ class DicomRenderWorker(QObject):
                         slice_count=slice_count,
                         window=dicom_load_result.window,
                         instance_meta=dicom_load_result.instance_meta,
-                        inverted = dicom_load_result.inverted
+                        inverted=dicom_load_result.inverted,
+                        geometry=ImageGeometryMeta(
+                            rows=instance.rows or 0,
+                            columns=instance.columns or 0,
+                            pixel_spacing=instance.pixel_spacing,
+                            image_position_patient=instance.image_position_patient,
+                            image_orientation_patient=instance.image_orientation_patient,
+                        ),
                     ),
                 )
                 self.render_finished.emit(result)
