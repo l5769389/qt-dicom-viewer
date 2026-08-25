@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, TypeAlias
 from enum import StrEnum
 
 import numpy as np
@@ -14,12 +14,18 @@ class TabType(StrEnum):
     FOUR_D = "4d"
     TAG = "tag"
 
+class TwoDViewType(StrEnum):
+    STACK = "stack"
 
-class ViewType(StrEnum):
-    TWO_D = "2d"
-    MPR = "mpr"
-    THREE_D = "3d"
-    FOUR_D = "4d"
+class MprPlane(StrEnum):
+    AXIAL = "axial"
+    SAGITTAL = "sagittal"
+    CORONAL = "coronal"
+
+ViewportType: TypeAlias = (
+    MprPlane | TwoDViewType
+)
+
 
 
 # 一级按钮
@@ -47,6 +53,7 @@ class RenderRequest:
     viewport_id: str
     series_uid: str
     slice_index: int
+    view_type: ViewportType
     window: WindowLevel | None
     inverted: bool
 
@@ -55,6 +62,7 @@ class RenderResult:
     response_id: str
     viewport_id: str
     series_uid: str
+    view_type: ViewportType
     image: np.ndarray | None
     modality_pixel: np.ndarray | None
     frame_meta: FrameDisplayMeta

@@ -4,10 +4,10 @@ import 'measurementLayer' as MeasurementLayer
 import "../../../theme"
 Rectangle {
     id: imageCanvasRoot
-    required property var activeViewport
+    required property var viewportController
     anchors.fill: parent
-    color: activeViewport
-        ? activeViewport.canvasBackgroundColor
+    color: viewportController
+        ? viewportController.canvasBackgroundColor
         : Theme.canvasBackground
     clip: true
 
@@ -65,13 +65,13 @@ Rectangle {
     }
 
     readonly property real fitScale: {
-        if (!imageCanvasRoot.activeViewport)
+        if (!imageCanvasRoot.viewportController)
             return 1
 
         const columns =
-            imageCanvasRoot.activeViewport.imageColumns
+            imageCanvasRoot.viewportController.imageColumns
         const rows =
-            imageCanvasRoot.activeViewport.imageRows
+            imageCanvasRoot.viewportController.imageRows
 
         if (columns <= 0 || rows <= 0)
             return 1
@@ -86,7 +86,7 @@ Rectangle {
     Item {
         id: imageScene
 
-        readonly property var controller: imageCanvasRoot.activeViewport
+        readonly property var controller: imageCanvasRoot.viewportController
         width: controller
             ? controller.imageColumns : 0
         height: controller
@@ -150,8 +150,8 @@ Rectangle {
             MeasurementLayer.MeasurementLayer {
                 anchors.fill: parent
                 measurementController:
-                    imageCanvasRoot.activeViewport
-                        ? imageCanvasRoot.activeViewport.measurementController
+                    imageCanvasRoot.viewportController
+                        ? imageCanvasRoot.viewportController.measurementController
                         : null
             }
         }

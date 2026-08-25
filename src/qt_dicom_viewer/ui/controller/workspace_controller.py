@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 class WorkspaceController(QObject):
     tabsChanged = Signal()
     activeTabChanged = Signal()
+    activeViewportChanged = Signal()
+
     rendered = Signal()
     renderRequested = Signal(object)
 
@@ -39,6 +41,7 @@ class WorkspaceController(QObject):
             self._active_tab_id = next(iter(self._tab_dict), "")
         self.tabsChanged.emit()
         self.activeTabChanged.emit()
+        self.activeViewportChanged.emit()
 
     @Slot(str)
     def submit(self, render_request: RenderRequest):
@@ -48,7 +51,7 @@ class WorkspaceController(QObject):
         "QVariantList",
         notify=activeTabChanged,
     )
-    def activeViewports(self) -> list[QObject]:
+    def currentTabAllViewports(self) -> list[QObject]:
         if self._active_tab_id is None:
             return []
 
@@ -64,6 +67,24 @@ class WorkspaceController(QObject):
         )
 
 
+    @Property(
+        QObject,
+        notify=activeViewportChanged,
+    )
+    def activeViewport(self) -> QObject | None:
+        if self._active_tab_id is None:
+            return None
+
+        tab = self._tab_dict.get(
+            self._active_tab_id
+        )
+
+        if tab is None:
+            return None
+
+        return tab.activeViewport
+
+
     @Slot(str)
     def activateTabId(self, tab_id: str):
         if tab_id not in self._tab_dict:
@@ -74,6 +95,7 @@ class WorkspaceController(QObject):
 
         self._active_tab_id = tab_id
         self.activeTabChanged.emit()
+        self.activeViewportChanged.emit()
 
 
     @Property("QVariantList", notify=tabsChanged)
@@ -92,11 +114,20 @@ class WorkspaceController(QObject):
     def activeTab(self) -> TabController | None:
         return self._tab_dict.get(self._active_tab_id, None)
 
+    @Property(str, notify=activeTabChanged)
+    def activeTabType(self) -> str:
+        tab = self._tab_dict.get(self._active_tab_id)
+
+        if tab is None:
+            return ""
+
+        return tab.tab_config.tab_type.value
+
 
     @Slot(str, str, str)
     def createTab(self,series_uid: str,
                         tab_label: str,
-                        tab_type: str
+                        tab_type: TabType
                    ):
         tab_id = f'{series_uid}_{tab_type}'
         if tab_id == self._active_tab_id:
@@ -126,6 +157,7 @@ class WorkspaceController(QObject):
         self._active_tab_id = tab_id
         self.tabsChanged.emit()
         self.activeTabChanged.emit()
+        self.activeViewportChanged.emit()
 
         # QML 已能访问 active viewport 后再发起首帧请求。
         if new_tab is not None:
@@ -145,6 +177,9 @@ class WorkspaceController(QObject):
     def connect_signal(self, tab: TabController):
         tab.renderRequested.connect(
             self.renderRequested.emit
+        )
+        tab.activeViewportChanged.connect(
+            self.activeViewportChanged.emit
         )
 
     @Slot(object)

@@ -1,16 +1,17 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../../../theme"
 
 Item {
     id: viewportRoot
-    required property var activeViewport
+    required property var viewportController
     required property bool hasTabs
 
     function syncViewportSize() {
-        if (!viewportRoot.activeViewport)
+        if (!viewportRoot.viewportController)
             return
 
-        viewportRoot.activeViewport.setViewportSize(
+        viewportRoot.viewportController.setViewportSize(
             viewportRoot.width,
             viewportRoot.height
         )
@@ -19,7 +20,7 @@ Item {
 
     onWidthChanged: syncViewportSize()
     onHeightChanged: syncViewportSize()
-    onActiveViewportChanged: syncViewportSize()
+    onViewportControllerChanged: syncViewportSize()
 
     Component.onCompleted: syncViewportSize()
 
@@ -27,7 +28,7 @@ Item {
         id: imageCanvas
         anchors.fill: parent
         z: 0
-        activeViewport: viewportRoot.activeViewport
+        viewportController: viewportRoot.viewportController
     }
 
     Column {
@@ -56,7 +57,7 @@ Item {
         anchors.fill: parent
         z: 10
         anchors.margins: 8
-        activeViewport: viewportRoot.activeViewport
+        viewportController: viewportRoot.viewportController
 
     }
 
@@ -64,10 +65,10 @@ Item {
         id: interactionLayer
         anchors.fill: parent
         z: 20
-        enabled: viewportRoot.activeViewport !== null
+        enabled: viewportRoot.viewportController !== null
 
         onTapped: position => {
-            if (!viewportRoot.activeViewport)
+            if (!viewportRoot.viewportController)
                 return
 
             const hit = imageCanvas.mapToDicomPixel(
@@ -79,7 +80,7 @@ Item {
             const lineTolerance =
                 imageCanvas.hitToleranceInImagePixels(6)
 
-            viewportRoot.activeViewport.selectMeasurementAt(
+            viewportRoot.viewportController.selectMeasurementAt(
                 hit.valid,
                 hit.column,
                 hit.row,
@@ -89,7 +90,7 @@ Item {
         }
 
         onDragStarted: (startPosition, buttons) => {
-            if (!viewportRoot.activeViewport)
+            if (!viewportRoot.viewportController)
                 return
             const hit = imageCanvas.mapToDicomPixel(
                 interactionLayer,
@@ -99,7 +100,7 @@ Item {
 
             const lineTolerance = imageCanvas.hitToleranceInImagePixels(6)
 
-            viewportRoot.activeViewport.beginInteraction(
+            viewportRoot.viewportController.beginInteraction(
                 startPosition.x,
                 startPosition.y,
                 buttons,
@@ -117,13 +118,13 @@ Item {
             stepDelta,
             totalDelta
         ) => {
-            if (!viewportRoot.activeViewport)
+            if (!viewportRoot.viewportController)
                 return
             const hit = imageCanvas.mapToDicomPixel(
                 interactionLayer,
                 currentPosition
             )
-            viewportRoot.activeViewport.updateInteraction(
+            viewportRoot.viewportController.updateInteraction(
                 startPosition,
                 currentPosition,
                 stepDelta,
@@ -139,13 +140,13 @@ Item {
             endPosition,
             totalDelta
         ) => {
-            if (!viewportRoot.activeViewport)
+            if (!viewportRoot.viewportController)
                 return
             const hit = imageCanvas.mapToDicomPixel(
                 interactionLayer,
                 endPosition
             )
-            viewportRoot.activeViewport.endInteraction(
+            viewportRoot.viewportController.endInteraction(
                 endPosition.x,
                 endPosition.y,
                 hit.valid,
@@ -160,10 +161,10 @@ Item {
             pixelDeltaY,
             modifiers
         ) => {
-            if (!viewportRoot.activeViewport)
+            if (!viewportRoot.viewportController)
                 return
 
-            viewportRoot.activeViewport.handleWheel(
+            viewportRoot.viewportController.handleWheel(
                 angleDeltaY,
                 pixelDeltaY,
                 position.x,
@@ -173,7 +174,7 @@ Item {
         }
 
         onPointerMoved: position => {
-            if (!viewportRoot.activeViewport)
+            if (!viewportRoot.viewportController)
                 return
 
             const hit = imageCanvas.mapToDicomPixel(
@@ -185,7 +186,7 @@ Item {
                 return;
             }
 
-            viewportRoot.activeViewport.updateCursorPosition(
+            viewportRoot.viewportController.updateCursorPosition(
                 hit.column,
                 hit.row,
                 hit.clipColumn,

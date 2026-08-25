@@ -8,7 +8,7 @@ Rectangle {
     id: detailPanel
 
     required property string activePanel
-    required property var activeViewport
+    required property var viewportController
     required property var toolController
 
     color: Theme.panelBackgroundSoft
@@ -35,8 +35,8 @@ Rectangle {
         Panels.RotateToolPanel {
             toolController: detailPanel.toolController
             onActionTriggered: action => {
-                if (detailPanel.activeViewport) {
-                    detailPanel.activeViewport.applyTransformAction(action)
+                if (detailPanel.viewportController) {
+                    detailPanel.viewportController.applyTransformAction(action)
                 }
             }
         }
@@ -50,8 +50,8 @@ Rectangle {
                 : []
 
             onActionTriggered: (presetId, center, width) => {
-                if (detailPanel.activeViewport) {
-                    detailPanel.activeViewport.applyWindowPreset(
+                if (detailPanel.viewportController) {
+                    detailPanel.viewportController.applyWindowPreset(
                         center,
                         width
                     )

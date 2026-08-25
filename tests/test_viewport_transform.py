@@ -1,5 +1,6 @@
 from qt_dicom_viewer.model import (
     SeriesDisplayMeta,
+    TwoDViewType,
     ViewportConfig,
 )
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -21,7 +22,7 @@ def _controller() -> ViewportController:
         viewport_config=ViewportConfig(
             viewport_id="viewport-1",
             tab_id="tab-1",
-            viewport_type="2d",
+            viewport_type=TwoDViewType.STACK,
             series_uid=series_meta.series_uid,
             series_meta=series_meta,
         ),

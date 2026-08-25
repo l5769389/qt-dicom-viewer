@@ -15,6 +15,7 @@ from qt_dicom_viewer.model import (
     RenderRequest,
     RenderResult,
     SeriesDisplayMeta,
+    TwoDViewType,
     ViewportConfig,
     WindowLevel,
 )
@@ -124,7 +125,7 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
         viewport_config=ViewportConfig(
             viewport_id="viewport-1",
             tab_id="tab-1",
-            viewport_type="2d",
+            viewport_type=TwoDViewType.STACK,
             series_uid="series-1",
             series_meta=series_meta,
         ),
@@ -148,6 +149,7 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
             response_id="request-1",
             viewport_id="viewport-1",
             series_uid="series-1",
+            view_type=TwoDViewType.STACK,
             image=np.zeros((2, 2), dtype=np.uint8),
             modality_pixel=np.zeros((2, 2), dtype=np.float32),
             frame_meta=FrameDisplayMeta(
@@ -261,6 +263,7 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
             request_id="request-1",
             viewport_id="viewport-1",
             series_uid="series-1",
+            view_type=TwoDViewType.STACK,
             slice_index=0,
             window=None,
             inverted=False,

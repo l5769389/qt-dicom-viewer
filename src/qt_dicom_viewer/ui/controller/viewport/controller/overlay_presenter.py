@@ -1,4 +1,4 @@
-from qt_dicom_viewer.model import SeriesDisplayMeta, FrameDisplayMeta, ViewportState
+from qt_dicom_viewer.model import SeriesDisplayMeta, FrameDisplayMeta, ViewportState, ViewportConfig
 from qt_dicom_viewer.utils.utils import _display_text, _display_number
 
 
@@ -6,6 +6,7 @@ class OverlayPresenter:
     def build(
         self,
         *,
+        viewport_config: ViewportConfig,
         series: SeriesDisplayMeta,
         frame: FrameDisplayMeta | None,
         state: ViewportState,
@@ -22,6 +23,7 @@ class OverlayPresenter:
             "manufacturer": _display_text(
                 instance.manufacturer if instance else None
             ),
+            "viewType": _display_text(viewport_config.viewport_type),
             "kvp": _display_number(instance.kvp if instance else None),
             "tubeCurrentMa": _display_number(
                 instance.tube_current_ma if instance else None

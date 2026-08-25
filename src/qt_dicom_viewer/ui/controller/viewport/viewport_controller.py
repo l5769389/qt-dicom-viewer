@@ -104,6 +104,7 @@ class ViewportController(QObject):
         request = RenderRequest(
             request_id=str(uuid.uuid4()),
             viewport_id=self.viewport_config.viewport_id,
+            view_type= self.viewport_config.viewport_type,
             series_uid=self.viewport_config.series_uid,
             slice_index=0,
             window=None,
@@ -120,6 +121,7 @@ class ViewportController(QObject):
         request = RenderRequest(
             request_id=str(uuid.uuid4()),
             viewport_id=self.viewport_config.viewport_id,
+            view_type= self.viewport_config.viewport_type,
             series_uid=self.viewport_config.series_uid,
             slice_index=self._state.slice_index,
             window=self._state.window,
@@ -206,6 +208,7 @@ class ViewportController(QObject):
         frame = self._frame_meta
 
         return self._overlay_presenter.build(
+            viewport_config = self.viewport_config,
             series=series,
             frame=frame,
             state=self._state,
@@ -637,3 +640,11 @@ class ViewportController(QObject):
             endpoint_tolerance=endpoint_tolerance,
             line_tolerance=line_tolerance,
         )
+
+    @Property(str, constant=True)
+    def viewportId(self) -> str:
+        return self.viewport_config.viewport_id
+
+    @Property(str, constant=True)
+    def viewportType(self) -> str:
+        return self.viewport_config.viewport_type.value

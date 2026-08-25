@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from qt_dicom_viewer.model.dicom_models import WindowLevel, PixelSpacing
+
+from qt_dicom_viewer.model import TabType
+from qt_dicom_viewer.model.dicom_models import WindowLevel, PixelSpacing, ViewportType
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +120,7 @@ class SeriesDisplayMeta:
 class ViewportConfig:
     viewport_id: str
     tab_id: str
-    viewport_type: str
+    viewport_type: ViewportType
     series_uid: str
     series_meta: SeriesDisplayMeta
 
@@ -145,7 +147,7 @@ class ViewportState:
 class TabConfig:
     tab_id: str
     tab_label: str
-    tab_type: str
+    tab_type: TabType
     series_metas: tuple[SeriesDisplayMeta, ...]
 
 

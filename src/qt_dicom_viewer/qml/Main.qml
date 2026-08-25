@@ -10,10 +10,12 @@ ApplicationWindow {
     readonly property var panelController: appController.panelController
     readonly property var workspaceController: appController.workspaceController
     readonly property bool hasTabs: workspaceController.tabs.length > 0
-    readonly property var activeViewport: workspaceController.activeViewports.length > 0 ? workspaceController.activeViewports[0] : null
+    readonly property var viewportController:
+        workspaceController.activeViewport
+    readonly property var currentTabAllViewports: workspaceController.currentTabAllViewports
     readonly property var toolController: workspaceController.activeTab ? workspaceController.activeTab.toolController : null
 
-    width: 1200
+    width: 1400
     height: 760
     visible: true
     title: "Qt DICOM Viewer"
@@ -35,7 +37,8 @@ ApplicationWindow {
             Layout.fillHeight: true
             workspaceController: window.workspaceController
             panelController: window.panelController
-            activeViewport: window.activeViewport
+            currentTabAllViewports: window.currentTabAllViewports
+            viewportController: window.viewportController
         }
 
         Sections.RightPanel {
@@ -43,11 +46,11 @@ ApplicationWindow {
             Layout.preferredWidth: visible ? 260 : 0
             Layout.fillHeight: true
             toolController: window.toolController
-            activeViewport: window.activeViewport
+            viewportController: window.viewportController
             toolVisible: window.hasTabs
             // onRotationActionTriggered: action => {
-            //     if (window.activeViewport) {
-            //         window.activeViewport.applyTransformAction(action)
+            //     if (window.viewportController) {
+            //         window.viewportController.applyTransformAction(action)
             //     }
             // }
 

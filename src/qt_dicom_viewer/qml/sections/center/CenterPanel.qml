@@ -10,7 +10,8 @@ Rectangle {
 
     required property var workspaceController
     required property var panelController
-    required property var activeViewport
+    required property var viewportController
+    required property var currentTabAllViewports
 
     readonly property bool hasTabs:
         workspaceController.tabs.length > 0
@@ -29,16 +30,25 @@ Rectangle {
         TabBarSection {
             Layout.fillWidth: true
             Layout.preferredHeight: 36
+            Layout.bottomMargin: 4
             workspaceController: centerPanel.workspaceController
         }
 
-        ViewportSection.Viewport {
+        ViewportSection.ViewportLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            activeViewport: centerPanel.activeViewport
+            viewportController: centerPanel.viewportController
             hasTabs: centerPanel.hasTabs
-        }
+            tabType: centerPanel.workspaceController.activeTabType
+            currentTabAllViewports: centerPanel.currentTabAllViewports
+            onViewportActivated: viewportId => {
+                const activeTab = centerPanel.workspaceController.activeTab
+                if (activeTab){
+                    activeTab.activateViewport(viewportId)
+                }
 
+            }
+        }
     }
 
     WorkspaceEmptyState {

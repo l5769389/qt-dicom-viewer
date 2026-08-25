@@ -11,7 +11,7 @@ Rectangle {
 
     required property var toolController
     required property bool toolVisible
-    required property var activeViewport
+    required property var viewportController
 
     color: Theme.panelBackground
     border.color: Theme.borderDefault
@@ -41,7 +41,7 @@ Rectangle {
             Layout.fillHeight: true
             toolController: rightPanel.toolController
             activePanel: rightPanel.toolController ? rightPanel.toolController.activePanel : ""
-            activeViewport: rightPanel.activeViewport
+            viewportController: rightPanel.viewportController
         }
     }
 }
