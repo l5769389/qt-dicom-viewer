@@ -32,7 +32,7 @@ class ToolController(QObject):
 
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
-        return self._active_tool.value
+        return self._active_tool
 
     @Property(str, notify=activePanelChanged)
     def activePanel(self) -> str:

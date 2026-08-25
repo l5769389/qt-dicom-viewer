@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 
 Item {
     id: viewportRoot
@@ -34,7 +33,7 @@ Item {
         id: emptyView
         anchors.centerIn: parent
         spacing: 6
-        visible: !hasTabs
+        visible: !viewportRoot.hasTabs
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -66,6 +65,28 @@ Item {
         z: 20
         enabled: viewportRoot.activeViewport !== null
 
+        onTapped: position => {
+            if (!viewportRoot.activeViewport)
+                return
+
+            const hit = imageCanvas.mapToDicomPixel(
+                interactionLayer,
+                position
+            )
+            const endpointTolerance =
+                imageCanvas.hitToleranceInImagePixels(8)
+            const lineTolerance =
+                imageCanvas.hitToleranceInImagePixels(6)
+
+            viewportRoot.activeViewport.selectMeasurementAt(
+                hit.valid,
+                hit.column,
+                hit.row,
+                endpointTolerance,
+                lineTolerance
+            )
+        }
+
         onDragStarted: (startPosition, buttons) => {
             if (!viewportRoot.activeViewport)
                 return
@@ -73,13 +94,19 @@ Item {
                 interactionLayer,
                 startPosition
             )
+            const endpointTolerance = imageCanvas.hitToleranceInImagePixels(8)
+
+            const lineTolerance = imageCanvas.hitToleranceInImagePixels(6)
+
             viewportRoot.activeViewport.beginInteraction(
                 startPosition.x,
                 startPosition.y,
                 buttons,
                 hit.valid,
                 hit.column,
-                hit.row
+                hit.row,
+                endpointTolerance,
+                lineTolerance
             )
         }
 

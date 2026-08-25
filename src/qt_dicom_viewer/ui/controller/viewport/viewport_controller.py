@@ -9,8 +9,7 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
-    PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, LengthMeasurementDraft, \
-    LengthMeasurement, ImageGeometryMeta
+    PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -22,11 +21,8 @@ from qt_dicom_viewer.ui.controller.viewport.operation.pan_operation import PanOp
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.zoom_operation import ZoomOperation
-from qt_dicom_viewer.ui.controller.viewport.operation.length_measure_operation import LengthMeasureOperation
 
 logger = logging.getLogger(__name__)
-
-
 
 DISPLAY_STYLES = {
     "grayscale": DisplayStyle(
@@ -43,6 +39,35 @@ DISPLAY_STYLES = {
     ),
 }
 
+
+def _make_pointer_position(
+        viewport_x: float,
+        viewport_y: float,
+        image_valid: bool,
+        column: float,
+        row: float,
+) -> PointerPosition:
+    image_point = None
+
+    if (
+            image_valid
+            and isfinite(column)
+            and isfinite(row)
+    ):
+        image_point = ImagePoint(
+            column=column,
+            row=row,
+        )
+
+    return PointerPosition(
+        viewport=Point(
+            x=viewport_x,
+            y=viewport_y,
+        ),
+        image=image_point,
+    )
+
+
 class ViewportController(QObject):
     renderRequested = Signal(object)
     imageSourceChanged = Signal()
@@ -50,6 +75,7 @@ class ViewportController(QObject):
     imageDimensionChanged = Signal()
     transformChanged = Signal()
     displayStyleChanged = Signal()
+    hit_tolerance = 6
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
         super().__init__(parent)
@@ -64,8 +90,7 @@ class ViewportController(QObject):
         self._scroll_operation = ScrollOperation()
         self._pan_operation = PanOperation()
         self._zoom_operation = ZoomOperation()
-        self._length_measure_operation = LengthMeasureOperation()
-        self._cursor_controller = CursorController(viewport_config = self.viewport_config, parent= self)
+        self._cursor_controller = CursorController(viewport_config=self.viewport_config, parent=self)
         self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation()
@@ -74,7 +99,6 @@ class ViewportController(QObject):
     @Property(QObject, constant=True)
     def cursorController(self):
         return self._cursor_controller
-
 
     def request_first_loader(self) -> None:
         request = RenderRequest(
@@ -143,7 +167,7 @@ class ViewportController(QObject):
             slice_index=result.frame_meta.slice_index,
             slice_count=result.frame_meta.slice_count,
             window=result.frame_meta.window,
-            inverted =result.frame_meta.inverted,
+            inverted=result.frame_meta.inverted,
         )
         self._modality_pixel = result.modality_pixel
         self.overlayChanged.emit()
@@ -160,10 +184,10 @@ class ViewportController(QObject):
             result.viewport_id,
             self._image_revision,
         )
+
     @property
     def viewport_state(self) -> ViewportState:
         return self._state
-
 
     @Property(str, notify=imageSourceChanged)
     def imageSource(self) -> str:
@@ -187,35 +211,7 @@ class ViewportController(QObject):
             state=self._state,
         )
 
-    def _make_pointer_position(
-            self,
-            viewport_x: float,
-            viewport_y: float,
-            image_valid: bool,
-            column: float,
-            row: float,
-    ) -> PointerPosition:
-        image_point = None
-
-        if (
-                image_valid
-                and isfinite(column)
-                and isfinite(row)
-        ):
-            image_point = ImagePoint(
-                column=column,
-                row=row,
-            )
-
-        return PointerPosition(
-            viewport=Point(
-                x=viewport_x,
-                y=viewport_y,
-            ),
-            image=image_point,
-        )
-
-    @Slot(float, float, int, bool, float, float)
+    @Slot(float, float, int, bool, float, float, float, float)
     def beginInteraction(
             self,
             x: float,
@@ -224,72 +220,69 @@ class ViewportController(QObject):
             image_valid: bool,
             column: float,
             row: float,
+            endpoint_tolerance: float,
+            line_tolerance: float,
     ) -> None:
         logger.debug(f'beginInteraction,x:{x},y:{y},btn:{buttons}, col:{column}, row:{row}')
-
-        # strategies = {
-        #     InteractionType.WINDOW: self._window_level_operation,
-        #     InteractionType.SCROLL: self._scroll_operation,
-        #     InteractionType.PAN: self._pan_operation,
-        #     InteractionType.ZOOM: self._zoom_operation,
-        #     InteractionType.MEASURE_LENGTH: self._length_measure_operation,
-        # }
-
-        match self._tool_controller.active_interaction:
-            case InteractionType.WINDOW:
-                self._active_drag_operation = self._window_level_operation
-                context = WindowLevelContext(
-                            viewport_size = self.viewport_size,
-                            inverted = self.inverted,
-                            current_window = self.current_window,
-                            )
-            case InteractionType.SCROLL:
-                self._active_drag_operation = self._scroll_operation
-                context = ScrollContext(
-                slice_index=self._state.slice_index,
-                slice_count=self._state.slice_count,
-                )
-            case InteractionType.PAN:
-                self._active_drag_operation = self._pan_operation
-                context = PanContext(
-                current_pan_x=self._state.pan_x,
-                current_pan_y=self._state.pan_y,
-                )
-            case InteractionType.ZOOM:
-                self._active_drag_operation = self._zoom_operation
-                context =  ZoomContext(
-                viewport_size=self.viewport_size,
-                current_zoom=self._state.zoom,
-            )
-            case InteractionType.MEASURE_LENGTH:
-                if self._frame_meta is None:
-                    logger.error(
-                        "Cannot measure before an image is loaded"
-                    )
-                    return None
-                self._active_drag_operation = self._length_measure_operation
-                context = MeasureContext(
-                series_uid = self.viewport_config.series_uid,
-                sop_instance_uid='',
-                slice_index=self._state.slice_index,
-                geometry= ImageGeometryMeta(
-                    pixel_spacing= self._frame_meta.geometry.pixel_spacing,
-                    rows = self._frame_meta.geometry.rows,
-                    columns =self._frame_meta.geometry.columns,
-                    image_position_patient = self._frame_meta.geometry.image_position_patient,
-                    image_orientation_patient=self._frame_meta.geometry.image_orientation_patient,
-                )
-            )
-            case _:
-                context = None
-
-        position = self._make_pointer_position(
+        position = _make_pointer_position(
             viewport_x=x,
             viewport_y=y,
             image_valid=image_valid,
             column=column,
             row=row,
         )
+
+        match self._tool_controller.active_interaction:
+            case InteractionType.WINDOW:
+                self._active_drag_operation = self._window_level_operation
+                context = WindowLevelContext(
+                    viewport_size=self.viewport_size,
+                    inverted=self.inverted,
+                    current_window=self.current_window,
+                )
+            case InteractionType.SCROLL:
+                self._active_drag_operation = self._scroll_operation
+                context = ScrollContext(
+                    slice_index=self._state.slice_index,
+                    slice_count=self._state.slice_count,
+                )
+            case InteractionType.PAN:
+                self._active_drag_operation = self._pan_operation
+                context = PanContext(
+                    current_pan_x=self._state.pan_x,
+                    current_pan_y=self._state.pan_y,
+                )
+            case InteractionType.ZOOM:
+                self._active_drag_operation = self._zoom_operation
+                context = ZoomContext(
+                    viewport_size=self.viewport_size,
+                    current_zoom=self._state.zoom,
+                )
+            case InteractionType.MEASURE_LENGTH | InteractionType.MEASURE_ANGLE:
+                if self._frame_meta is None:
+                    logger.error(
+                        "Cannot measure before an image is loaded"
+                    )
+                    return
+
+                measurement_kind = (
+                    MeasurementKind.LENGTH
+                    if self._tool_controller.active_interaction
+                    == InteractionType.MEASURE_LENGTH
+                    else MeasurementKind.ANGLE
+                )
+                self._active_drag_operation = self._measure_controller
+                context = MeasureContext(
+                    measurement_kind=measurement_kind,
+                    series_uid=self.viewport_config.series_uid,
+                    sop_instance_uid=self._frame_meta.instance_meta.sop_instance_uid or '',
+                    slice_index=self._state.slice_index,
+                    geometry=self._frame_meta.geometry,
+                    endpoint_tolerance=endpoint_tolerance,
+                    line_tolerance=line_tolerance,
+                )
+            case _:
+                context = None
 
         self._active_drag_start_position = position
         if self._active_drag_operation is None:
@@ -327,7 +320,7 @@ class ViewportController(QObject):
         if operation is None or start_position is None:
             return
 
-        current_position = self._make_pointer_position(
+        current_position = _make_pointer_position(
             viewport_x=current_point.x(),
             viewport_y=current_point.y(),
             image_valid=image_valid,
@@ -368,7 +361,7 @@ class ViewportController(QObject):
         if operation is None:
             return
 
-        position = self._make_pointer_position(
+        position = _make_pointer_position(
             viewport_x=x,
             viewport_y=y,
             image_valid=image_valid,
@@ -382,11 +375,11 @@ class ViewportController(QObject):
     @Slot(QPointF)
     def handlePointerMoved(self, point: QPointF) -> None:
         current_point = Point(
-                x=point.x(),
-                y=point.y()),
+            x=point.x(),
+            y=point.y()),
         ...
 
-    @Slot(float, float,float,float,bool, int, int)
+    @Slot(float, float, float, float, bool, int, int)
     def updateCursorPosition(
             self,
             column: float,
@@ -399,8 +392,6 @@ class ViewportController(QObject):
     ) -> None:
         ct_value = self._modality_pixel[int(clipRow)][int(clipColumn)]
         self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
-
-
 
     @Slot(float, float, float, float, int)
     def handleWheel(
@@ -440,14 +431,8 @@ class ViewportController(QObject):
             case ZoomChange(zoom=zoom):
                 self.apply_zoom(zoom)
 
-            case LengthMeasurementDraft():
-                self._measure_controller.update_draft(result)
-            case LengthMeasurement():
-                self._measure_controller.try_commit(result)
             case None:
                 return
-
-
 
     @property
     def current_window(self) -> WindowLevel | None:
@@ -477,6 +462,9 @@ class ViewportController(QObject):
         if index == self._state.slice_index:
             return
         logger.debug(f'apply_slice_index,{index}')
+
+        self._measure_controller.cancel_transaction()
+        self._measure_controller.clear_selection()
 
         self._state = replace(
             self._state,
@@ -554,7 +542,6 @@ class ViewportController(QObject):
         # overlayInfo 中显示了 zoom，因此也要更新
         self.overlayChanged.emit()
 
-
     @Slot(str)
     def applyTransformAction(self, action: str) -> None:
         try:
@@ -573,16 +560,16 @@ class ViewportController(QObject):
                 next_state = replace(
                     state,
                     rotation_degrees=(
-                        state.rotation_degrees + 90.0
-                    ) % 360.0,
+                                             state.rotation_degrees + 90.0
+                                     ) % 360.0,
                 )
 
             case ViewportTransformAction.ROTATE_COUNTERCLOCKWISE_90:
                 next_state = replace(
                     state,
                     rotation_degrees=(
-                        state.rotation_degrees - 90.0
-                    ) % 360.0,
+                                             state.rotation_degrees - 90.0
+                                     ) % 360.0,
                 )
 
             case ViewportTransformAction.MIRROR_HORIZONTAL:
@@ -624,3 +611,29 @@ class ViewportController(QObject):
         )
 
         self.request_render()
+
+    @Slot(bool, float, float, float, float)
+    def selectMeasurementAt(
+            self,
+            image_valid: bool,
+            column: float,
+            row: float,
+            endpoint_tolerance: float,
+            line_tolerance: float,
+    ) -> None:
+        if self._tool_controller.active_interaction not in (
+            InteractionType.MEASURE_LENGTH,
+            InteractionType.MEASURE_ANGLE,
+        ):
+            return
+
+        point = None
+        if image_valid and isfinite(column) and isfinite(row):
+            point = ImagePoint(column=column, row=row)
+
+        self._measure_controller.tap_at(
+            point,
+            slice_index=self._state.slice_index,
+            endpoint_tolerance=endpoint_tolerance,
+            line_tolerance=line_tolerance,
+        )

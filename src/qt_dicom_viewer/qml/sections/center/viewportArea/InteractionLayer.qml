@@ -8,6 +8,8 @@ Item {
 
     signal pointerMoved(point position)
 
+    signal tapped(point position)
+
     signal dragStarted(
         point startPosition,
         int buttons
@@ -55,11 +57,20 @@ Item {
         }
     }
 
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+
+        onTapped: (eventPoint, button) => {
+            interactionLayer.tapped(
+                eventPoint.position
+            )
+        }
+    }
+
     DragHandler {
         id: dragHandler
 
         target: null
-        dragThreshold: 0
         acceptedButtons: Qt.LeftButton
             | Qt.RightButton
             | Qt.MiddleButton

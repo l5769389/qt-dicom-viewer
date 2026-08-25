@@ -1,5 +1,6 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Shapes
 
 Item {
     id: measurementLayer
@@ -14,9 +15,12 @@ Item {
         delegate: LengthMeasurementItem {
             required property var modelData
             isDraft: false
+            isSelected: measurementLayer.measurementController
+                ? modelData.measurementId
+                    === measurementLayer.measurementController.selectedMeasurementId
+                : false
             width: measurementLayer.width
             height: measurementLayer.height
-
             measurement: modelData
         }
     }
@@ -27,11 +31,12 @@ Item {
 
         visible: measurementLayer.measurementController
                  && Object.keys(
-                     measurementLayer.measurementController.draftItem
+                     measurementLayer.measurementController.activeTransaction
                  ).length > 0
         isDraft: true
+        isSelected: false
         measurement: measurementLayer.measurementController
-            ? measurementLayer.measurementController.draftItem
+            ? measurementLayer.measurementController.activeTransaction
             : ({})
     }
 }

@@ -10,6 +10,13 @@ Rectangle {
         : "#000000"
     clip: true
 
+    function hitToleranceInImagePixels(screenTolerance,) {
+        return screenTolerance / Math.max(
+            Math.abs(imageScene.scale),
+            0.0001
+            )
+    }
+
     function mapToDicomPixel(interactionLayer, position) {
         if (
             pixelLayer.width <= 0
@@ -79,7 +86,6 @@ Rectangle {
         id: imageScene
 
         readonly property var controller: imageCanvasRoot.activeViewport
-
         width: controller
             ? controller.imageColumns : 0
         height: controller
