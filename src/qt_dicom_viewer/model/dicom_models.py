@@ -10,6 +10,17 @@ import numpy as np
 class TabType(StrEnum):
     TWO_D = "2d"
     MPR = "mpr"
+    THREE_D = "3d"
+    FOUR_D = "4d"
+    TAG = "tag"
+
+
+class ViewType(StrEnum):
+    TWO_D = "2d"
+    MPR = "mpr"
+    THREE_D = "3d"
+    FOUR_D = "4d"
+
 
 # 一级按钮
 class ToolType(StrEnum):
@@ -105,4 +116,3 @@ class PointerDisplayMeta:
     pointer_x: float | None
     pointer_y: float | None
     pointer_ct_value: float | None
-

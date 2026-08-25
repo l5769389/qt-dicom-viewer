@@ -12,3 +12,7 @@ wheels/
 # macOS and IDE metadata
 .DS_Store
 .idea/
+.qtcreator/
+*.qmlproject.user
+*.qmlproject.user.*
+*.autosave

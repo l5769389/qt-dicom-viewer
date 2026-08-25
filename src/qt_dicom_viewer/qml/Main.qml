@@ -6,6 +6,7 @@ import "sections/center" as CenterSections
 
 ApplicationWindow {
     id: window
+    readonly property var panelController: appController.panelController
     readonly property var workspaceController: appController.workspaceController
     readonly property bool hasTabs: workspaceController.tabs.length > 0
     readonly property var activeViewport: workspaceController.activeViewports.length > 0 ? workspaceController.activeViewports[0] : null
@@ -23,20 +24,22 @@ ApplicationWindow {
         spacing: 8
 
         Sections.LeftPanel {
-            Layout.preferredWidth: 220
+            Layout.preferredWidth: 250
             Layout.fillHeight: true
-            panelController: appController.panelController
+            panelController: window.panelController
         }
 
         CenterSections.CenterPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
             workspaceController: window.workspaceController
+            panelController: window.panelController
             activeViewport: window.activeViewport
         }
 
         Sections.RightPanel {
-            Layout.preferredWidth: 260
+            visible: window.hasTabs
+            Layout.preferredWidth: visible ? 260 : 0
             Layout.fillHeight: true
             toolController: window.toolController
             activeViewport: window.activeViewport

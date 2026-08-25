@@ -1,5 +1,4 @@
-pragma
-ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import "../components" as Components
 
 import QtQuick

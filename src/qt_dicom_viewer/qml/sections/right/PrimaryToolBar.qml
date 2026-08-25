@@ -1,5 +1,4 @@
-pragma
-ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls.Basic as Basic

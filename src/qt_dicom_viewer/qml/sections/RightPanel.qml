@@ -6,6 +6,7 @@ import "right" as Right
 
 Rectangle {
     id: rightPanel
+    objectName: "rightPanel"
 
     required property var toolController
     required property bool toolVisible

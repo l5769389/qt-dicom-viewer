@@ -1,5 +1,4 @@
-pragma
-ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
@@ -7,8 +6,11 @@ import 'viewportArea' as ViewportSection
 
 Rectangle {
     id: centerPanel
+
     required property var workspaceController
+    required property var panelController
     required property var activeViewport
+
     readonly property bool hasTabs:
         workspaceController.tabs.length > 0
 
@@ -21,6 +23,7 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
+        visible: centerPanel.hasTabs
 
         TabBarSection {
             Layout.fillWidth: true
@@ -35,5 +38,11 @@ Rectangle {
             hasTabs: centerPanel.hasTabs
         }
 
+    }
+
+    WorkspaceEmptyState {
+        anchors.fill: parent
+        visible: !centerPanel.hasTabs
+        panelController: centerPanel.panelController
     }
 }

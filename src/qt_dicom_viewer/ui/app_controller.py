@@ -32,7 +32,7 @@ class AppController(QObject):
 
     def _signal_connect(self):
         #  监听切换series
-        self._panel_controller.activeSeriesChanged.connect(
+        self._panel_controller.tabCreateRequested.connect(
             self._workspace_controller.activeWorkspace
         )
         # renderService接收渲染请求。

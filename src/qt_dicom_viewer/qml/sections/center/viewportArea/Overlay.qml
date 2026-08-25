@@ -1,8 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-pragma
-ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 Item {
     id: viewportOverlay

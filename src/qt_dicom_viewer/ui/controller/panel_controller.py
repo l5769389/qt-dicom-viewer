@@ -9,12 +9,12 @@ from qt_dicom_viewer.ui.workers.dicom_scan_worker import (
     DicomScanWorker,
 )
 
-
 class PanelController(QObject):
     statusMessageChanged = Signal()
     scanningChanged = Signal()
     seriesItemsChanged = Signal()
-    activeSeriesChanged = Signal(object)
+    # series_uid , tab_type
+    tabCreateRequested = Signal(str, str)
 
     # parent=self 是 Qt 的对象所有权关系，不是业务上的“父子 Controller 调用关系”。
     def __init__(self,parent = None, series_catalog = None) -> None:
@@ -110,10 +110,13 @@ class PanelController(QObject):
             "modality": summary.modality,
         } for series_id,summary  in self._scan_series_record.items()]
 
+    @Property(bool, notify=scanningChanged)
+    def scanning(self) -> bool:
+        return self._scanning
 
-    @Slot(str)
-    def loadSeries(self,active_series_uid):
+
+    @Slot(str, str)
+    def openSeriesView(self, active_series_uid: str, tab_type: str):
         series = self._series_catalog.get_series(active_series_uid)
         if series is not None:
-            self.activeSeriesChanged.emit(active_series_uid)
-
+            self.tabCreateRequested.emit(active_series_uid, tab_type)

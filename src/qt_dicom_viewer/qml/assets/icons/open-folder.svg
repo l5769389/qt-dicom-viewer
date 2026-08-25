@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" aria-label="DICOM open folder icon">
+  <g fill="none" stroke="#e8edf3" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 198V78c0-13.3 10.7-24 24-24h34c7.7 0 13.2 3.2 17.2 9.4L115 82h88c13.3 0 24 10.7 24 24v92c0 13.3-10.7 24-24 24H52c-13.3 0-24-10.7-24-24Z"/>
+    <path d="M28 112h199"/>
+    <path d="M128 132v58"/>
+    <path d="M99 161h58"/>
+  </g>
+</svg>

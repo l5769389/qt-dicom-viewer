@@ -157,11 +157,18 @@ class WorkspaceController(QObject):
             viewport.handleRenderResult(result)
 
 
-    @Slot(str)
-    def activeWorkspace(self, series_uid):
+    @Slot(str, str)
+    def activeWorkspace(self, series_uid: str, tab_type_value: str):
+        try:
+            tab_type = TabType(tab_type_value)
+        except ValueError:
+            logger.warning(
+                "Unsupported tab type: %s",
+                tab_type_value,
+            )
+            return
         series = self._series_catalog.get_series(series_uid)
         if series is None:
             return
         label = f'{series.patient_name}'
-        self.createTab(series_uid,label,TabType.TWO_D)
-
+        self.createTab(series_uid,label,tab_type)
