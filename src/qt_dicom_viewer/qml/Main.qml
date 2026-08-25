@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "sections" as Sections
 import "sections/center" as CenterSections
+import "theme"
 
 ApplicationWindow {
     id: window
@@ -16,7 +17,7 @@ ApplicationWindow {
     height: 760
     visible: true
     title: "Qt DICOM Viewer"
-    color: "#111419"
+    color: Theme.appBackground
 
     RowLayout {
         anchors.fill: parent

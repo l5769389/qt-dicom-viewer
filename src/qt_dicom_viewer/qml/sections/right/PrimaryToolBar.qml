@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic as Basic
 import "../../components" as Components
+import "../../theme"
 
 Rectangle {
     id: toolBar
@@ -16,7 +17,7 @@ Rectangle {
     signal toolTriggered(var toolDefinition)
 
     implicitHeight: toolFlow.height + 16
-    color: "#1d222a"
+    color: Theme.panelBackgroundStrong
     property string feedbackTool: ""
 
     Timer {
@@ -87,13 +88,23 @@ Rectangle {
                         anchors.centerIn: parent
                         iconName: primaryButton.modelData.iconName
                         iconSize: 22
-                        iconColor: primaryButton.checked ? "#65b5e8" : primaryButton.hovered ? "#d7e0e8" : "#8e9aa8"
+                        iconColor: primaryButton.checked
+                            ? Theme.iconActive
+                            : primaryButton.hovered
+                                ? Theme.iconHover
+                                : Theme.iconDefault
                     }
                 }
 
                 background: Rectangle {
-                    color: primaryButton.checked ? "#253b4b" : primaryButton.hovered ? "#252c35" : "transparent"
-                    border.color: primaryButton.checked ? "#3d7599" : "transparent"
+                    color: primaryButton.checked
+                        ? Theme.selectionBackground
+                        : primaryButton.hovered
+                            ? Theme.controlHover
+                            : "transparent"
+                    border.color: primaryButton.checked
+                        ? Theme.selectionBorder
+                        : "transparent"
                     border.width: 1
                     radius: 6
                 }
@@ -106,6 +117,6 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: 1
-        color: "#303744"
+        color: Theme.dividerColor
     }
 }

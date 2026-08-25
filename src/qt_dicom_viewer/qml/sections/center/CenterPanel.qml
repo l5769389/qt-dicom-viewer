@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import 'viewportArea' as ViewportSection
+import "../../theme"
 
 Rectangle {
     id: centerPanel
@@ -14,8 +15,8 @@ Rectangle {
     readonly property bool hasTabs:
         workspaceController.tabs.length > 0
 
-    color: "#15191f"
-    border.color: "#303744"
+    color: Theme.workspaceBackground
+    border.color: Theme.borderDefault
     border.width: 1
     radius: 8
     clip: true

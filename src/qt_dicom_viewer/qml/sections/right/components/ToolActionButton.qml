@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../components" as Components
+import "../../../theme"
 
 Basic.Button {
     id: actionButton
@@ -19,13 +20,21 @@ Basic.Button {
         Components.AppIcon {
             iconName: actionButton.iconName
             iconSize: 20
-            iconColor: actionButton.hovered ? "#d9e6ef" : "#98a6b5"
+            iconColor: actionButton.checked
+                ? Theme.iconActive
+                : actionButton.hovered
+                    ? Theme.iconHover
+                    : Theme.iconDefault
         }
 
         Text {
             Layout.fillWidth: true
             text: actionButton.label
-            color: actionButton.hovered ? "#ffffff" : "#c2ccd6"
+            color: actionButton.checked
+                ? Theme.textPrimary
+                : actionButton.hovered
+                    ? Theme.textPrimary
+                    : Theme.textSecondary
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
         }
@@ -33,9 +42,17 @@ Basic.Button {
 
     background: Rectangle {
         color: actionButton.pressed
-            ? "#29475a"
-            : actionButton.hovered ? "#242c35" : "#1d232b"
-        border.color: actionButton.hovered ? "#3c596d" : "#2b333d"
+            ? Theme.controlPressed
+            : actionButton.checked
+                ? Theme.selectionBackground
+                : actionButton.hovered
+                    ? Theme.controlHover
+                    : Theme.controlBackground
+        border.color: actionButton.checked
+            ? Theme.selectionBorder
+            : actionButton.hovered
+                ? Theme.controlHoverBorder
+                : Theme.controlBorder
         border.width: 1
         radius: 6
     }

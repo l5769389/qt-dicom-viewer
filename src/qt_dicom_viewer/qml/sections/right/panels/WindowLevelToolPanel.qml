@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import "../components" as Components
 import QtQuick.Controls.Basic as Basic
+import "../../../theme"
 ColumnLayout {
     id: windowPanel
 
@@ -24,7 +25,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: 30
-        color: "#20262e"
+        color: Theme.secondarySoft
         radius: 4
 
         RowLayout {
@@ -35,20 +36,20 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 text: "预设"
-                color: "#8f9ba8"
+                color: Theme.textMuted
             }
 
             Text {
                 Layout.preferredWidth: 55
                 text: "WL"
-                color: "#8f9ba8"
+                color: Theme.textMuted
                 horizontalAlignment: Text.AlignRight
             }
 
             Text {
                 Layout.preferredWidth: 55
                 text: "WW"
-                color: "#8f9ba8"
+                color: Theme.textMuted
                 horizontalAlignment: Text.AlignRight
             }
         }
@@ -85,30 +86,30 @@ ColumnLayout {
                 Text {
                     Layout.fillWidth: true
                     text: presetItem.modelData.label
-                    color: "#d7e0e8"
+                    color: Theme.textPrimary
                     elide: Text.ElideRight
                 }
 
                 Text {
                     Layout.preferredWidth: 55
                     text: presetItem.modelData.center
-                    color: "#aab5c0"
+                    color: Theme.textSecondary
                     horizontalAlignment: Text.AlignRight
                 }
 
                 Text {
                     Layout.preferredWidth: 55
                     text: presetItem.modelData.width
-                    color: "#aab5c0"
+                    color: Theme.textSecondary
                     horizontalAlignment: Text.AlignRight
                 }
             }
 
             background: Rectangle {
                 color: presetItem.pressed
-                    ? "#29475a"
+                    ? Theme.controlPressed
                     : presetItem.hovered
-                        ? "#242c35"
+                        ? Theme.controlHover
                         : "transparent"
                 radius: 5
             }

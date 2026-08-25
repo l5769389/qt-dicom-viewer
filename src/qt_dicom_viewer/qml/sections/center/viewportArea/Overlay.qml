@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "../../../theme"
 
 pragma ComponentBehavior: Bound
 
@@ -13,13 +14,13 @@ Item {
 
     component OverlayText: Text {
         visible: viewportOverlay.activeViewport !== null
-        color: "#f2f5f8"
+        color: Theme.overlayText
         font.pixelSize: 12
         font.weight: Font.DemiBold
         font.letterSpacing: 0.15
         lineHeight: 1.28
         style: Text.Outline
-        styleColor: "#cc000000"
+        styleColor: Theme.overlayOutline
         wrapMode: Text.Wrap
         z: 2
     }

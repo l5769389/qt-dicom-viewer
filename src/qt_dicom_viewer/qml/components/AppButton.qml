@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
+import "../theme"
 
 Basic.Button {
     id: control
@@ -15,15 +16,15 @@ Basic.Button {
     property real fontPixelSize: 13
     property int fontWeight: Font.Normal
 
-    property color normalColor: "#202833"
-    property color hoverColor: "#293545"
-    property color pressedColor: "#18202a"
-    property color activeColor: "#273f55"
-    property color disabledColor: "#191e25"
-    property color textColor: "#e8edf3"
-    property color disabledTextColor: "#68717d"
-    property color focusBorderColor: "#49b9ed"
-    property color activeBorderColor: "#4f9ad2"
+    property color normalColor: Theme.controlBackground
+    property color hoverColor: Theme.controlHover
+    property color pressedColor: Theme.controlPressed
+    property color activeColor: Theme.selectionBackground
+    property color disabledColor: Theme.controlDisabled
+    property color textColor: Theme.textPrimary
+    property color disabledTextColor: Theme.textDisabled
+    property color focusBorderColor: Theme.focusBorder
+    property color activeBorderColor: Theme.selectionBorder
 
     readonly property bool hasIcon:
         control.icon.source.toString() !== ""

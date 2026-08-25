@@ -1,13 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
 import 'measurementLayer' as MeasurementLayer
+import "../../../theme"
 Rectangle {
     id: imageCanvasRoot
     required property var activeViewport
     anchors.fill: parent
     color: activeViewport
         ? activeViewport.canvasBackgroundColor
-        : "#000000"
+        : Theme.canvasBackground
     clip: true
 
     function hitToleranceInImagePixels(screenTolerance,) {

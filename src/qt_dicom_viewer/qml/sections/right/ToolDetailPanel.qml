@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "panels" as Panels
+import "../../theme"
 
 Rectangle {
     id: detailPanel
@@ -10,7 +11,7 @@ Rectangle {
     required property var activeViewport
     required property var toolController
 
-    color: "#171b21"
+    color: Theme.panelBackgroundSoft
 
     Loader {
         anchors.fill: parent

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import "right" as Right
+import "../theme"
 
 Rectangle {
     id: rightPanel
@@ -12,8 +13,8 @@ Rectangle {
     required property bool toolVisible
     required property var activeViewport
 
-    color: "#1b1f26"
-    border.color: "#303744"
+    color: Theme.panelBackground
+    border.color: Theme.borderDefault
     border.width: 1
     radius: 8
     clip: true

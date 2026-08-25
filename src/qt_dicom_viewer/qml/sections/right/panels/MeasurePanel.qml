@@ -3,6 +3,7 @@ import "../components" as Components
 
 import QtQuick
 import QtQuick.Layouts
+import "../../../theme"
 
 ColumnLayout {
     id: measurePanel
@@ -38,8 +39,14 @@ ColumnLayout {
             }
 
             background: Rectangle {
-                color: measureButton.checked ? "#253b4b" : measureButton.hovered ? "#252c35" : "transparent"
-                border.color: measureButton.checked ? "#3d7599" : "transparent"
+                color: measureButton.checked
+                    ? Theme.selectionBackground
+                    : measureButton.hovered
+                        ? Theme.controlHover
+                        : "transparent"
+                border.color: measureButton.checked
+                    ? Theme.selectionBorder
+                    : "transparent"
                 border.width: 1
                 radius: 6
             }

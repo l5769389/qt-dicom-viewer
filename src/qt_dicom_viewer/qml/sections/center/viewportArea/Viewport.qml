@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../theme"
 
 Item {
     id: viewportRoot
@@ -38,7 +39,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "No viewportRoot open"
-            color: "#778392"
+            color: Theme.textMuted
             font.pixelSize: 16
             font.weight: Font.DemiBold
         }
@@ -46,7 +47,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Select a series from the left panel"
-            color: "#505a67"
+            color: Theme.textDisabled
             font.pixelSize: 12
         }
     }

@@ -44,8 +44,8 @@ Rectangle {
         }
     }
 
-    color: "#1b1f26"
-    border.color: "#303744"
+    color: Theme.panelBackground
+    border.color: Theme.borderDefault
     border.width: 1
     radius: 8
 
@@ -73,7 +73,7 @@ Rectangle {
 
             Text {
                 text: "DICOM Vision"
-                color: "#f0f4f8"
+                color: Theme.textPrimary
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
             }
@@ -88,8 +88,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
 
-            color: "#171c23"
-            border.color: "#2b333e"
+            color: Theme.panelBackgroundStrong
+            border.color: Theme.borderSubtle
             border.width: 1
             radius: 7
 
@@ -109,11 +109,11 @@ Rectangle {
                     icon.source: Qt.resolvedUrl(
                         "../assets/icons/open-folder.svg"
                     )
-                    normalColor: "#245d7b"
-                    hoverColor: "#2e789e"
-                    pressedColor: "#1c4a63"
-                    disabledColor: "#1d3c50"
-                    focusBorderColor: "#83d1f2"
+                    normalColor: Theme.primaryButtonBackground
+                    hoverColor: Theme.primaryButtonHover
+                    pressedColor: Theme.primaryButtonPressed
+                    disabledColor: Theme.primaryButtonDisabled
+                    focusBorderColor: Theme.primaryButtonBorder
 
                     ToolTip.visible: hovered
                     ToolTip.delay: 450
@@ -125,7 +125,7 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 1
                     Layout.preferredHeight: 22
-                    color: "#303946"
+                    color: Theme.dividerColor
                 }
 
                 Repeater {
@@ -147,9 +147,9 @@ Rectangle {
                         text: label
                         fontPixelSize: tabType === "mpr" ? 11 : 12
                         normalColor: "transparent"
-                        hoverColor: "#263442"
-                        pressedColor: "#1d2a36"
-                        activeColor: "#2a455b"
+                        hoverColor: Theme.controlHover
+                        pressedColor: Theme.controlPressed
+                        activeColor: Theme.selectionBackground
                         disabledColor: "transparent"
                         enabled: seriesList.currentIndex >= 0 && supported
 
@@ -176,7 +176,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            color: "#2c323d"
+            color: Theme.dividerColor
         }
 
         ListView {
@@ -199,20 +199,22 @@ Rectangle {
 
                 required property int index
                 required property var modelData
-                    readonly property bool isActive: leftPanel.activeSeriesUid === seriesDelegate.modelData.seriesInstanceUid
+                readonly property bool isActive:
+                    leftPanel.activeSeriesUid
+                        === seriesDelegate.modelData.seriesInstanceUid
 
                 width: ListView.view.width
                 implicitHeight: seriesColumn.implicitHeight + 24
                 height: implicitHeight
                 radius: 6
                 color: isActive
-                    ? Theme.activeColor
+                    ? Theme.selectionBackground
                     : mouseArea.containsMouse
-                        ? Theme.hoverColor
-                        : "#20252d"
+                        ? Theme.cardBackgroundHover
+                        : Theme.cardBackground
                 border.color: isActive
-                    ? "#4f9ad2"
-                    : "#303743"
+                    ? Theme.selectionBorder
+                    : Theme.borderDefault
                 border.width: 1
 
                 // Rectangle {
@@ -241,7 +243,7 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true
                             text: "Series " + (seriesDelegate.index + 1)
-                            color: "#eef3f7"
+                            color: Theme.textPrimary
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
@@ -250,14 +252,14 @@ Rectangle {
                             implicitWidth: fileCountText.implicitWidth + 12
                             implicitHeight: 22
                             radius: 11
-                            color: "#18202a"
+                            color: Theme.secondarySoft
 
                             Text {
                                 id: fileCountText
                                 anchors.centerIn: parent
                                 text: seriesDelegate.modelData.dicomFileCount
                                     + " files"
-                                color: "#91b9d6"
+                                color: Theme.primaryHover
                                 font.pixelSize: 10
                             }
                         }
@@ -266,7 +268,7 @@ Rectangle {
                     Text {
                         width: parent.width
                         text: seriesDelegate.modelData.seriesInstanceUid
-                        color: "#8994a3"
+                        color: Theme.textMuted
                         font.pixelSize: 10
                         elide: Text.ElideMiddle
                         maximumLineCount: 1
@@ -298,7 +300,7 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: seriesList.count === 0
                 text: "打开 DICOM 文件夹\n以查看可用序列"
-                color: "#66717f"
+                color: Theme.textSubtle
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
                 lineHeight: 1.35

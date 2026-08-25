@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import "../../components" as Components
+import "../../theme"
 
 Item {
     id: emptyState
@@ -27,8 +28,8 @@ Item {
             Layout.preferredHeight: 64
 
             radius: 18
-            color: "#1c2630"
-            border.color: "#344657"
+            color: Theme.primarySoft
+            border.color: Theme.borderStrong
             border.width: 1
 
             Image {
@@ -49,7 +50,7 @@ Item {
                 anchors.centerIn: parent
                 visible: emptyState.hasSeries
                 text: emptyState.seriesCount
-                color: "#9ed6f5"
+                color: Theme.primaryHover
                 font.pixelSize: 21
                 font.weight: Font.DemiBold
             }
@@ -66,7 +67,7 @@ Item {
                     return "选择一个影像序列"
                 return "加载 DICOM 影像"
             }
-            color: "#edf3f8"
+            color: Theme.textPrimary
             font.pixelSize: 22
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
@@ -76,7 +77,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 92
             Layout.preferredHeight: 1
-            color: "#34536b"
+            color: Theme.selectionBorder
             opacity: 0.8
         }
 
@@ -91,7 +92,7 @@ Item {
                         + " 个序列。请在左侧选择序列，然后双击打开影像。"
                 return "打开一个包含 DICOM 文件的文件夹，程序会自动扫描并整理可用序列。"
             }
-            color: "#8e9aa8"
+            color: Theme.textMuted
             font.pixelSize: 13
             lineHeight: 1.45
             wrapMode: Text.WordWrap
@@ -110,10 +111,11 @@ Item {
                 "../../assets/icons/open-folder.svg"
             )
             iconSize: 17
-            normalColor: "#276187"
-            hoverColor: "#3278a5"
-            pressedColor: "#1f4e6d"
-            disabledColor: "#202b34"
+            normalColor: Theme.primaryButtonBackground
+            hoverColor: Theme.primaryButtonHover
+            pressedColor: Theme.primaryButtonPressed
+            disabledColor: Theme.primaryButtonDisabled
+            focusBorderColor: Theme.primaryButtonBorder
 
             onClicked: emptyState.panelController.openFolderDialog()
         }
