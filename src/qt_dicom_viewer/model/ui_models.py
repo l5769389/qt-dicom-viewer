@@ -126,8 +126,8 @@ class ViewportConfig:
 
 @dataclass(frozen=True)
 class ViewportState:
-    slice_index: int = 0
-    slice_count: int = 0
+    slice_index: int | None # None为了mpr请求的时候能够直接被设置为居中位置。
+    slice_count: int | None
     window: WindowLevel | None = None
     width: float = 1.0
     height: float = 0

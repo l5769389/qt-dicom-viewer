@@ -1,13 +1,20 @@
 import logging
+from dataclasses import replace
 
+import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot
 
+from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
+from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
+    PixelSpacing,
     RenderRequest,
     RenderResult,
+    TwoDViewType,
+    MprPlane,
 )
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 
@@ -17,13 +24,37 @@ class DicomRenderWorker(QObject):
     render_finished = Signal(object)
     render_failed = Signal(object)
 
-    def __init__(self,  series_catalog: SeriesCatalog):
+    def __init__(self,
+                 series_catalog: SeriesCatalog,
+                 volume_manager: VolumeManager,
+                 ):
         super().__init__()
         self.series_catalog = series_catalog
+        self._volume_manager = volume_manager
+        self._mpr_reslicer = MprReslicer()
 
     @Slot(object)
-    def handleRenderRequest(self,request: RenderRequest):
+    def handleRenderRequest(self, request: RenderRequest):
         logger.debug(f"worker received:{request.request_id}")
+
+        try:
+            if isinstance(request.view_type, TwoDViewType):
+                self._handle_stack_request(request)
+            elif isinstance(request.view_type, MprPlane):
+                self._handle_plane_request(request)
+            else:
+                raise ValueError(
+                    f"Unsupported view type: {request.view_type}"
+                )
+        except Exception as error:
+            logger.exception(
+                "Render failed: request_id=%s viewport_id=%s",
+                request.request_id,
+                request.viewport_id,
+            )
+            self.render_failed.emit(error)
+
+    def _handle_stack_request(self, request: RenderRequest):
         try:
             series = self.series_catalog.get_series(request.series_uid)
             if series is None:
@@ -39,11 +70,13 @@ class DicomRenderWorker(QObject):
                     "Series has no renderable instances: "
                     f"series_uid={request.series_uid}"
                 )
-
-            actual_slice_index = min(
-                max(0, request.slice_index),
-                slice_count - 1,
-            )
+            if request.slice_index is None:
+                actual_slice_index = 0
+            else:
+                actual_slice_index = min(
+                    max(0, request.slice_index),
+                    slice_count - 1,
+                )
 
             instance = instances[actual_slice_index]
             dicom_load_result = DicomLoader().load_a_dicom(
@@ -82,6 +115,92 @@ class DicomRenderWorker(QObject):
                 request.viewport_id,
             )
             self.render_failed.emit(error)
+
+
+    def _handle_plane_request(self, request: RenderRequest):
+        series = self.series_catalog.get_series(request.series_uid)
+        if series is None:
+            raise LookupError(
+                "Series not found: "
+                f"series_uid={request.series_uid}"
+            )
+
+        volume = self._volume_manager.get_or_build(series)
+        if not isinstance(request.view_type, MprPlane):
+            raise TypeError(
+                f"Expected MPR plane, got {request.view_type}"
+            )
+
+        mpr_slice = self._mpr_reslicer.reslice(
+            volume=volume,
+            plane=request.view_type,
+            requested_index=request.slice_index,
+        )
+        plane_pixels = mpr_slice.modality_pixels
+        plane_geometry = mpr_slice.geometry
+        pixel_spacing = PixelSpacing(
+            row=plane_geometry.row_spacing,
+            column=plane_geometry.column_spacing,
+        )
+
+        loader = DicomLoader()
+        effective_window = loader.normalize_window(
+            request.window or volume.default_window
+        )
+        image = loader.apply_window(
+            modality_pixels=plane_pixels,
+            target_window=effective_window,
+            inverted=request.inverted,
+        )
+
+        rows = plane_geometry.rows
+        columns = plane_geometry.columns
+        instance_meta = replace(
+            volume.representative_instance_meta,
+            instance_number=None,
+            sop_instance_uid=None,
+            rows=rows,
+            columns=columns,
+            pixel_spacing=(
+                pixel_spacing.row,
+                pixel_spacing.column,
+            ),
+            image_position=plane_geometry.top_left_patient,
+            slice_location=plane_geometry.normal_coordinate_patient,
+        )
+
+        self.render_finished.emit(
+            RenderResult(
+                response_id=request.request_id,
+                series_uid=request.series_uid,
+                viewport_id=request.viewport_id,
+                view_type=request.view_type,
+                image=image,
+                modality_pixel=np.ascontiguousarray(
+                    plane_pixels,
+                    dtype=np.float32,
+                ),
+                frame_meta=FrameDisplayMeta(
+                    slice_index=mpr_slice.slice_index,
+                    slice_count=mpr_slice.slice_count,
+                    window=effective_window,
+                    instance_meta=instance_meta,
+                    inverted=request.inverted,
+                    geometry=ImageGeometryMeta(
+                        rows=rows,
+                        columns=columns,
+                        pixel_spacing=pixel_spacing,
+                        image_position_patient=(
+                            plane_geometry.top_left_patient
+                        ),
+                        image_orientation_patient=(
+                            plane_geometry.image_orientation_patient
+                        ),
+                    ),
+                ),
+            )
+        )
+
 
 
     def _handle_load_process(self, image_data) -> None:

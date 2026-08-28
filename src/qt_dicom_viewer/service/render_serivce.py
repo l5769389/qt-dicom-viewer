@@ -1,5 +1,4 @@
 import logging
-
 from PySide6.QtCore import (
     QObject,
     QThread,
@@ -7,6 +6,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
+from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import RenderRequest, RenderResult
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.dicom_render_worker import DicomRenderWorker
@@ -23,6 +23,7 @@ class RenderService(QObject):
     def __init__(
         self,
         series_catalog: SeriesCatalog,
+        volume_manager: VolumeManager,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -34,6 +35,7 @@ class RenderService(QObject):
         # Worker 不能设置 parent，因为稍后需要 moveToThread()
         self._worker = DicomRenderWorker(
             series_catalog,
+            volume_manager
         )
         self._worker.moveToThread(self._thread)
 

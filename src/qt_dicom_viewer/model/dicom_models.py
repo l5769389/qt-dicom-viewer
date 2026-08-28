@@ -52,7 +52,7 @@ class RenderRequest:
     request_id: str
     viewport_id: str
     series_uid: str
-    slice_index: int
+    slice_index: int | None
     view_type: ViewportType
     window: WindowLevel | None
     inverted: bool

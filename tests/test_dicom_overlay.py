@@ -3,6 +3,7 @@ from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
+from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import (
     DicomFolderScanSnapshot,
     DicomInstanceMeta,
@@ -69,7 +70,11 @@ def _ct_dataset() -> FileDataset:
 
 
 def test_dicom_loader_extracts_overlay_metadata() -> None:
-    result = DicomLoader().apply_window(_ct_dataset(), None, False)
+    result = DicomLoader().load_dataset(
+        _ct_dataset(),
+        target_window=None,
+        inverted=False,
+    )
 
     assert result.image is not None
     assert result.image.shape == (2, 2)
@@ -100,7 +105,11 @@ def test_dicom_loader_allows_missing_optional_overlay_tags() -> None:
     ):
         delattr(dataset, keyword)
 
-    result = DicomLoader().apply_window(dataset, None, False)
+    result = DicomLoader().load_dataset(
+        dataset,
+        target_window=None,
+        inverted=False,
+    )
 
     assert result.image is not None
     assert result.instance_meta.manufacturer is None
@@ -110,6 +119,23 @@ def test_dicom_loader_allows_missing_optional_overlay_tags() -> None:
     assert result.instance_meta.pixel_spacing is None
     assert result.instance_meta.image_position is None
     assert result.instance_meta.slice_location is None
+
+
+def test_apply_window_accepts_derived_mpr_plane() -> None:
+    modality_plane = np.array(
+        [[-160.0, 40.0, 240.0]],
+        dtype=np.float32,
+    )
+
+    image = DicomLoader.apply_window(
+        modality_pixels=modality_plane,
+        target_window=WindowLevel(center=40.0, width=400.0),
+        inverted=False,
+    )
+
+    assert image.dtype == np.uint8
+    assert image.shape == modality_plane.shape
+    assert image.tolist() == [[0, 127, 255]]
 
 
 def test_viewport_overlay_formats_series_and_frame_values() -> None:
@@ -255,7 +281,7 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
         )
     )
 
-    worker = DicomRenderWorker(catalog)
+    worker = DicomRenderWorker(catalog, VolumeManager())
     results: list[RenderResult] = []
     worker.render_finished.connect(results.append)
     worker.handleRenderRequest(

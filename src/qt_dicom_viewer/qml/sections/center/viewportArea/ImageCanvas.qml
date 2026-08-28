@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import 'measurementLayer' as MeasurementLayer
 import "../../../theme"
+
 Rectangle {
     id: imageCanvasRoot
     required property var viewportController
@@ -15,7 +16,7 @@ Rectangle {
         return screenTolerance / Math.max(
             Math.abs(imageScene.scale),
             0.0001
-            )
+        )
     }
 
     function mapToDicomPixel(interactionLayer, position) {
@@ -68,29 +69,46 @@ Rectangle {
         if (!imageCanvasRoot.viewportController)
             return 1
 
-        const columns =
+        const physicalWidth =
             imageCanvasRoot.viewportController.imageColumns
-        const rows =
-            imageCanvasRoot.viewportController.imageRows
+            * imageCanvasRoot.viewportController.imageColumnSpacing
 
-        if (columns <= 0 || rows <= 0)
+        const physicalHeight =
+            imageCanvasRoot.viewportController.imageRows
+            * imageCanvasRoot.viewportController.imageRowSpacing
+
+        if (physicalWidth <= 0 || physicalHeight <= 0)
             return 1
 
         return Math.min(
-            imageCanvasRoot.width / columns,
-            imageCanvasRoot.height / rows
+            imageCanvasRoot.width / physicalWidth,
+            imageCanvasRoot.height / physicalHeight
         )
     }
 
-    // 负责平移、缩放和旋转
+    // 图像场景使用毫米作为局部尺寸，负责整体平移、缩放和旋转。
     Item {
         id: imageScene
-
         readonly property var controller: imageCanvasRoot.viewportController
-        width: controller
-            ? controller.imageColumns : 0
-        height: controller
-            ? controller.imageRows : 0
+
+        readonly property real rowSpacing:
+            controller ? controller.imageRowSpacing : 1.0
+        readonly property real columnSpacing:
+            controller ? controller.imageColumnSpacing : 1.0
+
+        readonly property real physicalWidth:
+            controller
+                ? controller.imageColumns * columnSpacing
+                : 0
+
+        readonly property real physicalHeight:
+            controller
+                ? controller.imageRows * rowSpacing
+                : 0
+
+        width: physicalWidth
+        height: physicalHeight
+
 
         // 未缩放时让图像中心位于 viewport 中心
         x: (
@@ -114,45 +132,66 @@ Rectangle {
         rotation: controller
             ? controller.rotationDegrees : 0
 
-        // 负责水平、垂直翻转
+
+        // pixelLayer 保持一单位对应一个原始/重采样像素；spacingLayer
+        // 再按毫米间距缩放，使非等距像素也能保持正确的物理宽高比例。
         Item {
-            id: pixelLayer
-            anchors.fill: parent
+            id: spacingLayer
+
+            width: imageScene.controller
+                ? imageScene.controller.imageColumns
+                : 0
+            height: imageScene.controller
+                ? imageScene.controller.imageRows
+                : 0
 
             transform: Scale {
-                origin.x
-                    :
-                    pixelLayer.width / 2
-                origin.y
-                    :
-                    pixelLayer.height / 2
+                origin.x: 0
+                origin.y: 0
 
-                xScale: imageScene.controller
-                    && imageScene.controller.horizontalFlip
-                    ? -1 : 1
-
-                yScale: imageScene.controller
-                    && imageScene.controller.verticalFlip
-                    ? -1 : 1
+                xScale: imageScene.columnSpacing
+                yScale: imageScene.rowSpacing
             }
-
-            Image {
+            // 负责水平、垂直翻转
+            Item {
+                id: pixelLayer
                 anchors.fill: parent
 
-                source: imageScene.controller ? imageScene.controller.imageSource : ""
+                transform: Scale {
+                    origin.x
+                        :
+                        pixelLayer.width / 2
+                    origin.y
+                        :
+                        pixelLayer.height / 2
 
-                // pixelLayer 的宽高已经保持图像比例
-                fillMode: Image.Stretch
-                cache: false
-                smooth: true
-            }
+                    xScale: imageScene.controller
+                        && imageScene.controller.horizontalFlip
+                        ? -1 : 1
 
-            MeasurementLayer.MeasurementLayer {
-                anchors.fill: parent
-                measurementController:
-                    imageCanvasRoot.viewportController
-                        ? imageCanvasRoot.viewportController.measurementController
-                        : null
+                    yScale: imageScene.controller
+                        && imageScene.controller.verticalFlip
+                        ? -1 : 1
+                }
+
+                Image {
+                    anchors.fill: parent
+
+                    source: imageScene.controller ? imageScene.controller.imageSource : ""
+
+                    // pixelLayer 的宽高已经保持图像比例
+                    fillMode: Image.Stretch
+                    cache: false
+                    smooth: true
+                }
+
+                MeasurementLayer.MeasurementLayer {
+                    anchors.fill: parent
+                    measurementController:
+                        imageCanvasRoot.viewportController
+                            ? imageCanvasRoot.viewportController.measurementController
+                            : null
+                }
             }
         }
     }

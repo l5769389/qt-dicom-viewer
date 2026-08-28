@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import DicomSeriesRecord
 from qt_dicom_viewer.service.render_serivce import RenderService
 from qt_dicom_viewer.ui.controller.panel_controller import  PanelController
@@ -25,8 +26,8 @@ class AppController(QObject):
         self._series_catalog = SeriesCatalog()
         self._workspace_controller = WorkspaceController(self._series_catalog,self._image_provider,parent= self)
         self._panel_controller = PanelController(parent = self, series_catalog = self._series_catalog)
-
-        self.render_service = RenderService(self._series_catalog, self)
+        self._volume_manager = VolumeManager()
+        self.render_service = RenderService(self._series_catalog, self._volume_manager, self)
         self._signal_connect()
 
 

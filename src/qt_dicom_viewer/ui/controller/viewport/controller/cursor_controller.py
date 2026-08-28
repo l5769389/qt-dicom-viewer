@@ -66,3 +66,10 @@ class CursorController(QObject):
             pointer_ct_value=ct_value
         )
         self.cursorInfoChanged.emit()
+
+    @Slot()
+    def clearPosition(self) -> None:
+        if self._pointer_meta is None:
+            return
+        self._pointer_meta = None
+        self.cursorInfoChanged.emit()

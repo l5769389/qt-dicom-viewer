@@ -9,7 +9,8 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
-    PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind
+    PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, \
+    TwoDViewType
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -81,7 +82,10 @@ class ViewportController(QObject):
         super().__init__(parent)
         self._modality_pixel: np.ndarray | None = None
         self.viewport_config = viewport_config
-        self._state = ViewportState()
+        self._state = ViewportState(
+            slice_index= 0 if self.viewport_config.viewport_type == TwoDViewType.STACK else None,
+            slice_count=None,
+        )
         self._image_revision = 0
         self._has_image = False
         self._frame_meta: FrameDisplayMeta | None = None
@@ -106,7 +110,7 @@ class ViewportController(QObject):
             viewport_id=self.viewport_config.viewport_id,
             view_type= self.viewport_config.viewport_type,
             series_uid=self.viewport_config.series_uid,
-            slice_index=0,
+            slice_index=0 if self.viewport_config.viewport_type == TwoDViewType.STACK else None,
             window=None,
             inverted=False,
         )
@@ -393,7 +397,17 @@ class ViewportController(QObject):
             column_index: int,
             row_index: int,
     ) -> None:
-        ct_value = self._modality_pixel[int(clipRow)][int(clipColumn)]
+        if self._modality_pixel is None or not image_valid:
+            self._cursor_controller.clearPosition()
+            return
+
+        ct_value = self._modality_pixel[
+            int(clipRow)
+        ][int(clipColumn)]
+        if not np.isfinite(ct_value):
+            self._cursor_controller.clearPosition()
+            return
+
         self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
 
     @Slot(float, float, float, float, int)
@@ -494,6 +508,28 @@ class ViewportController(QObject):
 
         rows = self._frame_meta.instance_meta.rows
         return rows or 0
+
+    @Property(float, notify=imageDimensionChanged)
+    def imageRowSpacing(self) -> float:
+        """返回图像行方向的物理间距，单位为 mm。"""
+        if self._frame_meta is None:
+            return 1.0
+
+        spacing = self._frame_meta.geometry.pixel_spacing.row
+        if not isfinite(spacing) or spacing <= 0:
+            return 1.0
+        return spacing
+
+    @Property(float, notify=imageDimensionChanged)
+    def imageColumnSpacing(self) -> float:
+        """返回图像列方向的物理间距，单位为 mm。"""
+        if self._frame_meta is None:
+            return 1.0
+
+        spacing = self._frame_meta.geometry.pixel_spacing.column
+        if not isfinite(spacing) or spacing <= 0:
+            return 1.0
+        return spacing
 
     @Property(float, notify=transformChanged)
     def zoom(self) -> float:
