@@ -11,10 +11,10 @@ from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
     PixelSpacing,
+    MprRenderRequest,
     RenderRequest,
     RenderResult,
-    TwoDViewType,
-    MprPlane,
+    StackRenderRequest,
 )
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 
@@ -38,13 +38,14 @@ class DicomRenderWorker(QObject):
         logger.debug(f"worker received:{request.request_id}")
 
         try:
-            if isinstance(request.view_type, TwoDViewType):
+            if isinstance(request, StackRenderRequest):
                 self._handle_stack_request(request)
-            elif isinstance(request.view_type, MprPlane):
+            elif isinstance(request, MprRenderRequest):
                 self._handle_plane_request(request)
             else:
                 raise ValueError(
-                    f"Unsupported view type: {request.view_type}"
+                    "Unsupported render request: "
+                    f"{type(request)!r}"
                 )
         except Exception as error:
             logger.exception(
@@ -54,7 +55,10 @@ class DicomRenderWorker(QObject):
             )
             self.render_failed.emit(error)
 
-    def _handle_stack_request(self, request: RenderRequest):
+    def _handle_stack_request(
+        self,
+        request: StackRenderRequest,
+    ) -> None:
         try:
             series = self.series_catalog.get_series(request.series_uid)
             if series is None:
@@ -70,13 +74,10 @@ class DicomRenderWorker(QObject):
                     "Series has no renderable instances: "
                     f"series_uid={request.series_uid}"
                 )
-            if request.slice_index is None:
-                actual_slice_index = 0
-            else:
-                actual_slice_index = min(
-                    max(0, request.slice_index),
-                    slice_count - 1,
-                )
+            actual_slice_index = min(
+                max(0, request.slice_index),
+                slice_count - 1,
+            )
 
             instance = instances[actual_slice_index]
             dicom_load_result = DicomLoader().load_a_dicom(
@@ -105,6 +106,7 @@ class DicomRenderWorker(QObject):
                             image_orientation_patient=instance.image_orientation_patient,
                         ),
                     ),
+                    mpr_frame=None,
                 )
                 self.render_finished.emit(result)
         except Exception as error:
@@ -117,7 +119,10 @@ class DicomRenderWorker(QObject):
             self.render_failed.emit(error)
 
 
-    def _handle_plane_request(self, request: RenderRequest):
+    def _handle_plane_request(
+        self,
+        request: MprRenderRequest,
+    ) -> None:
         series = self.series_catalog.get_series(request.series_uid)
         if series is None:
             raise LookupError(
@@ -126,15 +131,10 @@ class DicomRenderWorker(QObject):
             )
 
         volume = self._volume_manager.get_or_build(series)
-        if not isinstance(request.view_type, MprPlane):
-            raise TypeError(
-                f"Expected MPR plane, got {request.view_type}"
-            )
-
         mpr_slice = self._mpr_reslicer.reslice(
             volume=volume,
-            plane=request.view_type,
-            requested_index=request.slice_index,
+            plane=request.plane,
+            frame=request.mpr_frame,
         )
         plane_pixels = mpr_slice.modality_pixels
         plane_geometry = mpr_slice.geometry
@@ -168,6 +168,10 @@ class DicomRenderWorker(QObject):
             image_position=plane_geometry.top_left_patient,
             slice_location=plane_geometry.normal_coordinate_patient,
         )
+        crosshair_index = (
+                plane_geometry.mpr_to_image_index
+                @ np.asarray([0.0, 0.0, 0.0, 1.0])
+        )
 
         self.render_finished.emit(
             RenderResult(
@@ -197,11 +201,14 @@ class DicomRenderWorker(QObject):
                             plane_geometry.image_orientation_patient
                         ),
                     ),
+                    crosshair_image_position=(
+                        float(crosshair_index[2]),
+                        float(crosshair_index[1]),
+                    ),
                 ),
+                mpr_frame=plane_geometry.frame,
             )
         )
-
-
 
     def _handle_load_process(self, image_data) -> None:
         return  image_data

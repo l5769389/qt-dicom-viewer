@@ -10,9 +10,10 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
     PointerDisplayMeta, DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, \
-    TwoDViewType
+    MprPlane, MprRenderRequest, StackRenderRequest, TwoDViewType
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
+from qt_dicom_viewer.model.ui_models import CrosshairStyle, CrosshairColor
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
 from qt_dicom_viewer.ui.controller.viewport.controller.measure.measure_controller import MeasurementController
@@ -38,6 +39,12 @@ DISPLAY_STYLES = {
         color_map="rainbow",
         no_data_color="#000020",
     ),
+}
+
+Crosshair_Style = {
+    MprPlane.AXIAL: CrosshairColor('green', 'blue'),
+    MprPlane.CORONAL: CrosshairColor('red', 'blue'),
+    MprPlane.SAGITTAL: CrosshairColor('red', 'green')
 }
 
 
@@ -76,6 +83,7 @@ class ViewportController(QObject):
     imageDimensionChanged = Signal()
     transformChanged = Signal()
     displayStyleChanged = Signal()
+    crosshairImagePositionChanged = Signal()
     hit_tolerance = 6
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
@@ -99,21 +107,39 @@ class ViewportController(QObject):
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation()
         self._active_drag_start_position: PointerPosition | None = None
+        if isinstance(self.viewport_config.viewport_type, MprPlane):
+            self.crosshair_style = CrosshairStyle(Crosshair_Style[self.viewport_config.viewport_type])
 
     @Property(QObject, constant=True)
     def cursorController(self):
         return self._cursor_controller
 
+
     def request_first_loader(self) -> None:
-        request = RenderRequest(
-            request_id=str(uuid.uuid4()),
-            viewport_id=self.viewport_config.viewport_id,
-            view_type= self.viewport_config.viewport_type,
-            series_uid=self.viewport_config.series_uid,
-            slice_index=0 if self.viewport_config.viewport_type == TwoDViewType.STACK else None,
-            window=None,
-            inverted=False,
-        )
+        viewport_type = self.viewport_config.viewport_type
+        if viewport_type == TwoDViewType.STACK:
+            request = StackRenderRequest(
+                request_id=str(uuid.uuid4()),
+                viewport_id=self.viewport_config.viewport_id,
+                series_uid=self.viewport_config.series_uid,
+                slice_index=0,
+                window=None,
+                inverted=False,
+            )
+        elif isinstance(viewport_type, MprPlane):
+            request = MprRenderRequest(
+                request_id=str(uuid.uuid4()),
+                viewport_id=self.viewport_config.viewport_id,
+                series_uid=self.viewport_config.series_uid,
+                window=None,
+                inverted=False,
+                plane=viewport_type,
+                mpr_frame=None,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported viewport type: {viewport_type!r}"
+            )
         logger.debug(
             "Render started: request_id=%s viewport_id=%s",
             request.request_id,
@@ -122,15 +148,30 @@ class ViewportController(QObject):
         self.renderRequested.emit(request)
 
     def request_render(self) -> None:
-        request = RenderRequest(
-            request_id=str(uuid.uuid4()),
-            viewport_id=self.viewport_config.viewport_id,
-            view_type= self.viewport_config.viewport_type,
-            series_uid=self.viewport_config.series_uid,
-            slice_index=self._state.slice_index,
-            window=self._state.window,
-            inverted=self._state.inverted,
-        )
+        viewport_type = self.viewport_config.viewport_type
+        if viewport_type == TwoDViewType.STACK:
+            request = StackRenderRequest(
+                request_id=str(uuid.uuid4()),
+                viewport_id=self.viewport_config.viewport_id,
+                series_uid=self.viewport_config.series_uid,
+                slice_index=0 if self._state.slice_index is None else self._state.slice_index,
+                window=self._state.window,
+                inverted=self._state.inverted,
+            )
+        elif isinstance(viewport_type, MprPlane):
+            request = MprRenderRequest(
+                request_id=str(uuid.uuid4()),
+                viewport_id=self.viewport_config.viewport_id,
+                series_uid=self.viewport_config.series_uid,
+                window=self._state.window,
+                inverted=self._state.inverted,
+                plane=viewport_type,
+                mpr_frame=None,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported viewport type: {viewport_type!r}"
+            )
         logger.debug(
             "Render started: request_id=%s viewport_id=%s window=%r",
             request.request_id,
@@ -184,6 +225,7 @@ class ViewportController(QObject):
         self._has_image = True
         self._image_revision += 1
         self.imageSourceChanged.emit()
+        self.crosshairImagePositionChanged.emit()
         logger.debug(
             "Viewport image updated: "
             "viewport_id=%s revision=%d",
@@ -684,3 +726,26 @@ class ViewportController(QObject):
     @Property(str, constant=True)
     def viewportType(self) -> str:
         return self.viewport_config.viewport_type.value
+
+
+    @Property("QVariantMap", constant=True)
+    def crosshairStyle(self) -> dict:
+        return {
+            "centerGap": self.crosshair_style.centerGap,
+            "lineWidth": self.crosshair_style.lineWidth,
+            "horizontalColor": self.crosshair_style.color.horizontal,
+            "verticalColor": self.crosshair_style.color.vertical,
+        }
+
+
+    @Property(QPointF, notify=crosshairImagePositionChanged)
+    def crosshairImagePosition(self) -> QPointF:
+        if self._frame_meta is None:
+            return QPointF(-1.0, -1.0)
+
+        position = self._frame_meta.crosshair_image_position
+        if position is None:
+            return QPointF(-1.0, -1.0)
+
+        column, row = position
+        return QPointF(column, row)

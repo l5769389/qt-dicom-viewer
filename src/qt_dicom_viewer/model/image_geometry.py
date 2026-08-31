@@ -23,6 +23,8 @@ class PointerPosition:
     image: ImagePoint | None  # 图像坐标
 
 
+
+
 @dataclass(frozen=True, slots=True)
 class DragUpdateEvent:
     start_position: PointerPosition

@@ -29,7 +29,6 @@ class MprReslicer:
         self,
         volume: DicomVolume,
         plane: MprPlane,
-        requested_index: int | None,
         frame: MprFrame | None = None,
     ) -> MprSlice:
         """从任意朝向的源 Volume 中重采样一个 MPR 平面。
@@ -44,7 +43,14 @@ class MprReslicer:
         resolved_frame = frame or MprFrame.standard_lps(
             volume.geometry.center_patient
         )
-        # 得到MPR三个轴在患者坐标系下的位置。
+        # 把同一个三维 MPR 坐标系，转换成某个二维视图需要的“图像向下、图像向右、翻页”三个方向。
+        # 三维 MPR Frame 到二维观察平面的方向适配器。
+        # row_direction_mpr：
+        # 二维图像 row 增加时，在 MPR 中朝哪个方向
+        # column_direction_mpr：
+        # 二维图像 column 增加时，在 MPR 中朝哪个方向
+        # navigation_direction_mpr：
+        # 切换到下一张图时，在 MPR 中朝哪个方向
         (
             row_direction_mpr,
             column_direction_mpr,
@@ -116,8 +122,7 @@ class MprReslicer:
             navigation_direction_patient,
         )
 
-        # 行列分别限制最大输出尺寸，不能用同一个 spacing，否则会把
-        # Coronal/Sagittal 中真实的 0.6 × 0.9766 mm 像素强制改成等距。
+
         row_spacing = self._bounded_axis_spacing(
             preferred_spacing=preferred_row_spacing,
             extent=row_extent,
@@ -150,19 +155,23 @@ class MprReslicer:
             if slice_count > 1
             else preferred_normal_spacing
         )
-        # 确定当前平面位置
-        slice_index = self._resolve_index(
-            requested_index,
+        # MPR 平面始终穿过 Frame 原点。slice_index 只是把这个物理位置
+        # 映射到导航范围内最接近的离散编号，用于界面显示。
+        slice_index = self._index_nearest_origin(
             slice_count,
             normal_bounds,
             normal_spacing,
         )
-        # 当前平面沿导航轴相对 MPR 原点（十字线中心）的毫米偏移。
-        navigation_offset = (
-            normal_bounds[0]
-            + slice_index * normal_spacing
-        )
-        # 输出像素 (0, 0) 在 MPR 物理坐标系中的位置。
+        navigation_offset = 0.0
+        # 假设 MPR 的范围是：u：-160 到 160  v： -70 到 70
+        # 当前 Axial 平面：w_current = 0
+        # 图像左上角：
+        # top_left_mpr = np.array([
+        #     -160,
+        #     -70,
+        #     0,
+        # ])
+        # 当前要返回的二维切片左上角的坐标。
         top_left_mpr = (
             column_direction_mpr * column_bounds[0]
             + row_direction_mpr * row_bounds[0]
@@ -366,10 +375,9 @@ class MprReslicer:
         volume: DicomVolume,
         patient_direction: np.ndarray,
     ) -> float:
-        """计算患者空间某个单位方向对应的源 Volume 有效采样间距。"""
-        # patient_to_voxel 将“沿患者方向移动 1 mm”转换为源体素索引增量。
-        # 其长度表示每毫米跨过多少个体素，因此倒数就是该方向移动一个
-        # 体素索引所对应的毫米距离。轴对齐时会精确返回对应源轴 spacing。
+        # 沿 row_direction_patient 在患者空间移动 1 mm。
+        # 看这 1 mm 会跨过多少个 Volume 体素索引。
+        # 取倒数，得到该方向上一个采样步长大约对应多少 mm。
         voxel_step_per_mm = (
             volume.geometry.patient_to_voxel[:3, :3]
             @ patient_direction
@@ -407,22 +415,18 @@ class MprReslicer:
         )
 
     @staticmethod
-    def _resolve_index(
-        requested_index: int | None,
+    def _index_nearest_origin(
         slice_count: int,
         normal_bounds: tuple[float, float],
         normal_spacing: float,
     ) -> int:
-        if requested_index is None:
-            # MPR 原点就是十字线中心。默认选择离局部 w=0 最近的层。
-            center_index = int(
-                np.floor(
-                    (-normal_bounds[0]) / normal_spacing
-                    + 0.5
-                )
+        nearest_index = int(
+            np.floor(
+                (-normal_bounds[0]) / normal_spacing
+                + 0.5
             )
-            return min(max(center_index, 0), slice_count - 1)
-        return min(max(requested_index, 0), slice_count - 1)
+        )
+        return min(max(nearest_index, 0), slice_count - 1)
 
     @staticmethod
     def _project_bounds(
@@ -465,6 +469,7 @@ class MprReslicer:
         # 三个视图从同一个 MPR U/V/W 坐标系派生。这里的向量位于
         # MPR 局部坐标中；MprFrame 再负责把它们转换到患者 LPS。
         match plane:
+            # 也就是说，对于显示axial的视图。 屏幕向下 +V，向右 +U，沿 +W 翻页
             case MprPlane.AXIAL:
                 # 屏幕向下 +V，向右 +U，沿 +W 翻页。
                 row = (0.0, 1.0, 0.0)

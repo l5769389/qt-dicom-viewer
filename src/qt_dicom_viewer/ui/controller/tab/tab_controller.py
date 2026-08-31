@@ -1,14 +1,15 @@
 import logging
 import uuid
+from dataclasses import replace
 from types import MappingProxyType
 
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
-from qt_dicom_viewer.model import TabConfig, ViewportConfig, SeriesDisplayMeta, TabType, MprPlane, TwoDViewType
+from qt_dicom_viewer.model import TabConfig, ViewportConfig, SeriesDisplayMeta, TabType, MprPlane, TwoDViewType, \
+    MprRenderRequest, RenderResult, RenderRequest
+from qt_dicom_viewer.model.dicom_core import MprFrame
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
-
-
 
 logger = logging.getLogger(__name__)
 class TabController(QObject):
@@ -25,6 +26,7 @@ class TabController(QObject):
             meta.series_uid: meta
             for meta in tab_config.series_metas
         }
+        self._mpr_frame: MprFrame | None = None
         self._active_viewport_id: str = ''
         self._create_viewport_dict()
 
@@ -50,9 +52,18 @@ class TabController(QObject):
         )
 
 
-    def init_render(self):
+    def _request_initial_mpr(self) -> None:
         for viewport in self._viewport_dict.values():
-            viewport.request_first_loader()
+            if viewport.viewport_config.viewport_type == MprPlane.AXIAL:
+                viewport.request_first_loader()
+
+
+    def init_render(self):
+        if self.tab_config.tab_type == TabType.MPR and self._mpr_frame is None:
+            self._request_initial_mpr()
+        if self.tab_config.tab_type == TabType.TWO_D:
+            for viewport in self._viewport_dict.values():
+                viewport.request_first_loader()
 
 
     # MappingProxyType 可以防止 Workspace 意外修改 Tab 内部字典：
@@ -104,8 +115,70 @@ class TabController(QObject):
 
     def connect_signal(self, viewport: ViewportController):
         viewport.renderRequested.connect(
-            self.renderRequested.emit
+            self._handle_render_requested
         )
+
+    @Slot(object)
+    def _handle_render_requested(
+            self,
+            request: RenderRequest,
+    ) -> None:
+        if request.viewport_id not in self._viewport_dict:
+            logger.warning(
+                "Reject request from unknown viewport: %s",
+                request.viewport_id,
+            )
+            return
+
+        if isinstance(request, MprRenderRequest):
+            request = replace(
+                request,
+                mpr_frame=self._mpr_frame,
+            )
+
+        self.renderRequested.emit(request)
+
+    @Slot(object)
+    def handleRenderResult(self, result: RenderResult) -> None:
+        viewport = self._viewport_dict.get(result.viewport_id)
+        if viewport is None:
+            logger.warning(
+                "Cannot route render result to unknown viewport: "
+                "tab_id=%s viewport_id=%s",
+                self._tab_config.tab_id,
+                result.viewport_id,
+            )
+            return
+
+        was_uninitialized = self._mpr_frame is None
+
+        if (
+                self._tab_config.tab_type == TabType.MPR
+                and result.mpr_frame is not None
+        ):
+            self._mpr_frame = result.mpr_frame
+
+        viewport.handleRenderResult(result)
+
+        if (
+                was_uninitialized
+                and self._mpr_frame is not None
+        ):
+            self._request_remaining_mpr_views()
+
+    def _request_remaining_mpr_views(self) -> None:
+        for viewport in self._viewport_dict.values():
+            if (
+                    viewport.viewport_config.viewport_type
+                    == MprPlane.AXIAL
+            ):
+                continue
+
+            viewport.request_first_loader()
+
+
+    def contains_viewport(self, viewport_id: str) -> bool:
+        return viewport_id in self._viewport_dict
 
     @property
     def tab_config(self) -> TabConfig:

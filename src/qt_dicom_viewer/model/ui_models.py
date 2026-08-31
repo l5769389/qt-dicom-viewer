@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from qt_dicom_viewer.model import TabType
-from qt_dicom_viewer.model.dicom_models import WindowLevel, PixelSpacing, ViewportType
+from .dicom_models import TabType, ViewportType
+from .dicom_types import PixelSpacing, WindowLevel
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,3 +176,16 @@ class WindowPreset:
     center: float
     width: float
     modality: str = "CT"
+
+
+@dataclass(frozen=True, slots=True)
+class CrosshairColor:
+    horizontal: str
+    vertical: str
+
+
+@dataclass(frozen=True, slots=True)
+class CrosshairStyle:
+    color: CrosshairColor
+    centerGap: int = 14
+    lineWidth: int= 1

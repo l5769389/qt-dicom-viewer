@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from typing import TypeAlias
 
-from .dicom_models import ImageGeometryMeta
+from .dicom_types import ImageGeometryMeta
 from .image_geometry import ImagePoint
 
 

@@ -19,6 +19,38 @@ Rectangle {
         )
     }
 
+    readonly property point crosshairViewportPosition: {
+    const controller = imageCanvasRoot.viewportController
+
+    if (!controller)
+        return Qt.point(-1, -1)
+
+    const imagePosition = controller.crosshairImagePosition
+
+    if (imagePosition.x < 0 || imagePosition.y < 0)
+        return Qt.point(-1, -1)
+
+    // 显式读取变换属性，让绑定在变换后重新计算
+    const transformDependency =
+        imageScene.x
+        + imageScene.y
+        + imageScene.scale
+        + imageScene.rotation
+        + pixelLayer.width
+        + pixelLayer.height
+        + (controller.horizontalFlip ? 1 : 0)
+        + (controller.verticalFlip ? 1 : 0)
+
+    if (!Number.isFinite(transformDependency))
+        return Qt.point(-1, -1)
+
+    return pixelLayer.mapToItem(
+        imageCanvasRoot,
+        imagePosition.x + 0.5,
+        imagePosition.y + 0.5
+    )
+}
+
     function mapToDicomPixel(interactionLayer, position) {
         if (
             pixelLayer.width <= 0
@@ -63,6 +95,17 @@ Rectangle {
             columnIndex: Math.floor(local.x),
             rowIndex: Math.floor(local.y)
         }
+    }
+
+    function mapDicomPixelToItem(targetItem, column, row) {
+        if (pixelLayer.width <= 0 || pixelLayer.height <= 0)
+            return Qt.point(-1, -1)
+
+        return pixelLayer.mapToItem(
+            targetItem,
+            column + 0.5,
+            row + 0.5
+        )
     }
 
     readonly property real fitScale: {

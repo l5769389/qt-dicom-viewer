@@ -13,9 +13,9 @@ from qt_dicom_viewer.model import (
     ImageGeometryMeta,
     InstanceDisplayMeta,
     PixelSpacing,
-    RenderRequest,
     RenderResult,
     SeriesDisplayMeta,
+    StackRenderRequest,
     TwoDViewType,
     ViewportConfig,
     WindowLevel,
@@ -192,6 +192,7 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
                     image_orientation_patient=None,
                 ),
             ),
+            mpr_frame=None,
         )
     )
 
@@ -285,11 +286,10 @@ def test_render_worker_builds_frame_meta(monkeypatch, tmp_path) -> None:
     results: list[RenderResult] = []
     worker.render_finished.connect(results.append)
     worker.handleRenderRequest(
-        RenderRequest(
+        StackRenderRequest(
             request_id="request-1",
             viewport_id="viewport-1",
             series_uid="series-1",
-            view_type=TwoDViewType.STACK,
             slice_index=0,
             window=None,
             inverted=False,

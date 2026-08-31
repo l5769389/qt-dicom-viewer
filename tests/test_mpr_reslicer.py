@@ -6,7 +6,7 @@ from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import (
     InstanceDisplayMeta,
     MprPlane,
-    RenderRequest,
+    MprRenderRequest,
     RenderResult,
     WindowLevel,
 )
@@ -175,22 +175,19 @@ def test_standard_planes_follow_lps_display_directions() -> None:
     axial = reslicer.reslice(
         volume,
         MprPlane.AXIAL,
-        None,
     )
     coronal = reslicer.reslice(
         volume,
         MprPlane.CORONAL,
-        None,
     )
     sagittal = reslicer.reslice(
         volume,
         MprPlane.SAGITTAL,
-        None,
     )
 
     np.testing.assert_allclose(
         axial.modality_pixels,
-        pixels[1, :, :],
+        (pixels[0, :, :] + pixels[1, :, :]) / 2.0,
     )
     np.testing.assert_allclose(
         coronal.modality_pixels,
@@ -202,11 +199,29 @@ def test_standard_planes_follow_lps_display_directions() -> None:
         sagittal.modality_pixels,
         np.stack(
             [
-                pixels[1, :, 2],
-                pixels[0, :, 2],
+                (
+                    pixels[1, :, 1]
+                    + pixels[1, :, 2]
+                ) / 2.0,
+                (
+                    pixels[0, :, 1]
+                    + pixels[0, :, 2]
+                ) / 2.0,
             ],
         ),
     )
+
+    for result in (axial, coronal, sagittal):
+        assert result.geometry.navigation_offset == 0.0
+        origin_image_index = (
+            result.geometry.mpr_to_image_index
+            @ np.asarray([0.0, 0.0, 0.0, 1.0])
+        )
+        np.testing.assert_allclose(
+            origin_image_index[0],
+            0.0,
+            atol=1e-8,
+        )
 
     assert axial.slice_count == 2
     assert coronal.slice_count == 3
@@ -243,7 +258,6 @@ def test_reslice_uses_the_supplied_mpr_frame_axes() -> None:
     axial = MprReslicer().reslice(
         volume,
         MprPlane.AXIAL,
-        None,
         frame=frame,
     )
 
@@ -263,9 +277,9 @@ def test_standard_planes_preserve_directional_source_spacing() -> None:
     )
     reslicer = MprReslicer()
 
-    axial = reslicer.reslice(volume, MprPlane.AXIAL, None)
-    coronal = reslicer.reslice(volume, MprPlane.CORONAL, None)
-    sagittal = reslicer.reslice(volume, MprPlane.SAGITTAL, None)
+    axial = reslicer.reslice(volume, MprPlane.AXIAL)
+    coronal = reslicer.reslice(volume, MprPlane.CORONAL)
+    sagittal = reslicer.reslice(volume, MprPlane.SAGITTAL)
 
     assert axial.modality_pixels.shape == (5, 6)
     assert axial.slice_count == 4
@@ -317,14 +331,14 @@ def test_axial_reslice_reorients_a_rotated_source_volume() -> None:
     axial = MprReslicer().reslice(
         volume,
         MprPlane.AXIAL,
-        None,
     )
+    center_slice = (pixels[0] + pixels[1]) / 2.0
     expected = np.asarray(
         [
-            [pixels[1, 2, 0], pixels[1, 1, 0], pixels[1, 0, 0]],
-            [pixels[1, 2, 1], pixels[1, 1, 1], pixels[1, 0, 1]],
-            [pixels[1, 2, 2], pixels[1, 1, 2], pixels[1, 0, 2]],
-            [pixels[1, 2, 3], pixels[1, 1, 3], pixels[1, 0, 3]],
+            [center_slice[2, 0], center_slice[1, 0], center_slice[0, 0]],
+            [center_slice[2, 1], center_slice[1, 1], center_slice[0, 1]],
+            [center_slice[2, 2], center_slice[1, 2], center_slice[0, 2]],
+            [center_slice[2, 3], center_slice[1, 3], center_slice[0, 3]],
         ],
         dtype=np.float32,
     )
@@ -397,14 +411,14 @@ def test_render_worker_returns_patient_space_mpr_result(
     worker.render_finished.connect(results.append)
 
     worker.handleRenderRequest(
-        RenderRequest(
+        MprRenderRequest(
             request_id="request-1",
             viewport_id="viewport-coronal",
             series_uid="series-1",
-            slice_index=None,
-            view_type=MprPlane.CORONAL,
+            plane=MprPlane.CORONAL,
             window=None,
             inverted=False,
+            mpr_frame=None,
         )
     )
 

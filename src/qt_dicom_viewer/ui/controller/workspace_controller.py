@@ -27,14 +27,11 @@ class WorkspaceController(QObject):
         self._tab_dict:dict[str, TabController] = {}
         self._active_tab_id: str | None = None
         self._image_provider = image_provider
-        # workspace 直接关联的viewport
-        self._viewport_dict: dict[str, ViewportController] = {}
 
     @Slot(str)
     def closeTab(self, tab_id: str):
         if tab_id in self._tab_dict:
             tab = self._tab_dict[tab_id]
-            self.unregister_viewport(tab)
             tab.deleteLater()
             del self._tab_dict[tab_id]
         if tab_id == self._active_tab_id:
@@ -150,7 +147,6 @@ class WorkspaceController(QObject):
             )
 
             new_tab = TabController(tab_config ,parent= self)
-            self.register_viewport(new_tab)
             self.connect_signal(new_tab)
             self._tab_dict[tab_id] = new_tab
 
@@ -164,16 +160,6 @@ class WorkspaceController(QObject):
             new_tab.init_render()
 
 
-
-    def unregister_viewport(self, tab: TabController):
-        for viewport_id, viewport in tab.viewports_by_id.items():
-            self._viewport_dict.pop(viewport_id, None)
-            self._image_provider.remove_image(viewport_id)
-
-    def register_viewport(self, new_tab: TabController):
-        for viewport_id, viewport in new_tab.viewports_by_id.items():
-            self._viewport_dict[viewport_id] = viewport
-
     def connect_signal(self, tab: TabController):
         tab.renderRequested.connect(
             self.renderRequested.emit
@@ -182,14 +168,35 @@ class WorkspaceController(QObject):
             self.activeViewportChanged.emit
         )
 
+    def _find_tab_by_viewport_id(
+            self,
+            viewport_id: str,
+    ) -> TabController | None:
+        for tab in self._tab_dict.values():
+            if tab.contains_viewport(viewport_id):
+                return tab
+
+        return None
+
     @Slot(object)
     def handleRenderResult(self, result: RenderResult):
-        logger.debug(f'receive render result={result.viewport_id}')
+        logger.debug(
+            "Receive render result: viewport_id=%s",
+            result.viewport_id,
+        )
+        tab = self._find_tab_by_viewport_id(result.viewport_id)
+        if tab is None:
+            logger.debug(
+                "Discard render result for unknown or closed viewport: "
+                "viewport_id=%s",
+                result.viewport_id,
+            )
+            return
+
         if result.image is not None:
             self._image_provider.set_array(result.viewport_id, result.image)
-        viewport = self._viewport_dict.get(result.viewport_id, None)
-        if viewport is not None:
-            viewport.handleRenderResult(result)
+
+        tab.handleRenderResult(result)
 
 
     @Slot(str, str)

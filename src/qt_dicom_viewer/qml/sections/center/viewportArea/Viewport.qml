@@ -1,4 +1,5 @@
-pragma ComponentBehavior: Bound
+pragma
+ComponentBehavior: Bound
 import QtQuick
 import "../../../theme"
 
@@ -17,6 +18,20 @@ Item {
         )
     }
 
+    function getCrosshairPosition() {
+        const mpr_planes = ['axial', 'sagittal', 'coronal']
+        if (!viewportRoot.viewportController || !mpr_planes.contains(viewportRoot.viewportController.viewportType)) {
+            return
+        }
+        const position = viewportRoot.viewportController.crosshairPosition
+
+        if (position.centerX === null || position.centerY === null) {
+            return Qt.point(viewportRoot.width / 2, viewportRoot.height / 2)
+        } else {
+            return Qt.point(viewportRoot.viewportController.centerX, viewportRoot.viewportController.centerY)
+        }
+    }
+
 
     onWidthChanged: syncViewportSize()
     onHeightChanged: syncViewportSize()
@@ -24,6 +39,7 @@ Item {
 
     Component.onCompleted: syncViewportSize()
 
+    // 显示影像
     ImageCanvas {
         id: imageCanvas
         anchors.fill: parent
@@ -31,6 +47,7 @@ Item {
         viewportController: viewportRoot.viewportController
     }
 
+    // 显示空白提示信息
     Column {
         id: emptyView
         anchors.centerIn: parent
@@ -53,12 +70,25 @@ Item {
         }
     }
 
+    // 四角信息
     Overlay {
         anchors.fill: parent
         z: 10
         anchors.margins: 8
         viewportController: viewportRoot.viewportController
 
+    }
+
+    CrosshairLayer {
+        anchors.fill: parent
+        visible:
+            imageCanvas.crosshairViewportPosition.x >= 0
+            && imageCanvas.crosshairViewportPosition.y >= 0
+
+        crosshairPosition:
+            imageCanvas.crosshairViewportPosition
+        crosshairStyle: viewportRoot.viewportController.crosshairStyle
+        z: 10
     }
 
     InteractionLayer {
@@ -196,6 +226,5 @@ Item {
                 hit.rowIndex
             )
         }
-
     }
 }

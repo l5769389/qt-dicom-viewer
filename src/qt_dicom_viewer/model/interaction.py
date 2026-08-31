@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import TypeAlias
 
+from .dicom_types import WindowLevel
 from .measure import MeasureContext
-from .ui_models import WindowLevel
 
 
 @dataclass(frozen=True, slots=True)

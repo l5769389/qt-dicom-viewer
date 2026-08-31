@@ -5,11 +5,7 @@ from typing import TypeAlias
 
 import numpy as np
 
-from qt_dicom_viewer.model.dicom_models import (
-    InstanceDisplayMeta,
-    WindowLevel,
-)
-
+from .dicom_types import InstanceDisplayMeta, WindowLevel
 
 Vector3: TypeAlias = tuple[float, float, float]
 
