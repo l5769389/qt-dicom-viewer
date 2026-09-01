@@ -79,6 +79,16 @@ Item {
 
     }
 
+    DirectionOverlay {
+        anchors.fill: parent
+        z: 11
+
+        directionLabels:
+            viewportRoot.viewportController
+                ? viewportRoot.viewportController.directionLabels
+                : ({})
+    }
+
     CrosshairLayer {
         anchors.fill: parent
         visible:

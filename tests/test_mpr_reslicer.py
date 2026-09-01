@@ -126,13 +126,12 @@ def test_mpr_image_geometry_uses_the_full_coordinate_chain() -> None:
         columns=6,
         row_spacing=0.5,
         column_spacing=0.75,
-        normal_spacing=1.25,
+        navigation_spacing=1.25,
         frame=frame,
-        top_left_mpr=(0.0, 0.0, 0.0),
+        image_origin_mpr=(0.0, 0.0, 0.0),
         row_direction_mpr=(0.0, 1.0, 0.0),
         column_direction_mpr=(1.0, 0.0, 0.0),
         navigation_direction_mpr=(0.0, 0.0, 1.0),
-        navigation_offset=0.0,
     )
     image_index = np.asarray([1.0, 2.0, 3.0, 1.0])
 
@@ -212,7 +211,7 @@ def test_standard_planes_follow_lps_display_directions() -> None:
     )
 
     for result in (axial, coronal, sagittal):
-        assert result.geometry.navigation_offset == 0.0
+        assert result.geometry.plane_offset_mpr == 0.0
         origin_image_index = (
             result.geometry.mpr_to_image_index
             @ np.asarray([0.0, 0.0, 0.0, 1.0])
@@ -238,6 +237,24 @@ def test_standard_planes_follow_lps_display_directions() -> None:
     assert sagittal.geometry.image_orientation_patient == (
         0.0, 1.0, 0.0,
         0.0, 0.0, -1.0,
+    )
+
+    # Sagittal 视图沿 +U 翻页，而 IOP 两个方向的叉乘为 -U。
+    # 两者均垂直于平面，但其有向语义不同，不能混用。
+    np.testing.assert_allclose(
+        sagittal.geometry.navigation_direction_patient,
+        [1.0, 0.0, 0.0],
+    )
+    np.testing.assert_allclose(
+        sagittal.geometry.iop_normal_direction_patient,
+        [-1.0, 0.0, 0.0],
+    )
+    np.testing.assert_allclose(
+        sagittal.geometry.navigation_position_patient,
+        np.dot(
+            sagittal.geometry.image_origin_patient,
+            sagittal.geometry.navigation_direction_patient,
+        ),
     )
 
 
@@ -287,7 +304,7 @@ def test_standard_planes_preserve_directional_source_spacing() -> None:
         [
             axial.geometry.row_spacing,
             axial.geometry.column_spacing,
-            axial.geometry.normal_spacing,
+            axial.geometry.navigation_spacing,
         ],
         [0.9, 1.2, 0.6],
     )
@@ -298,7 +315,7 @@ def test_standard_planes_preserve_directional_source_spacing() -> None:
         [
             coronal.geometry.row_spacing,
             coronal.geometry.column_spacing,
-            coronal.geometry.normal_spacing,
+            coronal.geometry.navigation_spacing,
         ],
         [0.6, 1.2, 0.9],
     )
@@ -309,7 +326,7 @@ def test_standard_planes_preserve_directional_source_spacing() -> None:
         [
             sagittal.geometry.row_spacing,
             sagittal.geometry.column_spacing,
-            sagittal.geometry.normal_spacing,
+            sagittal.geometry.navigation_spacing,
         ],
         [0.6, 0.9, 1.2],
     )

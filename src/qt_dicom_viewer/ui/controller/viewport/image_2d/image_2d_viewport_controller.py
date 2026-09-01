@@ -5,6 +5,9 @@ from math import isfinite
 import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
+from qt_dicom_viewer.core.patient_orientation import (
+    displayed_image_edge_labels,
+)
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
     DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, OperationStartContext
@@ -73,6 +76,7 @@ class Image2DViewportController(ViewportController):
     transformChanged = Signal()
     displayStyleChanged = Signal()
     crosshairImagePositionChanged = Signal()
+    directionLabelsChanged = Signal()
     hit_tolerance = 6
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
@@ -187,6 +191,7 @@ class Image2DViewportController(ViewportController):
 
         self.overlayChanged.emit()
         self.imageDimensionChanged.emit()
+        self.directionLabelsChanged.emit()
         if result.image is None:
             return
 
@@ -651,6 +656,7 @@ class Image2DViewportController(ViewportController):
 
         self._state = next_state
         self.transformChanged.emit()
+        self.directionLabelsChanged.emit()
 
     @Property(str, notify=displayStyleChanged)
     def canvasBackgroundColor(self) -> str:
@@ -713,3 +719,37 @@ class Image2DViewportController(ViewportController):
     @Property(QPointF, notify=crosshairImagePositionChanged)
     def crosshairImagePosition(self) -> QPointF:
         return QPointF(-1.0, -1.0)
+
+    @Property(
+        "QVariantMap",
+        notify=directionLabelsChanged,
+    )
+    def directionLabels(self) -> dict:
+        if self._frame_meta is None:
+            return self._empty_direction_labels()
+
+        orientation = (
+            self._frame_meta
+            .geometry
+            .image_orientation_patient
+        )
+
+        if orientation is None:
+            return self._empty_direction_labels()
+
+        return displayed_image_edge_labels(
+            image_orientation_patient=orientation,
+            rotation_degrees=self._state.rotation_degrees,
+            horizontal_flip=self._state.horizontal_flip,
+            vertical_flip=self._state.vertical_flip,
+        ).as_dict()
+
+
+    @staticmethod
+    def _empty_direction_labels() -> dict[str, str]:
+        return {
+            "top": "",
+            "right": "",
+            "bottom": "",
+            "left": "",
+        }

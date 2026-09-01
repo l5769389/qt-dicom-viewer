@@ -1,7 +1,15 @@
+import numpy as np
+
 from qt_dicom_viewer.model import (
+    FrameDisplayMeta,
+    ImageGeometryMeta,
+    InstanceDisplayMeta,
+    PixelSpacing,
     SeriesDisplayMeta,
+    StackRenderResult,
     TwoDViewType,
     ViewportConfig,
+    WindowLevel,
 )
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller import (
@@ -27,6 +35,48 @@ def _controller() -> StackViewportController:
             series_meta=series_meta,
         ),
         tool_controller=ToolController(),
+    )
+
+
+def _render_result(
+    controller: StackViewportController,
+) -> StackRenderResult:
+    return StackRenderResult(
+        response_id="request-1",
+        viewport_id=controller.viewport_config.viewport_id,
+        series_uid=controller.viewport_config.series_uid,
+        view_type=TwoDViewType.STACK,
+        image=np.zeros((2, 2), dtype=np.uint8),
+        modality_pixel=np.zeros((2, 2), dtype=np.float32),
+        frame_meta=FrameDisplayMeta(
+            slice_index=0,
+            slice_count=1,
+            window=WindowLevel(center=40.0, width=400.0),
+            inverted=False,
+            instance_meta=InstanceDisplayMeta(
+                instance_number=1,
+                sop_instance_uid="sop-1",
+                manufacturer=None,
+                kvp=None,
+                tube_current_ma=None,
+                slice_thickness=None,
+                rows=2,
+                columns=2,
+                pixel_spacing=(1.0, 1.0),
+                image_position=(0.0, 0.0, 0.0),
+                slice_location=0.0,
+            ),
+            geometry=ImageGeometryMeta(
+                rows=2,
+                columns=2,
+                pixel_spacing=PixelSpacing(row=1.0, column=1.0),
+                image_position_patient=(0.0, 0.0, 0.0),
+                image_orientation_patient=(
+                    1.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0,
+                ),
+            ),
+        ),
     )
 
 
@@ -72,3 +122,37 @@ def test_unknown_transform_action_is_ignored() -> None:
     controller.applyTransformAction("rotate:unsupported")
 
     assert controller.viewport_state == initial_state
+
+
+def test_direction_labels_follow_geometry_and_display_transform() -> None:
+    controller = _controller()
+    changes = []
+    controller.directionLabelsChanged.connect(
+        lambda: changes.append(controller.directionLabels)
+    )
+
+    assert controller.directionLabels == {
+        "top": "",
+        "right": "",
+        "bottom": "",
+        "left": "",
+    }
+
+    controller.handleRenderResult(_render_result(controller))
+
+    assert controller.directionLabels == {
+        "top": "A",
+        "right": "L",
+        "bottom": "P",
+        "left": "R",
+    }
+
+    controller.applyTransformAction("rotate:cw90")
+
+    assert controller.directionLabels == {
+        "top": "R",
+        "right": "A",
+        "bottom": "L",
+        "left": "P",
+    }
+    assert len(changes) == 2

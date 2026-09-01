@@ -93,13 +93,12 @@ def _mpr_geometry(frame: MprFrame) -> MprImageGeometry:
         columns=4,
         row_spacing=2.0,
         column_spacing=3.0,
-        normal_spacing=1.0,
+        navigation_spacing=1.0,
         frame=frame,
-        top_left_mpr=(0.0, 0.0, 0.0),
+        image_origin_mpr=(0.0, 0.0, 0.0),
         row_direction_mpr=(0.0, 1.0, 0.0),
         column_direction_mpr=(1.0, 0.0, 0.0),
         navigation_direction_mpr=(0.0, 0.0, 1.0),
-        navigation_offset=0.0,
     )
 
 

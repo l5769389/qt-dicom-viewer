@@ -37,41 +37,35 @@ class MprReslicer:
         LPS 和源 Volume 连续体素坐标，最后通过插值得到模态像素值。
         """
 
-        # 建立独立 MPR 坐标系。初始状态下就是以：
-        # volume的中心在LPS坐标系下的位置为mpr的原点。
-        # MPR的三个坐标轴与患者坐标系对齐
+        # 确定本次重采样使用的 MPR Frame。未传入 Frame 时，
+        # 以 Volume 中心为原点，并使 U/V/W 轴与患者 LPS 对齐。
         resolved_frame = frame or MprFrame.standard_lps(
             volume.geometry.center_patient
         )
-        # 把同一个三维 MPR 坐标系，转换成某个二维视图需要的“图像向下、图像向右、翻页”三个方向。
-        # 三维 MPR Frame 到二维观察平面的方向适配器。
-        # row_direction_mpr：
-        # 二维图像 row 增加时，在 MPR 中朝哪个方向
-        # column_direction_mpr：
-        # 二维图像 column 增加时，在 MPR 中朝哪个方向
-        # navigation_direction_mpr：
-        # 切换到下一张图时，在 MPR 中朝哪个方向
+        # - row_direction_mpr：图像 row 增大时，在 MPR 中向哪里移动。
+        # - column_direction_mpr：图像 column 增大时，在 MPR 中向哪里移动。
+        # - navigation_direction_mpr：切片索引增大时，在 MPR 中向哪里移动。
         (
             row_direction_mpr,
             column_direction_mpr,
             navigation_direction_mpr,
         ) = self._plane_axes_mpr(plane)
-        # 先将 Volume 的 8 个角点转换到独立的 MPR 物理坐标系。
-        # 后续范围计算全部在以十字线中心为原点、单位为 mm 的 MPR 中完成。
-        corners = self._volume_corners_mpr(
+        # 将 Volume 的 8 个极端体素中心转到 MPR 物理坐标系。
+        # 后续范围计算均以 MPR Frame 原点为原点，单位为 mm。
+        volume_corner_centers_mpr = self._volume_corners_mpr(
             volume,
             resolved_frame,
         )
         row_bounds = self._project_bounds(
-            corners,
+            volume_corner_centers_mpr,
             row_direction_mpr,
         )
         column_bounds = self._project_bounds(
-            corners,
+            volume_corner_centers_mpr,
             column_direction_mpr,
         )
-        normal_bounds = self._project_bounds(
-            corners,
+        navigation_bounds = self._project_bounds(
+            volume_corner_centers_mpr,
             navigation_direction_mpr,
         )
         source_spacings = (
@@ -89,11 +83,14 @@ class MprReslicer:
 
         row_extent = row_bounds[1] - row_bounds[0]
         column_extent = column_bounds[1] - column_bounds[0]
-        normal_extent = normal_bounds[1] - normal_bounds[0]
+        navigation_extent = (
+            navigation_bounds[1] - navigation_bounds[0]
+        )
 
-        # 标准正交 MPR 保留各患者方向对应的源采样密度。对于轴对齐 Volume，
-        # Axial/Coronal/Sagittal 的法向层数会分别对应源数据的
-        # depth/height/width。Oblique MPR 后续应使用独立的采样策略。
+        # 根据每个输出轴在源 Volume 中跨越体素索引的速度，
+        # 估算对应的首选采样间距。对于轴对齐 Volume，
+        # Axial/Coronal/Sagittal 的导航层数会分别对应源数据的
+        # depth/height/width。Oblique MPR 后续可以使用独立的采样策略。
         row_direction_patient = np.asarray(
             resolved_frame.direction_to_patient(
                 self._to_vector3(row_direction_mpr)
@@ -117,12 +114,10 @@ class MprReslicer:
             volume,
             column_direction_patient,
         )
-        preferred_normal_spacing = self._spacing_along_direction(
+        preferred_navigation_spacing = self._spacing_along_direction(
             volume,
             navigation_direction_patient,
         )
-
-
         row_spacing = self._bounded_axis_spacing(
             preferred_spacing=preferred_row_spacing,
             extent=row_extent,
@@ -141,50 +136,44 @@ class MprReslicer:
             column_spacing,
         )
 
-        slice_count = self._sample_count(
-            # 正交 MPR 的 Im 总数使用当前法向的原生采样间距，因此轴对齐
+        navigation_count = self._sample_count(
+            # 正交 MPR 的导航切片总数使用当前导航轴的首选间距，
+            # 因此轴对齐
             # Volume 会得到 depth/height/width，而不是最小 spacing
             # 各向同性重采样后产生的额外插值层。
-            normal_extent,
-            preferred_normal_spacing,
+            navigation_extent,
+            preferred_navigation_spacing,
         )
         # 重新从物理范围计算最终间距，使第一层和最后一层准确落在两端，
         # 同时消除 DICOM 浮点位置造成的微小累计误差。
-        normal_spacing = (
-            normal_extent / (slice_count - 1)
-            if slice_count > 1
-            else preferred_normal_spacing
+        navigation_spacing = (
+            navigation_extent / (navigation_count - 1)
+            if navigation_count > 1
+            else preferred_navigation_spacing
         )
         # MPR 平面始终穿过 Frame 原点。slice_index 只是把这个物理位置
         # 映射到导航范围内最接近的离散编号，用于界面显示。
-        slice_index = self._index_nearest_origin(
-            slice_count,
-            normal_bounds,
-            normal_spacing,
+        navigation_index = self._index_nearest_origin(
+            navigation_count,
+            navigation_bounds,
+            navigation_spacing,
         )
-        navigation_offset = 0.0
-        # 假设 MPR 的范围是：u：-160 到 160  v： -70 到 70
-        # 当前 Axial 平面：w_current = 0
-        # 图像左上角：
-        # top_left_mpr = np.array([
-        #     -160,
-        #     -70,
-        #     0,
-        # ])
-        # 当前要返回的二维切片左上角的坐标。
-        top_left_mpr = (
+        plane_offset_mpr = 0.0
+        # 第一个输出像素中心由 row/column 的最小投影坐标
+        # 和当前平面沿导航轴的偏移共同确定。
+        image_origin_mpr = (
             column_direction_mpr * column_bounds[0]
             + row_direction_mpr * row_bounds[0]
-            + navigation_direction_mpr * navigation_offset
+            + navigation_direction_mpr * plane_offset_mpr
         )
         plane_geometry = MprImageGeometry(
             rows=rows,
             columns=columns,
             row_spacing=row_spacing,
             column_spacing=column_spacing,
-            normal_spacing=normal_spacing,
+            navigation_spacing=navigation_spacing,
             frame=resolved_frame,
-            top_left_mpr=self._to_vector3(top_left_mpr),
+            image_origin_mpr=self._to_vector3(image_origin_mpr),
             row_direction_mpr=self._to_vector3(
                 row_direction_mpr
             ),
@@ -194,7 +183,6 @@ class MprReslicer:
             navigation_direction_mpr=self._to_vector3(
                 navigation_direction_mpr
             ),
-            navigation_offset=float(navigation_offset),
         )
         # 生成整个输出采样网格
         modality_pixels = self._sample_plane(
@@ -205,8 +193,8 @@ class MprReslicer:
         return MprSlice(
             modality_pixels=modality_pixels,
             geometry=plane_geometry,
-            slice_index=slice_index,
-            slice_count=slice_count,
+            slice_index=navigation_index,
+            slice_count=navigation_count,
         )
 
     def _sample_plane(
@@ -214,10 +202,11 @@ class MprReslicer:
         volume: DicomVolume,
         geometry: MprImageGeometry,
     ) -> np.ndarray:
-        """把患者空间中的输出网格映射到源体素坐标并完成采样。"""
+        """把 MPR 输出网格映射到源体素坐标并完成采样。"""
 
-        # 图像索引 → MPR → 患者 → 源体素。矩阵列依次表示
-        # normal、row、column 索引各增加 1 时，源体素坐标的变化。
+        # 采样网格索引 → MPR → 患者 → 源体素。矩阵列依次表示
+        # navigation offset、row、column 索引各增加 1 时，
+        # 源体素坐标的变化。
         image_to_voxel = geometry.image_index_to_voxel(
             volume.geometry
         )
@@ -416,17 +405,20 @@ class MprReslicer:
 
     @staticmethod
     def _index_nearest_origin(
-        slice_count: int,
-        normal_bounds: tuple[float, float],
-        normal_spacing: float,
+        navigation_count: int,
+        navigation_bounds: tuple[float, float],
+        navigation_spacing: float,
     ) -> int:
         nearest_index = int(
             np.floor(
-                (-normal_bounds[0]) / normal_spacing
+                (-navigation_bounds[0]) / navigation_spacing
                 + 0.5
             )
         )
-        return min(max(nearest_index, 0), slice_count - 1)
+        return min(
+            max(nearest_index, 0),
+            navigation_count - 1,
+        )
 
     @staticmethod
     def _project_bounds(
@@ -466,25 +458,25 @@ class MprReslicer:
     def _plane_axes_mpr(
         plane: MprPlane,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """返回图像向下、向右和翻到下一层的 MPR 方向。"""
         # 三个视图从同一个 MPR U/V/W 坐标系派生。这里的向量位于
         # MPR 局部坐标中；MprFrame 再负责把它们转换到患者 LPS。
         match plane:
-            # 也就是说，对于显示axial的视图。 屏幕向下 +V，向右 +U，沿 +W 翻页
             case MprPlane.AXIAL:
                 # 屏幕向下 +V，向右 +U，沿 +W 翻页。
                 row = (0.0, 1.0, 0.0)
                 column = (1.0, 0.0, 0.0)
-                normal = (0.0, 0.0, 1.0)
+                navigation = (0.0, 0.0, 1.0)
             case MprPlane.CORONAL:
                 # 屏幕向下 -W，向右 +U，沿 +V 翻页。
                 row = (0.0, 0.0, -1.0)
                 column = (1.0, 0.0, 0.0)
-                normal = (0.0, 1.0, 0.0)
+                navigation = (0.0, 1.0, 0.0)
             case MprPlane.SAGITTAL:
                 # 屏幕向下 -W，向右 +V，沿 +U 翻页。
                 row = (0.0, 0.0, -1.0)
                 column = (0.0, 1.0, 0.0)
-                normal = (1.0, 0.0, 0.0)
+                navigation = (1.0, 0.0, 0.0)
             case _:
                 raise MprResliceError(
                     f"Unsupported MPR plane: {plane}"
@@ -493,7 +485,7 @@ class MprReslicer:
         return (
             np.asarray(row, dtype=np.float64),
             np.asarray(column, dtype=np.float64),
-            np.asarray(normal, dtype=np.float64),
+            np.asarray(navigation, dtype=np.float64),
         )
 
     @staticmethod

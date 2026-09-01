@@ -178,8 +178,8 @@ class DicomRenderWorker(QObject):
                 pixel_spacing.row,
                 pixel_spacing.column,
             ),
-            image_position=plane_geometry.top_left_patient,
-            slice_location=plane_geometry.normal_coordinate_patient,
+            image_position=plane_geometry.image_origin_patient,
+            slice_location=plane_geometry.navigation_position_patient,
         )
         self.render_finished.emit(
             MprRenderResult(
@@ -203,7 +203,7 @@ class DicomRenderWorker(QObject):
                         columns=columns,
                         pixel_spacing=pixel_spacing,
                         image_position_patient=(
-                            plane_geometry.top_left_patient
+                            plane_geometry.image_origin_patient
                         ),
                         image_orientation_patient=(
                             plane_geometry.image_orientation_patient

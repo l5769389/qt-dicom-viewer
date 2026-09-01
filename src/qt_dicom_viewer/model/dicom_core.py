@@ -10,39 +10,43 @@ from .dicom_types import InstanceDisplayMeta, WindowLevel
 Vector3: TypeAlias = tuple[float, float, float]
 
 
-def _index_to_reference_matrix(
+def _affine_from_basis(
     *,
-    origin_reference: Vector3,
-    axis0_direction: Vector3,
-    axis1_direction: Vector3,
-    axis2_direction: Vector3,
+    origin_in_target: Vector3,
+    axis0_direction_in_target: Vector3,
+    axis1_direction_in_target: Vector3,
+    axis2_direction_in_target: Vector3,
     axis0_spacing: float,
     axis1_spacing: float,
     axis2_spacing: float,
 ) -> np.ndarray:
-    """构造三个索引轴到目标参考坐标系的齐次矩阵。"""
+    """用原点和三个基轴构造到目标坐标系的齐次仿射矩阵。
+
+    输入坐标的三个分量分别沿 axis0/axis1/axis2 增加；
+    矩阵的每一列表示对应分量增加 1 时，在目标坐标系中的位移。
+    """
     matrix = np.eye(4, dtype=np.float64)
     matrix[:3, 0] = (
-        np.asarray(axis0_direction, dtype=np.float64)
+        np.asarray(axis0_direction_in_target, dtype=np.float64)
         * axis0_spacing
     )
     matrix[:3, 1] = (
-        np.asarray(axis1_direction, dtype=np.float64)
+        np.asarray(axis1_direction_in_target, dtype=np.float64)
         * axis1_spacing
     )
     matrix[:3, 2] = (
-        np.asarray(axis2_direction, dtype=np.float64)
+        np.asarray(axis2_direction_in_target, dtype=np.float64)
         * axis2_spacing
     )
     matrix[:3, 3] = np.asarray(
-        origin_reference,
+        origin_in_target,
         dtype=np.float64,
     )
-    #[
-    #   [a0[0],a1[0], a2[0], origin[0]
-    #   [a0[0],a1[0], a2[0], origin[0]
-    #   [a0[0],a1[0], a2[0], origin[0]
-    #   [0              ,0              ,               0, 1
+    # [
+    #   [axis0.x, axis1.x, axis2.x, origin.x],
+    #   [axis0.y, axis1.y, axis2.y, origin.y],
+    #   [axis0.z, axis1.z, axis2.z, origin.z],
+    #   [0.0,     0.0,     0.0,     1.0],
     # ]
     return matrix
 
@@ -74,11 +78,16 @@ class VolumeGeometry:
     @property
     def voxel_to_patient(self) -> np.ndarray:
         """将 Volume 体素坐标 (slice, row, column) 转为患者 LPS。"""
-        return _index_to_reference_matrix(
-            origin_reference=self.origin_patient,
-            axis0_direction=self.slice_index_direction_patient,
-            axis1_direction=self.row_index_direction_patient,
-            axis2_direction=self.column_index_direction_patient,
+        # 这里的体素坐标可以是用于插值的连续索引，不仅是整数索引。
+        return _affine_from_basis(
+            origin_in_target=self.origin_patient,
+            axis0_direction_in_target=(
+                self.slice_index_direction_patient
+            ),
+            axis1_direction_in_target=self.row_index_direction_patient,
+            axis2_direction_in_target=(
+                self.column_index_direction_patient
+            ),
             axis0_spacing=self.slice_spacing,
             axis1_spacing=self.row_spacing,
             axis2_spacing=self.column_spacing,
@@ -162,11 +171,11 @@ class MprFrame:
     @property
     def mpr_to_patient(self) -> np.ndarray:
         """将 MPR 物理坐标 (u, v, w)，单位 mm，转为患者 LPS。"""
-        return _index_to_reference_matrix(
-            origin_reference=self.center_patient,
-            axis0_direction=self.u_direction_patient,
-            axis1_direction=self.v_direction_patient,
-            axis2_direction=self.w_direction_patient,
+        return _affine_from_basis(
+            origin_in_target=self.center_patient,
+            axis0_direction_in_target=self.u_direction_patient,
+            axis1_direction_in_target=self.v_direction_patient,
+            axis2_direction_in_target=self.w_direction_patient,
             axis0_spacing=1.0,
             axis1_spacing=1.0,
             axis2_spacing=1.0,
@@ -190,30 +199,35 @@ class MprFrame:
 
 @dataclass(frozen=True, slots=True)
 class MprImageGeometry:
-    """一张 MPR 输出图像的离散采样网格。"""
+    """一张 MPR 输出图像及其导航轴的采样几何。"""
 
     rows: int
     columns: int
     row_spacing: float
     column_spacing: float
-    normal_spacing: float
+    navigation_spacing: float
 
     frame: MprFrame
-    top_left_mpr: Vector3
+    image_origin_mpr: Vector3
     row_direction_mpr: Vector3
     column_direction_mpr: Vector3
     navigation_direction_mpr: Vector3
-    navigation_offset: float
 
     @property
     def image_index_to_mpr(self) -> np.ndarray:
-        """将图像网格索引 (normal, row, column) 转为 MPR 毫米坐标。"""
-        return _index_to_reference_matrix(
-            origin_reference=self.top_left_mpr,
-            axis0_direction=self.navigation_direction_mpr,
-            axis1_direction=self.row_direction_mpr,
-            axis2_direction=self.column_direction_mpr,
-            axis0_spacing=self.normal_spacing,
+        """将采样网格索引转为 MPR 毫米坐标。
+
+        索引顺序是 (navigation_offset_index, row_index, column_index)。
+        第 0 轴是相对于当前平面的导航偏移，不是 MprSlice.slice_index。
+        """
+        return _affine_from_basis(
+            origin_in_target=self.image_origin_mpr,
+            axis0_direction_in_target=(
+                self.navigation_direction_mpr
+            ),
+            axis1_direction_in_target=self.row_direction_mpr,
+            axis2_direction_in_target=self.column_direction_mpr,
+            axis0_spacing=self.navigation_spacing,
             axis1_spacing=self.row_spacing,
             axis2_spacing=self.column_spacing,
         )
@@ -277,12 +291,23 @@ class MprImageGeometry:
         )
 
     @property
-    def top_left_patient(self) -> Vector3:
+    def image_origin_patient(self) -> Vector3:
+        """返回输出图像第一个像素中心在患者 LPS 中的位置。"""
         point = self.frame.mpr_to_patient @ np.asarray(
-            [*self.top_left_mpr, 1.0],
+            [*self.image_origin_mpr, 1.0],
             dtype=np.float64,
         )
         return _to_vector3(point[:3])
+
+    @property
+    def plane_offset_mpr(self) -> float:
+        """返回当前平面沿导航轴相对 MPR Frame 原点的偏移。"""
+        return float(
+            np.dot(
+                self.image_origin_mpr,
+                self.navigation_direction_mpr,
+            )
+        )
 
     @property
     def row_direction_patient(self) -> Vector3:
@@ -303,7 +328,8 @@ class MprImageGeometry:
         )
 
     @property
-    def plane_normal_direction_patient(self) -> Vector3:
+    def iop_normal_direction_patient(self) -> Vector3:
+        """返回由图像 IOP 两个方向叉乘得到的有向法线。"""
         normal = np.cross(
             np.asarray(self.column_direction_patient),
             np.asarray(self.row_direction_patient),
@@ -312,10 +338,15 @@ class MprImageGeometry:
         return _to_vector3(normal)
 
     @property
-    def normal_coordinate_patient(self) -> float:
+    def navigation_position_patient(self) -> float:
+        """返回图像原点沿导航方向的标量位置。
+
+        这个值用于界面显示切片位置，使其随 navigation index
+        递增。它不是由 IOP 叉乘法线强制定义的 DICOM 值。
+        """
         return float(
             np.dot(
-                self.top_left_patient,
+                self.image_origin_patient,
                 self.navigation_direction_patient,
             )
         )
@@ -333,6 +364,8 @@ class MprImageGeometry:
 
 @dataclass(frozen=True, slots=True)
 class MprSlice:
+    """当前 MPR 平面及其在导航范围内的离散编号。"""
+
     modality_pixels: np.ndarray
     geometry: MprImageGeometry
     slice_index: int

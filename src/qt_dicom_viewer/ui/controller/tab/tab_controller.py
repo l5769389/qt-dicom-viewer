@@ -248,8 +248,10 @@ class TabController(QObject):
             needs_initial_mpr_frame = self._target_mpr_frame is None
 
             viewport.handleRenderResult(result)
-            # 初始化状态下，先发起axial视图，收到响应后需要发送另外两个视图。
+            # Bootstrap MPR with the axial view, then render the other views
+            # after the first result establishes the shared frame.
             if needs_initial_mpr_frame and result.mpr_frame is not None:
+                self._target_mpr_frame = result.mpr_frame
                 self._mark_other_mpr_viewports_dirty(result.viewport_id)
 
             if not self._active_mpr_requests:
@@ -338,9 +340,8 @@ class TabController(QObject):
 
 
     def _try_start_next_mpr_render(self) -> None:
-        # 检查是否存在：1. 有需要发起的请求。
-        #             2. 是否有viewport被标记为过期。
-        #             3. 是否存在要请求的frame信息。
+        # Start a new round only when the previous round is complete,
+        # at least one viewport is dirty, and a shared frame is available.
         if self._active_mpr_requests:
             return
         if not self._dirty_mpr_viewport_ids:
