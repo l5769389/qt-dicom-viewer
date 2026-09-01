@@ -1,6 +1,7 @@
 import uuid
 from typing import cast
 
+import numpy as np
 from PySide6.QtCore import Property, QPointF, Signal
 
 from qt_dicom_viewer.core.geometry_2d import point_distance
@@ -67,16 +68,17 @@ class MprViewportController(Image2DViewportController):
             initial: bool = False,
     ) -> MprRenderRequest:
         state = self.viewport_state
-
-        return MprRenderRequest(
-            request_id=str(uuid.uuid4()),
-            viewport_id=self.viewport_config.viewport_id,
-            series_uid=self.viewport_config.series_uid,
-            window=None if initial else state.window,
-            inverted=False if initial else state.inverted,
-            plane=self.viewport_config.viewport_type,
-            mpr_frame=mpr_frame,
-        )
+        if isinstance(self.viewport_config.viewport_type, MprPlane):
+            return MprRenderRequest(
+                request_id=str(uuid.uuid4()),
+                viewport_id=self.viewport_config.viewport_id,
+                series_uid=self.viewport_config.series_uid,
+                window=None if initial else state.window,
+                inverted=False if initial else state.inverted,
+                plane=self.viewport_config.viewport_type,
+                mpr_frame=mpr_frame,
+            )
+        raise TypeError("MprViewportController requires MprPlane")
 
     def _build_render_request(self, *, initial: bool) -> RenderRequest:
         return self.build_mpr_render_request(
@@ -181,3 +183,36 @@ class MprViewportController(Image2DViewportController):
         if position is None:
             return QPointF(-1.0, -1.0)
         return QPointF(position.column, position.row)
+
+    def apply_slice_index(self, index: int) -> None:
+        geometry = self._plane_geometry
+        frame_meta = self._frame_meta
+
+        if geometry is None or frame_meta is None:
+            return
+
+        rendered_index = frame_meta.slice_index
+        index_delta = index - rendered_index
+
+        direction = np.asarray(
+            geometry.navigation_direction_patient,
+            dtype=np.float64,
+        )
+        current_center = np.asarray(
+            geometry.frame.center_patient,
+            dtype=np.float64,
+        )
+
+        next_center = (
+                current_center
+                + index_delta
+                * geometry.navigation_spacing
+                * direction
+        )
+
+        if not self._prepare_slice_index_change(index):
+            return
+
+        self.crosshairCenterChangeRequested.emit(
+            tuple(float(value) for value in next_center)
+        )

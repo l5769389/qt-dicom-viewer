@@ -1,4 +1,6 @@
+import logging
 import uuid
+from dataclasses import replace
 
 from qt_dicom_viewer.model import (
     RenderRequest,
@@ -13,7 +15,7 @@ from .image_2d_viewport_controller import (
     Image2DViewportController,
 )
 
-
+logger = logging.getLogger(__name__)
 class StackViewportController(Image2DViewportController):
     def __init__(
         self,
@@ -29,6 +31,16 @@ class StackViewportController(Image2DViewportController):
 
     def _initial_slice_index(self) -> int:
         return 0
+
+    def apply_slice_index(self, index: int) -> None:
+        if not self._prepare_slice_index_change(index):
+            return
+        self._state = replace(
+            self._state,
+            slice_index=index,
+        )
+        self.request_render()
+
 
     def _build_render_request(self, *, initial: bool) -> RenderRequest:
         state = self.viewport_state

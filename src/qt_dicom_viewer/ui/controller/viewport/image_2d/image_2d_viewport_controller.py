@@ -112,6 +112,21 @@ class Image2DViewportController(ViewportController):
     def _apply_specific_render_result(self, result: RenderResult) -> None:
         raise NotImplementedError
 
+    def apply_slice_index(self, index: int) -> None:
+        raise NotImplementedError
+
+    def _prepare_slice_index_change(self, index: int) -> bool:
+        if index == self._state.slice_index:
+            return False
+
+        self._measure_controller.cancel_transaction()
+        self._measure_controller.clear_selection()
+        self._state = replace(
+            self._state,
+            slice_index=index,
+        )
+        return True
+
     def _begin_specific_interaction(
         self,
         position: PointerPosition,
@@ -503,19 +518,6 @@ class Image2DViewportController(ViewportController):
         self.overlayChanged.emit()
         self.request_render()
 
-    def apply_slice_index(self, index: int) -> None:
-        if index == self._state.slice_index:
-            return
-        logger.debug(f'apply_slice_index,{index}')
-
-        self._measure_controller.cancel_transaction()
-        self._measure_controller.clear_selection()
-
-        self._state = replace(
-            self._state,
-            slice_index=index,
-        )
-        self.request_render()
 
     @Property(QObject, constant=True)
     def measurementController(self) -> QObject:
