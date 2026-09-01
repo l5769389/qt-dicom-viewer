@@ -2,6 +2,9 @@ import math
 from dataclasses import replace
 from uuid import uuid4
 
+from qt_dicom_viewer.core.geometry_2d import (
+    image_point_distance_mm,
+)
 from qt_dicom_viewer.model import DragUpdateEvent, ImagePoint
 from qt_dicom_viewer.model.measure import (
     EditTargetKind,
@@ -69,9 +72,9 @@ class LengthMeasureOperation:
         # implemented with the corresponding edit strategy.
 
         spacing = context.geometry.pixel_spacing
-        length = calculate_length_mm(
-            start=points[0],
-            end=points[1],
+        length = image_point_distance_mm(
+            first=points[0],
+            second=points[1],
             row_spacing=spacing.row,
             column_spacing=spacing.column,
         )
@@ -103,33 +106,3 @@ class LengthMeasureOperation:
             math.isfinite(measurement.length_mm)
             and measurement.length_mm >= 1.0
         )
-
-
-def calculate_length_mm(
-    start: ImagePoint,
-    end: ImagePoint,
-    *,
-    row_spacing: float | None,
-    column_spacing: float | None,
-) -> float | None:
-    if (
-        row_spacing is None
-        or column_spacing is None
-        or not math.isfinite(row_spacing)
-        or not math.isfinite(column_spacing)
-        or row_spacing <= 0
-        or column_spacing <= 0
-    ):
-        return None
-
-    delta_column_mm = (
-        end.column - start.column
-    ) * column_spacing
-    delta_row_mm = (
-        end.row - start.row
-    ) * row_spacing
-
-    return math.hypot(
-        delta_column_mm,
-        delta_row_mm,
-    )

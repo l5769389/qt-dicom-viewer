@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 @dataclass(frozen=True, slots=True)
 class WindowLevel:
     center: float
@@ -52,8 +51,6 @@ class FrameDisplayMeta:
     inverted: bool
     instance_meta: InstanceDisplayMeta
     geometry: ImageGeometryMeta
-    # 顺序为 column、row
-    crosshair_image_position: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True, slots=True)

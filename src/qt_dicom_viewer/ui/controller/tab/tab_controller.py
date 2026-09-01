@@ -5,10 +5,27 @@ from types import MappingProxyType
 
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
-from qt_dicom_viewer.model import TabConfig, ViewportConfig, SeriesDisplayMeta, TabType, MprPlane, TwoDViewType, \
-    MprRenderRequest, RenderResult, RenderRequest
-from qt_dicom_viewer.model.dicom_core import MprFrame
+from qt_dicom_viewer.model import (
+    MprPlane,
+    MprRenderRequest,
+    RenderFailure,
+    RenderRequest,
+    RenderResult,
+    SeriesDisplayMeta,
+    TabConfig,
+    TabType,
+    TwoDViewType,
+    ViewportConfig,
+)
+from qt_dicom_viewer.model.dicom_core import MprFrame, Vector3
+from qt_dicom_viewer.model.render_models import MprRenderResult
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
+from qt_dicom_viewer.ui.controller.viewport.image_2d.mpr_viewport_controller import (
+    MprViewportController,
+)
+from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller import (
+    StackViewportController,
+)
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 
 logger = logging.getLogger(__name__)
@@ -26,8 +43,11 @@ class TabController(QObject):
             meta.series_uid: meta
             for meta in tab_config.series_metas
         }
-        self._mpr_frame: MprFrame | None = None
         self._active_viewport_id: str = ''
+        self._target_mpr_frame: MprFrame | None = None
+        self._dirty_mpr_viewport_ids: set[str] = set()
+        # request_id: viewport_id
+        self._active_mpr_requests: dict[str, str] = {}
         self._create_viewport_dict()
 
     @Property(str, notify=activeToolChanged)
@@ -54,12 +74,24 @@ class TabController(QObject):
 
     def _request_initial_mpr(self) -> None:
         for viewport in self._viewport_dict.values():
-            if viewport.viewport_config.viewport_type == MprPlane.AXIAL:
-                viewport.request_first_loader()
+            if (
+                isinstance(viewport, MprViewportController)
+                and viewport.viewport_config.viewport_type == MprPlane.AXIAL
+            ):
+                request = viewport.build_mpr_render_request(
+                    mpr_frame=None,
+                    initial=True,
+                )
+                self._start_mpr_requests([request])
+                return
 
 
     def init_render(self):
-        if self.tab_config.tab_type == TabType.MPR and self._mpr_frame is None:
+        if (
+            self.tab_config.tab_type == TabType.MPR
+            and self._target_mpr_frame is None
+            and not self._active_mpr_requests
+        ):
             self._request_initial_mpr()
         if self.tab_config.tab_type == TabType.TWO_D:
             for viewport in self._viewport_dict.values():
@@ -79,7 +111,7 @@ class TabController(QObject):
                 for series_meta in self._tab_config.series_metas:
                     viewport_id = str(uuid.uuid4())
                     self._active_viewport_id = viewport_id
-                    viewport = ViewportController(
+                    viewport = StackViewportController(
                         viewport_config=ViewportConfig(
                             viewport_id,
                             tab_id=self._tab_config.tab_id,
@@ -98,7 +130,7 @@ class TabController(QObject):
                             viewport_id = str(uuid.uuid4())
                             if view_type == MprPlane.AXIAL:
                                 self._active_viewport_id = viewport_id
-                            viewport = ViewportController(
+                            viewport = MprViewportController(
                                 viewport_config=ViewportConfig(
                                     viewport_id,
                                     tab_id=self._tab_config.tab_id,
@@ -114,9 +146,55 @@ class TabController(QObject):
 
 
     def connect_signal(self, viewport: ViewportController):
+        if isinstance(viewport, MprViewportController):
+            viewport.crosshairCenterChangeRequested.connect(
+                self._handle_crosshair_center_change_requested
+            )
+            viewport.renderInvalidated.connect(
+                self._handle_mpr_viewport_invalidated
+            )
+            return
+
         viewport.renderRequested.connect(
             self._handle_render_requested
         )
+
+    @Slot(str)
+    def _handle_mpr_viewport_invalidated(
+            self,
+            viewport_id: str,
+    ) -> None:
+        viewport = self._viewport_dict.get(viewport_id)
+        if not isinstance(viewport, MprViewportController):
+            return
+
+        self._dirty_mpr_viewport_ids.add(viewport_id)
+        self._try_start_next_mpr_render()
+
+    @Slot(object)
+    def _handle_crosshair_center_change_requested(
+            self,
+            center_patient: Vector3,
+    ) -> None:
+        frame = self._target_mpr_frame
+        if frame is None:
+            return
+
+        next_frame = replace(
+            frame,
+            center_patient=center_patient,
+        )
+
+        if next_frame == frame:
+            return
+
+        self._target_mpr_frame = next_frame
+
+        self._dirty_mpr_viewport_ids.update(
+            self._mpr_viewport_ids()
+        )
+
+        self._try_start_next_mpr_render()
 
     @Slot(object)
     def _handle_render_requested(
@@ -130,13 +208,16 @@ class TabController(QObject):
             )
             return
 
-        if isinstance(request, MprRenderRequest):
-            request = replace(
-                request,
-                mpr_frame=self._mpr_frame,
-            )
-
         self.renderRequested.emit(request)
+
+    def accepts_render_result(self, result: RenderResult) -> bool:
+        if not isinstance(result, MprRenderResult):
+            return result.viewport_id in self._viewport_dict
+
+        return (
+            self._active_mpr_requests.get(result.response_id)
+            == result.viewport_id
+        )
 
     @Slot(object)
     def handleRenderResult(self, result: RenderResult) -> None:
@@ -150,31 +231,60 @@ class TabController(QObject):
             )
             return
 
-        was_uninitialized = self._mpr_frame is None
+        if isinstance(result, MprRenderResult):
+            expected_viewport_id = self._active_mpr_requests.get(
+                result.response_id
+            )
+            if expected_viewport_id != result.viewport_id:
+                logger.debug(
+                    "Discard stale MPR result: request_id=%s "
+                    "viewport_id=%s",
+                    result.response_id,
+                    result.viewport_id,
+                )
+                return
 
-        if (
-                self._tab_config.tab_type == TabType.MPR
-                and result.mpr_frame is not None
-        ):
-            self._mpr_frame = result.mpr_frame
+            self._active_mpr_requests.pop(result.response_id)
+            needs_initial_mpr_frame = self._target_mpr_frame is None
+
+            viewport.handleRenderResult(result)
+            # 初始化状态下，先发起axial视图，收到响应后需要发送另外两个视图。
+            if needs_initial_mpr_frame and result.mpr_frame is not None:
+                self._mark_other_mpr_viewports_dirty(result.viewport_id)
+
+            if not self._active_mpr_requests:
+                self._try_start_next_mpr_render()
+            return
 
         viewport.handleRenderResult(result)
 
-        if (
-                was_uninitialized
-                and self._mpr_frame is not None
-        ):
-            self._request_remaining_mpr_views()
+    def _mark_other_mpr_viewports_dirty(
+            self,
+            excluded_viewport_id: str,
+    ) -> None:
+        self._dirty_mpr_viewport_ids.update(
+            viewport_id
+            for viewport_id in self._mpr_viewport_ids()
+            if viewport_id != excluded_viewport_id
+        )
 
-    def _request_remaining_mpr_views(self) -> None:
-        for viewport in self._viewport_dict.values():
-            if (
-                    viewport.viewport_config.viewport_type
-                    == MprPlane.AXIAL
-            ):
-                continue
+    @Slot(object)
+    def handleRenderFailure(self, failure: RenderFailure) -> None:
+        expected_viewport_id = self._active_mpr_requests.get(
+            failure.request_id
+        )
+        if expected_viewport_id != failure.viewport_id:
+            return
 
-            viewport.request_first_loader()
+        self._active_mpr_requests.pop(failure.request_id)
+        logger.error(
+            "MPR render failed: request_id=%s viewport_id=%s: %s",
+            failure.request_id,
+            failure.viewport_id,
+            failure.error,
+        )
+        if not self._active_mpr_requests:
+            self._try_start_next_mpr_render()
 
 
     def contains_viewport(self, viewport_id: str) -> bool:
@@ -199,3 +309,61 @@ class TabController(QObject):
 
         self._active_viewport_id = activeViewportId
         self.activeViewportChanged.emit()
+
+    def _mpr_viewport_ids(self) -> list[str]:
+        return [
+            viewport_id
+            for viewport_id, viewport in self._viewport_dict.items()
+            if isinstance(viewport, MprViewportController)
+        ]
+
+    def _start_mpr_requests(
+        self,
+        requests: list[MprRenderRequest],
+    ) -> None:
+        if not requests:
+            return
+        if self._active_mpr_requests:
+            raise RuntimeError(
+                "Cannot start an MPR render while another round is active"
+            )
+
+        self._active_mpr_requests = {
+            request.request_id: request.viewport_id
+            for request in requests
+        }
+        for request in requests:
+            self.renderRequested.emit(request)
+
+
+
+    def _try_start_next_mpr_render(self) -> None:
+        # 检查是否存在：1. 有需要发起的请求。
+        #             2. 是否有viewport被标记为过期。
+        #             3. 是否存在要请求的frame信息。
+        if self._active_mpr_requests:
+            return
+        if not self._dirty_mpr_viewport_ids:
+            return
+        if self._target_mpr_frame is None:
+            return
+
+        viewport_ids = set(self._dirty_mpr_viewport_ids)
+        self._dirty_mpr_viewport_ids.clear()
+
+        requests: list[MprRenderRequest] = []
+
+        for viewport_id, viewport in self._viewport_dict.items():
+            if viewport_id not in viewport_ids:
+                continue
+            if not isinstance(viewport, MprViewportController):
+                continue
+
+            requests.append(
+                viewport.build_mpr_render_request(
+                    mpr_frame=self._target_mpr_frame,
+                    initial=False,
+                )
+            )
+
+        self._start_mpr_requests(requests)

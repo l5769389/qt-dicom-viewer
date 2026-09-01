@@ -222,6 +222,31 @@ class MprImageGeometry:
     def mpr_to_image_index(self) -> np.ndarray:
         return np.linalg.inv(self.image_index_to_mpr)
 
+    def image_point_to_patient(
+        self,
+        *,
+        column: float,
+        row: float,
+    ) -> Vector3:
+        """将当前二维 MPR 图像坐标转换为患者 LPS 坐标。"""
+        image_index = np.asarray(
+            [0.0, row, column, 1.0],
+            dtype=np.float64,
+        )
+        patient = self.image_index_to_patient @ image_index
+        return _to_vector3(patient[:3])
+
+    def mpr_point_to_image_point(
+        self,
+        point_mpr: Vector3,
+    ) -> tuple[float, float]:
+        """将 MPR 毫米坐标转换为当前图像的 (column, row)。"""
+        image_index = self.mpr_to_image_index @ np.asarray(
+            [*point_mpr, 1.0],
+            dtype=np.float64,
+        )
+        return float(image_index[2]), float(image_index[1])
+
     @property
     def image_index_to_patient(self) -> np.ndarray:
         """将图像网格索引直接转为患者 LPS。"""

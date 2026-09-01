@@ -2,7 +2,13 @@ import logging
 
 from PySide6.QtCore import QObject, Slot, Property, Signal
 
-from qt_dicom_viewer.model import TabConfig, TabType, RenderRequest, RenderResult
+from qt_dicom_viewer.model import (
+    RenderFailure,
+    RenderRequest,
+    RenderResult,
+    TabConfig,
+    TabType,
+)
 from qt_dicom_viewer.ui.controller.tab.tab_controller import TabController
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
@@ -193,10 +199,26 @@ class WorkspaceController(QObject):
             )
             return
 
+        if not tab.accepts_render_result(result):
+            logger.debug(
+                "Discard stale render result before updating image provider: "
+                "request_id=%s viewport_id=%s",
+                result.response_id,
+                result.viewport_id,
+            )
+            return
+
         if result.image is not None:
             self._image_provider.set_array(result.viewport_id, result.image)
 
         tab.handleRenderResult(result)
+
+    @Slot(object)
+    def handleRenderFailure(self, failure: RenderFailure) -> None:
+        tab = self._find_tab_by_viewport_id(failure.viewport_id)
+        if tab is None:
+            return
+        tab.handleRenderFailure(failure)
 
 
     @Slot(str, str)

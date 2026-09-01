@@ -4,12 +4,12 @@ from qt_dicom_viewer.model import (
     ViewportConfig,
 )
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
-from qt_dicom_viewer.ui.controller.viewport.viewport_controller import (
-    ViewportController,
+from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller import (
+    StackViewportController,
 )
 
 
-def _controller() -> ViewportController:
+def _controller() -> StackViewportController:
     series_meta = SeriesDisplayMeta(
         patient_name="Example Patient",
         patient_id="P001",
@@ -18,7 +18,7 @@ def _controller() -> ViewportController:
         modality="CT",
         series_uid="series-1",
     )
-    return ViewportController(
+    return StackViewportController(
         viewport_config=ViewportConfig(
             viewport_id="viewport-1",
             tab_id="tab-1",

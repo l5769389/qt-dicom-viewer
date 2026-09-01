@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TypeAlias
 
 from .dicom_types import WindowLevel
+from .image_geometry import ImagePoint
 from .measure import MeasureContext
 
 
@@ -26,12 +27,17 @@ class PanChange:
 class ZoomChange:
     zoom: float
 
+@dataclass(frozen=True, slots=True)
+class CrosshairCenterChange:
+    position: ImagePoint
+
 
 InteractionResult: TypeAlias = (
     SliceIndexChange
     | WindowLevelChange
     | PanChange
     | ZoomChange
+    | CrosshairCenterChange
 )
 
 
@@ -60,10 +66,17 @@ class ZoomContext:
     current_zoom: float
 
 
+@dataclass(frozen=True, slots=True)
+class CrosshairMoveContext:
+    current_pan_x: float
+    current_pan_y: float
+
+
 OperationStartContext: TypeAlias = (
     WindowLevelContext
     | ScrollContext
     | PanContext
     | ZoomContext
     | MeasureContext
+    | CrosshairMoveContext
 )

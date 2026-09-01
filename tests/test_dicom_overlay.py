@@ -13,15 +13,15 @@ from qt_dicom_viewer.model import (
     ImageGeometryMeta,
     InstanceDisplayMeta,
     PixelSpacing,
-    RenderResult,
+    StackRenderResult,
     SeriesDisplayMeta,
     StackRenderRequest,
     TwoDViewType,
     ViewportConfig,
     WindowLevel,
 )
-from qt_dicom_viewer.ui.controller.viewport.viewport_controller import (
-    ViewportController,
+from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller import (
+    StackViewportController,
 )
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.ui.workers.dicom_render_worker import (
@@ -147,7 +147,7 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
         modality="CT",
         series_uid="series-1",
     )
-    controller = ViewportController(
+    controller = StackViewportController(
         viewport_config=ViewportConfig(
             viewport_id="viewport-1",
             tab_id="tab-1",
@@ -171,7 +171,7 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
         slice_location=42.0,
     )
     controller.handleRenderResult(
-        RenderResult(
+        StackRenderResult(
             response_id="request-1",
             viewport_id="viewport-1",
             series_uid="series-1",
@@ -192,7 +192,6 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
                     image_orientation_patient=None,
                 ),
             ),
-            mpr_frame=None,
         )
     )
 

@@ -5,7 +5,7 @@ from typing import TypeAlias
 
 import numpy as np
 
-from .dicom_core import MprFrame
+from .dicom_core import MprFrame, MprImageGeometry
 from .dicom_models import ViewportType, MprPlane, TwoDViewType
 from .dicom_types import FrameDisplayMeta, WindowLevel
 
@@ -58,8 +58,12 @@ RenderRequest: TypeAlias = (
 )
 
 
-@dataclass(frozen=True, slots=True)
-class RenderResult:
+@dataclass(
+    frozen=True,
+    slots=True,
+    kw_only=True,
+)
+class _RenderResultBase:
     response_id: str
     viewport_id: str
     series_uid: str
@@ -67,5 +71,27 @@ class RenderResult:
     image: np.ndarray | None
     modality_pixel: np.ndarray | None
     frame_meta: FrameDisplayMeta
-    mpr_frame: MprFrame | None
 
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MprRenderResult(_RenderResultBase):
+    mpr_frame: MprFrame | None
+    plane_geometry: MprImageGeometry | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StackRenderResult(_RenderResultBase):
+    ...
+
+
+RenderResult: TypeAlias = (
+    StackRenderResult
+    | MprRenderResult
+)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RenderFailure:
+    request_id: str
+    viewport_id: str
+    error: Exception

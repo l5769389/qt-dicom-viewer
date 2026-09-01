@@ -12,11 +12,13 @@ from qt_dicom_viewer.model import (
     ImageGeometryMeta,
     PixelSpacing,
     MprRenderRequest,
+    RenderFailure,
     RenderRequest,
     RenderResult,
     StackRenderRequest,
 )
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
+from qt_dicom_viewer.model.render_models import MprRenderResult, StackRenderResult
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,13 @@ class DicomRenderWorker(QObject):
                 request.request_id,
                 request.viewport_id,
             )
-            self.render_failed.emit(error)
+            self.render_failed.emit(
+                RenderFailure(
+                    request_id=request.request_id,
+                    viewport_id=request.viewport_id,
+                    error=error,
+                )
+            )
 
     def _handle_stack_request(
         self,
@@ -85,7 +93,7 @@ class DicomRenderWorker(QObject):
                 render_request=request,
             )
             if dicom_load_result is not None:
-                result = RenderResult(
+                result = StackRenderResult(
                     response_id=request.request_id,
                     series_uid=request.series_uid,
                     viewport_id=request.viewport_id,
@@ -106,7 +114,6 @@ class DicomRenderWorker(QObject):
                             image_orientation_patient=instance.image_orientation_patient,
                         ),
                     ),
-                    mpr_frame=None,
                 )
                 self.render_finished.emit(result)
         except Exception as error:
@@ -116,7 +123,13 @@ class DicomRenderWorker(QObject):
                 request.request_id,
                 request.viewport_id,
             )
-            self.render_failed.emit(error)
+            self.render_failed.emit(
+                RenderFailure(
+                    request_id=request.request_id,
+                    viewport_id=request.viewport_id,
+                    error=error,
+                )
+            )
 
 
     def _handle_plane_request(
@@ -168,13 +181,8 @@ class DicomRenderWorker(QObject):
             image_position=plane_geometry.top_left_patient,
             slice_location=plane_geometry.normal_coordinate_patient,
         )
-        crosshair_index = (
-                plane_geometry.mpr_to_image_index
-                @ np.asarray([0.0, 0.0, 0.0, 1.0])
-        )
-
         self.render_finished.emit(
-            RenderResult(
+            MprRenderResult(
                 response_id=request.request_id,
                 series_uid=request.series_uid,
                 viewport_id=request.viewport_id,
@@ -201,12 +209,9 @@ class DicomRenderWorker(QObject):
                             plane_geometry.image_orientation_patient
                         ),
                     ),
-                    crosshair_image_position=(
-                        float(crosshair_index[2]),
-                        float(crosshair_index[1]),
-                    ),
                 ),
                 mpr_frame=plane_geometry.frame,
+                plane_geometry = plane_geometry
             )
         )
 

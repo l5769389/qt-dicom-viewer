@@ -44,6 +44,9 @@ class AppController(QObject):
         self.render_service.rendered.connect(
             self._workspace_controller.handleRenderResult
         )
+        self.render_service.failed.connect(
+            self._workspace_controller.handleRenderFailure
+        )
 
 
     @Property(QObject, constant=True)

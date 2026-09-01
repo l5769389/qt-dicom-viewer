@@ -1,8 +1,11 @@
 import logging
-import math
 
 from PySide6.QtCore import QObject, Property, Signal
 
+from qt_dicom_viewer.core.geometry_2d import (
+    point_distance,
+    point_to_segment_distance,
+)
 from qt_dicom_viewer.model import DragUpdateEvent, ImagePoint, PointerPosition
 from qt_dicom_viewer.model.interaction import OperationStartContext
 from qt_dicom_viewer.model.measure import (
@@ -229,7 +232,7 @@ class MeasurementController(QObject):
         self._measurements[
             measurement.measurement_id
         ] = measurement
-        self._selected_measurement_id = None
+        self._selected_measurement_id = measurement.measurement_id
         self._active_transaction = None
 
         self.measurementsChanged.emit()
@@ -418,47 +421,3 @@ class MeasurementController(QObject):
         self.measurementsChanged.emit()
         self.activeTransactionChanged.emit()
         self.selectionChanged.emit()
-
-
-def point_to_segment_distance(
-    point: ImagePoint,
-    start: ImagePoint,
-    end: ImagePoint,
-) -> float:
-    segment_column = end.column - start.column
-    segment_row = end.row - start.row
-    point_column = point.column - start.column
-    point_row = point.row - start.row
-    segment_length_squared = (
-        segment_column * segment_column
-        + segment_row * segment_row
-    )
-
-    if segment_length_squared == 0:
-        return point_distance(point, start)
-
-    projection = (
-        point_column * segment_column
-        + point_row * segment_row
-    ) / segment_length_squared
-    projection = max(0.0, min(1.0, projection))
-
-    nearest_column = (
-        start.column + projection * segment_column
-    )
-    nearest_row = start.row + projection * segment_row
-
-    return math.hypot(
-        point.column - nearest_column,
-        point.row - nearest_row,
-    )
-
-
-def point_distance(
-    first: ImagePoint,
-    second: ImagePoint,
-) -> float:
-    return math.hypot(
-        first.column - second.column,
-        first.row - second.row,
-    )
