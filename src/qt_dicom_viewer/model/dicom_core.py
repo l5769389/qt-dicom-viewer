@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from math import isfinite
 from typing import TypeAlias
 
 import numpy as np
 
 from .dicom_types import InstanceDisplayMeta, WindowLevel
+from .dicom_models import MprPlane
 
 Vector3: TypeAlias = tuple[float, float, float]
 
@@ -195,6 +197,180 @@ class MprFrame:
             @ np.asarray(direction_mpr, dtype=np.float64)
         )
         return _to_vector3(direction)
+
+
+@dataclass(frozen=True, slots=True)
+class MprViewRolls:
+    """三个 MPR 视图相对于共享坐标架的平面内补偿角，单位为弧度。"""
+
+    axial_radians: float = 0.0
+    coronal_radians: float = 0.0
+    sagittal_radians: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not all(
+            isfinite(value)
+            for value in (
+                self.axial_radians,
+                self.coronal_radians,
+                self.sagittal_radians,
+            )
+        ):
+            raise ValueError("MPR view rolls must be finite")
+
+    def for_plane(self, plane: MprPlane) -> float:
+        """返回指定 MPR 平面的补偿角。"""
+        match plane:
+            case MprPlane.AXIAL:
+                return self.axial_radians
+            case MprPlane.CORONAL:
+                return self.coronal_radians
+            case MprPlane.SAGITTAL:
+                return self.sagittal_radians
+            case _:
+                raise ValueError(f"Unsupported MPR plane: {plane}")
+
+
+@dataclass(frozen=True, slots=True)
+class MprGridSpec:
+    """一个 MPR 视图固定的二维采样网格。
+
+    rows/columns 决定输出数组尺寸，spacing 决定相邻样本中心
+    在患者空间中相隔多少毫米。方向不属于网格，由
+    MprSamplingBasis 在每次重采样时提供。
+    """
+
+    rows: int
+    columns: int
+    row_spacing: float
+    column_spacing: float
+
+    def __post_init__(self) -> None:
+        if self.rows < 1 or self.columns < 1:
+            raise ValueError("MPR grid dimensions must be positive")
+        if not (
+            isfinite(self.row_spacing)
+            and self.row_spacing > 0
+            and isfinite(self.column_spacing)
+            and self.column_spacing > 0
+        ):
+            raise ValueError("MPR grid spacings must be finite and positive")
+
+    @property
+    def row_extent(self) -> float:
+        """返回首尾两个 row 样本中心之间的物理距离。"""
+        return (self.rows - 1) * self.row_spacing
+
+    @property
+    def column_extent(self) -> float:
+        """返回首尾两个 column 样本中心之间的物理距离。"""
+        return (self.columns - 1) * self.column_spacing
+
+
+@dataclass(frozen=True, slots=True)
+class MprViewGrids:
+    """一次 MPR 会话中三个视图各自固定的采样网格。"""
+
+    axial: MprGridSpec
+    coronal: MprGridSpec
+    sagittal: MprGridSpec
+
+    def for_plane(self, plane: MprPlane) -> MprGridSpec:
+        match plane:
+            case MprPlane.AXIAL:
+                return self.axial
+            case MprPlane.CORONAL:
+                return self.coronal
+            case MprPlane.SAGITTAL:
+                return self.sagittal
+            case _:
+                raise ValueError(f"Unsupported MPR plane: {plane}")
+
+
+@dataclass(frozen=True, slots=True)
+class MprGridAnchor:
+    """MPR Frame 中心在一个固定采样网格中的连续索引。"""
+
+    column: float
+    row: float
+
+    def __post_init__(self) -> None:
+        if not (isfinite(self.column) and isfinite(self.row)):
+            raise ValueError("MPR grid anchor must be finite")
+
+    @classmethod
+    def centered(cls, grid: MprGridSpec) -> MprGridAnchor:
+        return cls(
+            column=(grid.columns - 1) / 2.0,
+            row=(grid.rows - 1) / 2.0,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MprViewAnchors:
+    """三个 MPR 视图中十字线中心各自所在的网格索引。"""
+
+    axial: MprGridAnchor
+    coronal: MprGridAnchor
+    sagittal: MprGridAnchor
+
+    @classmethod
+    def centered(cls, grids: MprViewGrids) -> MprViewAnchors:
+        return cls(
+            axial=MprGridAnchor.centered(grids.axial),
+            coronal=MprGridAnchor.centered(grids.coronal),
+            sagittal=MprGridAnchor.centered(grids.sagittal),
+        )
+
+    def for_plane(self, plane: MprPlane) -> MprGridAnchor:
+        match plane:
+            case MprPlane.AXIAL:
+                return self.axial
+            case MprPlane.CORONAL:
+                return self.coronal
+            case MprPlane.SAGITTAL:
+                return self.sagittal
+            case _:
+                raise ValueError(f"Unsupported MPR plane: {plane}")
+
+
+@dataclass(frozen=True, slots=True)
+class MprState:
+    """完整的正交 MPR 数学状态，不包含 viewport 的平移和缩放。"""
+
+    frame: MprFrame
+    view_rolls: MprViewRolls = field(default_factory=MprViewRolls)
+    view_grids: MprViewGrids | None = None
+    view_anchors: MprViewAnchors | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MprSamplingBasis:
+    """一个 MPR 视图最终用于重采样的患者空间单位基轴。"""
+
+    row_direction_patient: Vector3
+    column_direction_patient: Vector3
+    navigation_direction_patient: Vector3
+
+    def __post_init__(self) -> None:
+        basis = np.column_stack(
+            (
+                self.row_direction_patient,
+                self.column_direction_patient,
+                self.navigation_direction_patient,
+            )
+        ).astype(np.float64)
+        if not np.all(np.isfinite(basis)):
+            raise ValueError("MPR sampling directions must be finite")
+        if not np.allclose(
+            basis.T @ basis,
+            np.eye(3),
+            rtol=1e-6,
+            atol=1e-6,
+        ):
+            raise ValueError(
+                "MPR sampling directions must form an orthonormal basis"
+            )
 
 
 @dataclass(frozen=True, slots=True)

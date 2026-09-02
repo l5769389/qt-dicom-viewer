@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .dicom_models import ToolType
+from .dicom_models import TabType, ToolType
 from .ui_models import InteractionType, ToolBehavior
 
 
@@ -13,6 +13,8 @@ class ToolDefinition:
 
     default_interaction: InteractionType = InteractionType.NONE
     command: str | None = None
+    supported_tab_types: frozenset[TabType] | None = None
+    reset_label: str | None = None
 
 
 TOOL_CATALOG: tuple[ToolDefinition, ...] = (
@@ -22,6 +24,7 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         icon_name="window",
         behavior=ToolBehavior.INTERACTION_PANEL,
         default_interaction=InteractionType.WINDOW,
+        reset_label="重置调窗",
     ),
     ToolDefinition(
         tool_type=ToolType.SCROLL,
@@ -29,6 +32,7 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         icon_name="scroll",
         behavior=ToolBehavior.INTERACTION,
         default_interaction=InteractionType.SCROLL,
+        reset_label="重置翻页",
     ),
     ToolDefinition(
         tool_type=ToolType.PAN,
@@ -36,6 +40,7 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         icon_name="pan",
         behavior=ToolBehavior.INTERACTION,
         default_interaction=InteractionType.PAN,
+        reset_label="重置平移",
     ),
     ToolDefinition(
         tool_type=ToolType.ZOOM,
@@ -43,6 +48,7 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         icon_name="zoom",
         behavior=ToolBehavior.INTERACTION,
         default_interaction=InteractionType.ZOOM,
+        reset_label="重置缩放",
     ),
     ToolDefinition(
         tool_type=ToolType.MEASURE,
@@ -50,12 +56,23 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         icon_name="measure",
         behavior=ToolBehavior.PANEL,
         default_interaction=InteractionType.MEASURE_LENGTH,
+        reset_label="重置测量",
     ),
     ToolDefinition(
         tool_type=ToolType.ROTATE,
         label="旋转",
         icon_name="rotate",
         behavior=ToolBehavior.PANEL,
+        reset_label="重置旋转",
+    ),
+    ToolDefinition(
+        tool_type=ToolType.MPR_ROTATE_3D,
+        label="3D 旋转",
+        icon_name="rotate-3d",
+        behavior=ToolBehavior.INTERACTION,
+        default_interaction=InteractionType.MPR_ROTATE_3D,
+        supported_tab_types=frozenset((TabType.MPR,)),
+        reset_label="重置 3D 旋转",
     ),
     ToolDefinition(
         tool_type=ToolType.ANNOTATE,

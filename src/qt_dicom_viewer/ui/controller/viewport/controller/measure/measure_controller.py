@@ -266,6 +266,24 @@ class MeasurementController(QObject):
         self._selected_measurement_id = None
         self.selectionChanged.emit()
 
+    def clear_all(self) -> None:
+        """清除当前视口中的全部测量及未完成事务。"""
+        had_measurements = bool(self._measurements)
+        had_transaction = self._active_transaction is not None
+        had_selection = self._selected_measurement_id is not None
+        if not (had_measurements or had_transaction or had_selection):
+            return
+
+        self._measurements.clear()
+        self._active_transaction = None
+        self._selected_measurement_id = None
+        if had_measurements:
+            self.measurementsChanged.emit()
+        if had_transaction:
+            self.activeTransactionChanged.emit()
+        if had_selection:
+            self.selectionChanged.emit()
+
     def delete_selected(self) -> None:
         if self._active_transaction is not None:
             self.cancel_transaction()

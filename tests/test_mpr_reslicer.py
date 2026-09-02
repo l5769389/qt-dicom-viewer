@@ -1,7 +1,13 @@
 import numpy as np
+import pytest
 
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
+from qt_dicom_viewer.core.mpr_rotation import (
+    move_mpr_state_center,
+    rotate_crosshair_state,
+    rotate_mpr_state_3d,
+)
 from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import (
     InstanceDisplayMeta,
@@ -14,6 +20,8 @@ from qt_dicom_viewer.model.dicom_core import (
     DicomVolume,
     MprFrame,
     MprImageGeometry,
+    MprState,
+    MprViewAnchors,
     VolumeGeometry,
 )
 from qt_dicom_viewer.ui.workers.dicom_render_worker import (
@@ -285,6 +293,169 @@ def test_reslice_uses_the_supplied_mpr_frame_axes() -> None:
     )
 
 
+def test_crosshair_rotation_keeps_source_reslice_unchanged() -> None:
+    """这是 view roll 补偿最重要的端到端数学契约。"""
+    volume = _volume(
+        np.arange(5 * 6 * 7, dtype=np.float32).reshape(5, 6, 7),
+        slice_spacing=1.4,
+        row_spacing=0.8,
+        column_spacing=1.1,
+    )
+    state = MprState(
+        MprFrame.standard_lps(volume.geometry.center_patient)
+    )
+    reslicer = MprReslicer()
+    grids = reslicer.create_view_grids(volume, state.frame)
+    state = MprState(state.frame, view_grids=grids)
+    rotated = rotate_crosshair_state(
+        state,
+        MprPlane.AXIAL,
+        0.37,
+    )
+    assert rotated.view_grids is grids
+
+    before = reslicer.reslice(
+        volume,
+        MprPlane.AXIAL,
+        frame=state.frame,
+        grid_spec=grids.axial,
+    )
+    after = reslicer.reslice(
+        volume,
+        MprPlane.AXIAL,
+        frame=rotated.frame,
+        view_roll_radians=rotated.view_rolls.axial_radians,
+        grid_spec=grids.axial,
+    )
+
+    np.testing.assert_allclose(
+        after.geometry.image_index_to_patient,
+        before.geometry.image_index_to_patient,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        after.modality_pixels,
+        before.modality_pixels,
+        atol=1e-5,
+    )
+
+
+def test_fixed_grid_keeps_size_spacing_and_center_during_3d_rotation() -> None:
+    volume = _volume(
+        np.arange(5 * 6 * 7, dtype=np.float32).reshape(5, 6, 7),
+        slice_spacing=1.4,
+        row_spacing=0.8,
+        column_spacing=1.1,
+    )
+    reslicer = MprReslicer()
+    frame = MprFrame.standard_lps(volume.geometry.center_patient)
+    grids = reslicer.create_view_grids(volume, frame)
+    state = MprState(frame, view_grids=grids)
+    rotated = rotate_mpr_state_3d(
+        state,
+        (1.0, 2.0, -0.5),
+        0.61,
+    )
+    assert rotated.view_grids is grids
+
+    before = reslicer.reslice(
+        volume,
+        MprPlane.CORONAL,
+        frame=state.frame,
+        grid_spec=grids.coronal,
+    )
+    after = reslicer.reslice(
+        volume,
+        MprPlane.CORONAL,
+        frame=rotated.frame,
+        grid_spec=grids.coronal,
+    )
+
+    assert before.modality_pixels.shape == after.modality_pixels.shape
+    assert after.geometry.rows == grids.coronal.rows
+    assert after.geometry.columns == grids.coronal.columns
+    assert after.geometry.row_spacing == grids.coronal.row_spacing
+    assert (
+        after.geometry.column_spacing
+        == grids.coronal.column_spacing
+    )
+    center_index = after.geometry.patient_to_image_index @ np.asarray(
+        [*rotated.frame.center_patient, 1.0],
+        dtype=np.float64,
+    )
+    np.testing.assert_allclose(
+        center_index,
+        (
+            0.0,
+            (grids.coronal.rows - 1) / 2.0,
+            (grids.coronal.columns - 1) / 2.0,
+            1.0,
+        ),
+        atol=1e-10,
+    )
+    assert not np.allclose(
+        before.geometry.image_orientation_patient,
+        after.geometry.image_orientation_patient,
+    )
+
+
+def test_moving_crosshair_updates_anchor_without_reversing_source_image() -> None:
+    volume = _volume(
+        np.arange(5 * 6 * 7, dtype=np.float32).reshape(5, 6, 7),
+        slice_spacing=1.4,
+        row_spacing=0.8,
+        column_spacing=1.1,
+    )
+    reslicer = MprReslicer()
+    frame = MprFrame.standard_lps(volume.geometry.center_patient)
+    grids = reslicer.create_view_grids(volume, frame)
+    anchors = MprViewAnchors.centered(grids)
+    state = MprState(
+        frame,
+        view_grids=grids,
+        view_anchors=anchors,
+    )
+    next_center = (
+        frame.center_patient[0] + 2.0 * grids.axial.column_spacing,
+        frame.center_patient[1] + grids.axial.row_spacing,
+        frame.center_patient[2],
+    )
+    moved = move_mpr_state_center(state, next_center)
+
+    before = reslicer.reslice(
+        volume,
+        MprPlane.AXIAL,
+        frame=state.frame,
+        grid_spec=grids.axial,
+        grid_anchor=anchors.axial,
+    )
+    after = reslicer.reslice(
+        volume,
+        MprPlane.AXIAL,
+        frame=moved.frame,
+        grid_spec=grids.axial,
+        grid_anchor=moved.view_anchors.axial,
+    )
+
+    assert moved.view_anchors is not None
+    assert moved.view_anchors.axial.column == pytest.approx(
+        anchors.axial.column + 2.0
+    )
+    assert moved.view_anchors.axial.row == pytest.approx(
+        anchors.axial.row + 1.0
+    )
+    np.testing.assert_allclose(
+        after.geometry.image_index_to_patient,
+        before.geometry.image_index_to_patient,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        after.modality_pixels,
+        before.modality_pixels,
+        atol=1e-5,
+    )
+
+
 def test_standard_planes_preserve_directional_source_spacing() -> None:
     volume = _volume(
         np.zeros((4, 5, 6), dtype=np.float32),
@@ -450,3 +621,6 @@ def test_render_worker_returns_patient_space_mpr_result(
         1.0, 0.0, 0.0,
         0.0, 0.0, -1.0,
     )
+    assert result.mpr_view_grids is not None
+    assert result.mpr_view_grids.coronal.rows == result.image.shape[0]
+    assert result.mpr_view_grids.coronal.columns == result.image.shape[1]

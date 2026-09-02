@@ -1,6 +1,5 @@
 import logging
 import uuid
-from dataclasses import replace
 from types import MappingProxyType
 
 from PySide6.QtCore import QObject, Signal, Slot, Property
@@ -14,10 +13,21 @@ from qt_dicom_viewer.model import (
     SeriesDisplayMeta,
     TabConfig,
     TabType,
+    ToolType,
     TwoDViewType,
     ViewportConfig,
 )
-from qt_dicom_viewer.model.dicom_core import MprFrame, Vector3
+from qt_dicom_viewer.core.mpr_rotation import (
+    move_mpr_state_center,
+    rotate_crosshair_state,
+    rotate_mpr_state_3d,
+)
+from qt_dicom_viewer.model.dicom_core import (
+    MprFrame,
+    MprState,
+    MprViewAnchors,
+    Vector3,
+)
 from qt_dicom_viewer.model.render_models import MprRenderResult
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.image_2d.mpr_viewport_controller import (
@@ -44,7 +54,11 @@ class TabController(QObject):
             for meta in tab_config.series_metas
         }
         self._active_viewport_id: str = ''
-        self._target_mpr_frame: MprFrame | None = None
+        self._target_mpr_state: MprState | None = None
+        self._initial_mpr_state: MprState | None = None
+        # 不包含 3D 旋转增量的并行状态，用于只撤销 3D 旋转，
+        # 同时保留之后发生的十字线移动和十字线旋转。
+        self._mpr_3d_reset_state: MprState | None = None
         self._dirty_mpr_viewport_ids: set[str] = set()
         # request_id: viewport_id
         self._active_mpr_requests: dict[str, str] = {}
@@ -68,8 +82,71 @@ class TabController(QObject):
 
     def _create_tool_controller(self) -> None:
         self._tool_controller = ToolController(
+            tab_type=self._tab_config.tab_type,
             parent=self
         )
+        self._tool_controller.commandRequested.connect(
+            self._handle_tool_command
+        )
+        self._tool_controller.resetRequested.connect(
+            self._handle_tool_reset_requested
+        )
+
+    @Slot(str)
+    def _handle_tool_command(self, command: str) -> None:
+        if command != "viewport:reset":
+            logger.warning("Unknown tool command: %s", command)
+            return
+
+        viewport = self.activeViewport
+        if not isinstance(viewport, ViewportController):
+            return
+
+        if (
+            isinstance(viewport, MprViewportController)
+            and self._initial_mpr_state is not None
+        ):
+            self._set_target_mpr_state(self._initial_mpr_state)
+            self._mpr_3d_reset_state = self._initial_mpr_state
+            self._dirty_mpr_viewport_ids.update(
+                self._mpr_viewport_ids()
+            )
+            viewport.reset_all_view_state(reset_slice=False)
+            self._try_start_next_mpr_render()
+            return
+
+        if isinstance(viewport, StackViewportController):
+            viewport.reset_all_view_state()
+
+    @Slot(str)
+    def _handle_tool_reset_requested(self, tool_value: str) -> None:
+        try:
+            tool_type = ToolType(tool_value)
+        except ValueError:
+            logger.warning("Unknown reset tool: %s", tool_value)
+            return
+
+        if tool_type == ToolType.MPR_ROTATE_3D:
+            self._reset_mpr_3d_rotation()
+            return
+
+        viewport = self.activeViewport
+        if isinstance(viewport, (MprViewportController, StackViewportController)):
+            viewport.reset_tool_state(tool_type)
+
+    def _reset_mpr_3d_rotation(self) -> None:
+        state = self._target_mpr_state
+        reset_state = self._mpr_3d_reset_state
+        if state is None or reset_state is None:
+            return
+        if reset_state == state:
+            return
+
+        self._set_target_mpr_state(reset_state)
+        self._dirty_mpr_viewport_ids.update(
+            self._mpr_viewport_ids()
+        )
+        self._try_start_next_mpr_render()
 
 
     def _request_initial_mpr(self) -> None:
@@ -89,7 +166,7 @@ class TabController(QObject):
     def init_render(self):
         if (
             self.tab_config.tab_type == TabType.MPR
-            and self._target_mpr_frame is None
+            and self._target_mpr_state is None
             and not self._active_mpr_requests
         ):
             self._request_initial_mpr()
@@ -153,6 +230,12 @@ class TabController(QObject):
             viewport.renderInvalidated.connect(
                 self._handle_mpr_viewport_invalidated
             )
+            viewport.crosshairRotationRequested.connect(
+                self._handle_crosshair_rotation_requested
+            )
+            viewport.mpr3DRotationRequested.connect(
+                self._handle_mpr_3d_rotation_requested
+            )
             return
 
         viewport.renderRequested.connect(
@@ -176,24 +259,82 @@ class TabController(QObject):
             self,
             center_patient: Vector3,
     ) -> None:
-        frame = self._target_mpr_frame
-        if frame is None:
+        state = self._target_mpr_state
+        if state is None:
             return
 
-        next_frame = replace(
-            frame,
-            center_patient=center_patient,
+        next_state = move_mpr_state_center(
+            state,
+            center_patient,
         )
-
-        if next_frame == frame:
+        if next_state.frame == state.frame:
             return
 
-        self._target_mpr_frame = next_frame
+        self._set_target_mpr_state(next_state)
+        if self._mpr_3d_reset_state is not None:
+            self._mpr_3d_reset_state = move_mpr_state_center(
+                self._mpr_3d_reset_state,
+                center_patient,
+            )
 
         self._dirty_mpr_viewport_ids.update(
             self._mpr_viewport_ids()
         )
 
+        self._try_start_next_mpr_render()
+
+    @Slot(object, float)
+    def _handle_crosshair_rotation_requested(
+        self,
+        source_plane: MprPlane,
+        angle_radians: float,
+    ) -> None:
+        state = self._target_mpr_state
+        if state is None:
+            return
+        next_state = rotate_crosshair_state(
+            state,
+            source_plane,
+            angle_radians,
+        )
+        self._set_target_mpr_state(next_state)
+        if self._mpr_3d_reset_state is not None:
+            self._mpr_3d_reset_state = rotate_crosshair_state(
+                self._mpr_3d_reset_state,
+                source_plane,
+                angle_radians,
+            )
+
+        # 源视图的 Frame 旋转与 view roll 正好抵消，像素无需重采样。
+        self._dirty_mpr_viewport_ids.update(
+            viewport_id
+            for viewport_id, viewport in self._viewport_dict.items()
+            if (
+                isinstance(viewport, MprViewportController)
+                and viewport.viewport_config.viewport_type != source_plane
+            )
+        )
+        self._try_start_next_mpr_render()
+
+    @Slot(object, float)
+    def _handle_mpr_3d_rotation_requested(
+        self,
+        axis_patient: Vector3,
+        angle_radians: float,
+    ) -> None:
+        state = self._target_mpr_state
+        if state is None:
+            return
+        self._set_target_mpr_state(
+            rotate_mpr_state_3d(
+                state,
+                axis_patient,
+                angle_radians,
+            )
+        )
+        self._dirty_mpr_viewport_ids.update(
+            self._mpr_viewport_ids()
+        )
         self._try_start_next_mpr_render()
 
     @Slot(object)
@@ -245,13 +386,26 @@ class TabController(QObject):
                 return
 
             self._active_mpr_requests.pop(result.response_id)
-            needs_initial_mpr_frame = self._target_mpr_frame is None
+            needs_initial_mpr_frame = self._target_mpr_state is None
 
             viewport.handleRenderResult(result)
             # Bootstrap MPR with the axial view, then render the other views
             # after the first result establishes the shared frame.
             if needs_initial_mpr_frame and result.mpr_frame is not None:
-                self._target_mpr_frame = result.mpr_frame
+                initial_state = MprState(
+                    frame=result.mpr_frame,
+                    view_grids=result.mpr_view_grids,
+                    view_anchors=(
+                        MprViewAnchors.centered(
+                            result.mpr_view_grids
+                        )
+                        if result.mpr_view_grids is not None
+                        else None
+                    ),
+                )
+                self._initial_mpr_state = initial_state
+                self._mpr_3d_reset_state = initial_state
+                self._set_target_mpr_state(initial_state)
                 self._mark_other_mpr_viewports_dirty(result.viewport_id)
 
             if not self._active_mpr_requests:
@@ -346,7 +500,7 @@ class TabController(QObject):
             return
         if not self._dirty_mpr_viewport_ids:
             return
-        if self._target_mpr_frame is None:
+        if self._target_mpr_state is None:
             return
 
         viewport_ids = set(self._dirty_mpr_viewport_ids)
@@ -362,9 +516,22 @@ class TabController(QObject):
 
             requests.append(
                 viewport.build_mpr_render_request(
-                    mpr_frame=self._target_mpr_frame,
+                    mpr_state=self._target_mpr_state,
                     initial=False,
                 )
             )
 
         self._start_mpr_requests(requests)
+
+    def _set_target_mpr_state(self, state: MprState) -> None:
+        self._target_mpr_state = state
+        for viewport in self._viewport_dict.values():
+            if isinstance(viewport, MprViewportController):
+                viewport.apply_mpr_state(state)
+
+    @property
+    def _target_mpr_frame(self) -> MprFrame | None:
+        """兼容旧测试和调试代码；新的单一真值来源是 MprState。"""
+        if self._target_mpr_state is None:
+            return None
+        return self._target_mpr_state.frame

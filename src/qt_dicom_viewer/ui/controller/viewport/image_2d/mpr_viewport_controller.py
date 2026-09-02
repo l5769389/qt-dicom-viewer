@@ -1,25 +1,32 @@
 import uuid
+from math import degrees, hypot, radians
 from typing import cast
 
 import numpy as np
 from PySide6.QtCore import Property, QPointF, Signal
 
-from qt_dicom_viewer.core.geometry_2d import point_distance
 from qt_dicom_viewer.model import (
     CrosshairCenterChange,
     CrosshairMoveContext,
+    CrosshairRotationChange,
+    CrosshairRotationContext,
     ImagePoint,
+    InteractionType,
     InteractionResult,
     MprImageGeometry,
+    Mpr3DRotationChange,
+    Mpr3DRotationContext,
     MprPlane,
     MprRenderRequest,
     MprRenderResult,
     OperationStartContext,
+    PointerHoverContext,
     PointerPosition,
     RenderRequest,
     RenderResult,
     Vector3,
-    ViewportConfig, MprFrame,
+    ViewportConfig, MprFrame, MprState,
+    CrosshairTargetKind,
 )
 from qt_dicom_viewer.model.ui_models import CrosshairColor, CrosshairStyle
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -29,8 +36,13 @@ from .image_2d_viewport_controller import (
 from qt_dicom_viewer.ui.controller.viewport.operation.crosshair_move_operation import (
     CrosshairMoveOperation,
 )
+from qt_dicom_viewer.ui.controller.viewport.operation.crosshair_rotate_operation import (
+    CrosshairRotateOperation,
+)
+from qt_dicom_viewer.ui.controller.viewport.operation.mpr_3d_rotate_operation import (
+    Mpr3DRotateOperation,
+)
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
-
 
 _CROSSHAIR_STYLES = {
     MprPlane.AXIAL: CrosshairColor("green", "blue"),
@@ -41,13 +53,15 @@ _CROSSHAIR_STYLES = {
 
 class MprViewportController(Image2DViewportController):
     crosshairCenterChangeRequested = Signal(object)
+    crosshairRotationRequested = Signal(object, float)
+    mpr3DRotationRequested = Signal(object, float)
     renderInvalidated = Signal(str)
 
     def __init__(
-        self,
-        viewport_config: ViewportConfig,
-        tool_controller: ToolController,
-        parent=None,
+            self,
+            viewport_config: ViewportConfig,
+            tool_controller: ToolController,
+            parent=None,
     ) -> None:
         if not isinstance(viewport_config.viewport_type, MprPlane):
             raise ValueError(
@@ -55,8 +69,12 @@ class MprViewportController(Image2DViewportController):
             )
         super().__init__(viewport_config, tool_controller, parent)
         self._plane_geometry: MprImageGeometry | None = None
+        self._mpr_state: MprState | None = None
         self._crosshair_image_position: ImagePoint | None = None
+        self._crosshair_hover_target: CrosshairTargetKind | None = None
         self._crosshair_operation = CrosshairMoveOperation()
+        self._crosshair_rotate_operation = CrosshairRotateOperation()
+        self._mpr_3d_rotate_operation = Mpr3DRotateOperation()
         self._crosshair_style = CrosshairStyle(
             _CROSSHAIR_STYLES[viewport_config.viewport_type]
         )
@@ -64,10 +82,17 @@ class MprViewportController(Image2DViewportController):
     def build_mpr_render_request(
             self,
             *,
-            mpr_frame: MprFrame | None,
+            mpr_frame: MprFrame | None = None,
+            view_roll_radians: float = 0.0,
+            mpr_state: MprState | None = None,
             initial: bool = False,
     ) -> MprRenderRequest:
         state = self.viewport_state
+        if mpr_state is not None:
+            mpr_frame = mpr_state.frame
+            view_roll_radians = mpr_state.view_rolls.for_plane(
+                self.viewport_config.viewport_type
+            )
         if isinstance(self.viewport_config.viewport_type, MprPlane):
             return MprRenderRequest(
                 request_id=str(uuid.uuid4()),
@@ -77,6 +102,27 @@ class MprViewportController(Image2DViewportController):
                 inverted=False if initial else state.inverted,
                 plane=self.viewport_config.viewport_type,
                 mpr_frame=mpr_frame,
+                view_roll_radians=view_roll_radians,
+                mpr_grid=(
+                    mpr_state.view_grids.for_plane(
+                        self.viewport_config.viewport_type
+                    )
+                    if (
+                        mpr_state is not None
+                        and mpr_state.view_grids is not None
+                    )
+                    else None
+                ),
+                mpr_grid_anchor=(
+                    mpr_state.view_anchors.for_plane(
+                        self.viewport_config.viewport_type
+                    )
+                    if (
+                        mpr_state is not None
+                        and mpr_state.view_anchors is not None
+                    )
+                    else None
+                ),
             )
         raise TypeError("MprViewportController requires MprPlane")
 
@@ -115,44 +161,194 @@ class MprViewportController(Image2DViewportController):
 
         self.crosshairImagePositionChanged.emit()
 
-    def _begin_specific_interaction(
-        self,
-        position: PointerPosition,
-        endpoint_tolerance: float,
+
+    def _get_crosshair_operation_context(
+            self,
+            hit_result: CrosshairTargetKind | None,
     ) -> tuple[DragOperation, OperationStartContext] | None:
-        if not self._crosshair_hit_test(position, endpoint_tolerance):
+        if not hit_result:
             return None
-        return self._crosshair_operation, CrosshairMoveContext(
-            current_pan_x=self.viewport_state.pan_x,
-            current_pan_y=self.viewport_state.pan_y,
+        match hit_result:
+            case CrosshairTargetKind.CENTER:
+                return self._crosshair_operation, CrosshairMoveContext(
+                    current_pan_x=self.viewport_state.pan_x,
+                    current_pan_y=self.viewport_state.pan_y,
+                )
+            case CrosshairTargetKind.HORIZONTAL_LINE:
+                return self._crosshair_rotation_context()
+            case CrosshairTargetKind.VERTICAL_LINE:
+                return self._crosshair_rotation_context()
+            case _:
+                raise NotImplementedError("Unknown hit type")
+
+    def _begin_specific_interaction(
+            self,
+            position: PointerPosition,
+            endpoint_tolerance: float,
+            line_tolerance: float
+    ) -> tuple[DragOperation, OperationStartContext] | None:
+        # 十字线交互优先于当前选中的全视口工具：中心命中用于移动，
+        # 线段命中用于旋转。只有未命中十字线时，3D 旋转才接管拖动。
+        hit_result = self._crosshair_hit_test(
+            position,
+            endpoint_tolerance,
+            line_tolerance,
         )
+        crosshair_interaction = self._get_crosshair_operation_context(
+            hit_result
+        )
+        if crosshair_interaction is not None:
+            return crosshair_interaction
+
+        if (
+            self._tool_controller.active_interaction
+            == InteractionType.MPR_ROTATE_3D
+        ):
+            geometry = self._plane_geometry
+            center = self._crosshair_image_position
+            if geometry is None or center is None:
+                return None
+            return (
+                self._mpr_3d_rotate_operation,
+                Mpr3DRotationContext(
+                    center=center,
+                    row_spacing=geometry.row_spacing,
+                    column_spacing=geometry.column_spacing,
+                    normal_direction_patient=(
+                        geometry.navigation_direction_patient
+                    ),
+                ),
+            )
+        return None
 
     def _apply_specific_interaction_result(
-        self,
-        result: InteractionResult,
+            self,
+            result: InteractionResult,
     ) -> bool:
-        if not isinstance(result, CrosshairCenterChange):
-            return False
-        self._apply_crosshair_move(result.position)
-        return True
+        if isinstance(result, CrosshairCenterChange):
+            self._apply_crosshair_move(result.position)
+            return True
+        if isinstance(result, CrosshairRotationChange):
+            plane = self.viewport_config.viewport_type
+            state_angle = (
+                self._screen_handedness()
+                * result.angle_delta_radians
+            )
+            self.crosshairRotationRequested.emit(plane, state_angle)
+            return True
+        if isinstance(result, Mpr3DRotationChange):
+            self.mpr3DRotationRequested.emit(
+                result.axis_patient,
+                # 旋转的是采样基轴；影像内容在该基轴中呈现的旋转方向
+                # 与基轴自身相反，所以这里需要把屏幕角度取反。
+                -self._screen_handedness()
+                * result.angle_delta_radians,
+            )
+            return True
+        return False
+
+
+    def _handle_specific_pointer_hover(
+            self,
+            context: PointerHoverContext,
+    ) -> None:
+        target = self._crosshair_hit_test(
+            position=context.position,
+            center_tolerance=context.point_tolerance,
+            line_tolerance=context.line_tolerance,
+        )
+        if target == self._crosshair_hover_target:
+            return
+        self._crosshair_hover_target = target
+        self.crosshairHoverTargetChanged.emit()
 
     def _crosshair_hit_test(
+            self,
+            position: PointerPosition,
+            center_tolerance: float,
+            line_tolerance: float,
+    ) -> CrosshairTargetKind | None:
+        center = self._crosshair_image_position
+        point = position.image
+
+        if center is None or point is None:
+            return None
+
+        geometry = self._plane_geometry
+        if geometry is None:
+            return None
+
+        # 在毫米空间做距离判定，避免非正方形像素扭曲命中区域。
+        dx = (
+            point.column - center.column
+        ) * geometry.column_spacing
+        dy = (
+            point.row - center.row
+        ) * geometry.row_spacing
+
+        # 中心优先，因为两条线在中心相交。
+        if hypot(dx, dy) <= center_tolerance:
+            return CrosshairTargetKind.CENTER
+
+        angle = radians(self.crosshairRotationDegrees)
+        cosine = float(np.cos(angle))
+        sine = float(np.sin(angle))
+        horizontal_distance = abs(dx * sine - dy * cosine)
+        vertical_distance = abs(dx * cosine + dy * sine)
+
+        if (
+                horizontal_distance <= line_tolerance
+                and horizontal_distance <= vertical_distance
+        ):
+            return CrosshairTargetKind.HORIZONTAL_LINE
+
+        if vertical_distance <= line_tolerance:
+            return CrosshairTargetKind.VERTICAL_LINE
+
+        return None
+
+    def _crosshair_rotation_context(
         self,
-        position: PointerPosition,
-        endpoint_tolerance: float,
-    ) -> bool:
-        crosshair_position = self._crosshair_image_position
-        if crosshair_position is None:
-            return False
-        if position.image is None:
-            return False
+    ) -> tuple[DragOperation, OperationStartContext] | None:
+        center = self._crosshair_image_position
+        geometry = self._plane_geometry
+        if center is None or geometry is None:
+            return None
         return (
-            point_distance(
-                position.image,
-                crosshair_position,
-            )
-            < endpoint_tolerance
+            self._crosshair_rotate_operation,
+            CrosshairRotationContext(
+                center=center,
+                row_spacing=geometry.row_spacing,
+                column_spacing=geometry.column_spacing,
+            ),
         )
+
+    def _screen_handedness(self) -> float:
+        return (
+            -1.0
+            if self.viewport_config.viewport_type == MprPlane.SAGITTAL
+            else 1.0
+        )
+
+    def apply_mpr_state(self, state: MprState) -> None:
+        """同步共享 MPR 状态；像素是否重采样由 TabController 决定。"""
+        if state == self._mpr_state:
+            return
+        self._mpr_state = state
+        if (
+            self._plane_geometry is not None
+            and state.view_anchors is not None
+        ):
+            anchor = state.view_anchors.for_plane(
+                self.viewport_config.viewport_type
+            )
+            # anchor 可以立即更新十字线位置，无需等待
+            # 后台 Reslicer 完成，因而拖动方向和指针保持同步。
+            self._crosshair_image_position = ImagePoint(
+                column=anchor.column,
+                row=anchor.row,
+            )
+        self.crosshairImagePositionChanged.emit()
 
     def _apply_crosshair_move(self, position: ImagePoint) -> None:
         geometry = self._plane_geometry
@@ -183,6 +379,28 @@ class MprViewportController(Image2DViewportController):
         if position is None:
             return QPointF(-1.0, -1.0)
         return QPointF(position.column, position.row)
+
+    @Property(
+        str,
+        notify=Image2DViewportController.crosshairHoverTargetChanged,
+    )
+    def crosshairHoverTarget(self) -> str:
+        target = self._crosshair_hover_target
+        return "" if target is None else target.value
+
+    @Property(
+        float,
+        notify=Image2DViewportController.crosshairImagePositionChanged,
+    )
+    def crosshairRotationDegrees(self) -> float:
+        state = self._mpr_state
+        if state is None:
+            return 0.0
+        plane = self.viewport_config.viewport_type
+        return degrees(
+            -self._screen_handedness()
+            * state.view_rolls.for_plane(plane)
+        )
 
     def apply_slice_index(self, index: int) -> None:
         geometry = self._plane_geometry

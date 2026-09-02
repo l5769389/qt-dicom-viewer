@@ -17,6 +17,8 @@ ApplicationWindow {
 
     width: 1400
     height: 760
+    minimumWidth: 1000
+    minimumHeight: 600
     visible: true
     title: "Qt DICOM Viewer"
     color: Theme.appBackground
@@ -27,7 +29,9 @@ ApplicationWindow {
         spacing: 8
 
         Sections.LeftPanel {
-            Layout.preferredWidth: 250
+            Layout.minimumWidth: 210
+            Layout.preferredWidth: 240
+            Layout.maximumWidth: 280
             Layout.fillHeight: true
             panelController: window.panelController
         }
@@ -43,7 +47,9 @@ ApplicationWindow {
 
         Sections.RightPanel {
             visible: window.hasTabs
-            Layout.preferredWidth: visible ? 260 : 0
+            Layout.minimumWidth: visible ? 220 : 0
+            Layout.preferredWidth: visible ? 250 : 0
+            Layout.maximumWidth: visible ? 280 : 0
             Layout.fillHeight: true
             toolController: window.toolController
             viewportController: window.viewportController

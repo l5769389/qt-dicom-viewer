@@ -1,18 +1,28 @@
 import numpy as np
 import pytest
+from PySide6.QtCore import QPointF
 
 from qt_dicom_viewer.model import (
     CrosshairCenterChange,
+    CrosshairMoveContext,
+    CrosshairRotationContext,
     FrameDisplayMeta,
     ImageGeometryMeta,
     ImagePoint,
     InstanceDisplayMeta,
+    InteractionType,
     MprFrame,
+    MprGridSpec,
     MprImageGeometry,
+    Mpr3DRotationChange,
+    Mpr3DRotationContext,
     MprPlane,
     MprRenderRequest,
     MprRenderResult,
+    MprViewGrids,
     PixelSpacing,
+    Point,
+    PointerPosition,
     SeriesDisplayMeta,
     StackRenderRequest,
     StackRenderResult,
@@ -106,6 +116,7 @@ def _mpr_result(
     controller: MprViewportController,
     frame: MprFrame,
     response_id: str = "request-1",
+    view_grids: MprViewGrids | None = None,
 ) -> MprRenderResult:
     geometry = _mpr_geometry(frame)
     return MprRenderResult(
@@ -118,6 +129,7 @@ def _mpr_result(
         frame_meta=_frame_meta(),
         mpr_frame=frame,
         plane_geometry=geometry,
+        mpr_view_grids=view_grids,
     )
 
 
@@ -225,6 +237,144 @@ def test_stack_exposes_safe_empty_crosshair_properties() -> None:
     assert stack.crosshairImagePosition.x() == -1.0
     assert stack.crosshairImagePosition.y() == -1.0
     assert stack.crosshairStyle["lineWidth"] == 0
+    assert stack.crosshairHoverTarget == ""
+
+
+def test_stack_exposes_slice_state_and_clamps_slider_updates() -> None:
+    stack = StackViewportController(
+        _viewport_config(TwoDViewType.STACK),
+        ToolController(),
+    )
+    result = StackRenderResult(
+        response_id="request-1",
+        viewport_id=stack.viewport_config.viewport_id,
+        series_uid=stack.viewport_config.series_uid,
+        view_type=TwoDViewType.STACK,
+        image=np.zeros((3, 4), dtype=np.uint8),
+        modality_pixel=np.zeros((3, 4), dtype=np.float32),
+        frame_meta=_frame_meta(),
+    )
+    requests = []
+    changes = []
+    stack.renderRequested.connect(requests.append)
+    stack.sliceChanged.connect(
+        lambda: changes.append((stack.sliceIndex, stack.sliceCount))
+    )
+
+    stack.handleRenderResult(result)
+
+    assert stack.sliceIndex == 2
+    assert stack.sliceCount == 5
+    assert changes == [(2, 5)]
+
+    stack.setSliceIndex(99)
+
+    assert stack.sliceIndex == 4
+    assert requests[-1].slice_index == 4
+
+    stack.setSliceIndex(-10)
+
+    assert stack.sliceIndex == 0
+    assert requests[-1].slice_index == 0
+
+
+def test_stack_measurement_can_extend_beyond_image_across_canvas() -> None:
+    tool_controller = ToolController()
+    tool_controller.selectInteraction(InteractionType.MEASURE_LENGTH.value)
+    stack = StackViewportController(
+        _viewport_config(TwoDViewType.STACK),
+        tool_controller,
+    )
+    stack.handleRenderResult(
+        StackRenderResult(
+            response_id="request-1",
+            viewport_id=stack.viewport_config.viewport_id,
+            series_uid=stack.viewport_config.series_uid,
+            view_type=TwoDViewType.STACK,
+            image=np.zeros((3, 4), dtype=np.uint8),
+            modality_pixel=np.zeros((3, 4), dtype=np.float32),
+            frame_meta=_frame_meta(),
+        )
+    )
+
+    # image_valid=False 表示点在图像矩形外，但坐标仍来自视口画布。
+    stack.beginInteraction(
+        10.0, 10.0, 1,
+        False, -10.0, 1.0,
+        2.0, 2.0,
+    )
+    stack.updateInteraction(
+        QPointF(10.0, 10.0),
+        QPointF(20.0, 10.0),
+        QPointF(10.0, 0.0),
+        QPointF(10.0, 0.0),
+        False, -20.0, 1.0,
+    )
+
+    assert stack.measurementController.activeTransaction["startColumn"] == -10.0
+    assert stack.measurementController.activeTransaction["endColumn"] == -20.0
+
+    stack.endInteraction(
+        20.0, 10.0,
+        False, -20.0, 1.0,
+    )
+
+    assert len(stack.measurementController.measurementItems) == 1
+    assert stack.measurementController.measurementItems[0]["label"] == "30.0 mm"
+
+
+def test_viewport_exposes_active_interaction_for_cursor_selection() -> None:
+    tool_controller = ToolController()
+    stack = StackViewportController(
+        _viewport_config(TwoDViewType.STACK),
+        tool_controller,
+    )
+    changes: list[str] = []
+    stack.activeInteractionChanged.connect(
+        lambda: changes.append(stack.activeInteraction)
+    )
+
+    assert stack.activeInteraction == InteractionType.WINDOW.value
+
+    tool_controller.selectInteraction(InteractionType.SCROLL.value)
+
+    assert stack.activeInteraction == InteractionType.SCROLL.value
+    assert changes == [InteractionType.SCROLL.value]
+
+
+def test_pixel_sampling_remains_available_while_window_tool_is_idle() -> None:
+    tool_controller = ToolController()
+    stack = StackViewportController(
+        _viewport_config(TwoDViewType.STACK),
+        tool_controller,
+    )
+    stack.handleRenderResult(
+        StackRenderResult(
+            response_id="request-1",
+            viewport_id=stack.viewport_config.viewport_id,
+            series_uid=stack.viewport_config.series_uid,
+            view_type=TwoDViewType.STACK,
+            image=np.zeros((3, 4), dtype=np.uint8),
+            modality_pixel=np.zeros((3, 4), dtype=np.float32),
+            frame_meta=_frame_meta(),
+        )
+    )
+
+    # 是否处于鼠标按压周期由 QML InteractionLayer 负责拦截；
+    # Controller 收到普通悬停位置时始终读取 X/Y/CT。
+    stack.updateCursorPosition(
+        10.0, 10.0,
+        1.0, 1.0,
+        1.0, 1.0,
+        True, 2.0, 2.0,
+    )
+    assert stack.cursorController.cursorInfo == {
+        "inside": True,
+        "x": "1",
+        "y": "1",
+        "value": "0",
+        "unit": "HU",
+    }
 
 
 def test_mpr_crosshair_uses_the_viewports_geometry() -> None:
@@ -246,6 +396,100 @@ def test_mpr_crosshair_uses_the_viewports_geometry() -> None:
 
     assert handled is True
     assert centers == [(16.0, 22.0, 30.0)]
+
+
+def test_axial_3d_rotation_inverts_screen_angle_for_sampling_axes() -> None:
+    mpr = MprViewportController(
+        _viewport_config(MprPlane.AXIAL),
+        ToolController(),
+    )
+    rotations = []
+    mpr.mpr3DRotationRequested.connect(
+        lambda axis, angle: rotations.append((axis, angle))
+    )
+
+    handled = mpr._apply_specific_interaction_result(
+        Mpr3DRotationChange(
+            axis_patient=(0.0, 0.0, 1.0),
+            angle_delta_radians=0.25,
+        )
+    )
+
+    assert handled is True
+    assert rotations == [((0.0, 0.0, 1.0), -0.25)]
+
+
+def test_mpr_crosshair_hover_distinguishes_center_and_lines() -> None:
+    mpr = MprViewportController(
+        _viewport_config(MprPlane.AXIAL),
+        ToolController(),
+    )
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    mpr.handleRenderResult(_mpr_result(mpr, frame))
+
+    def hover(column: float, row: float, valid: bool = True) -> str:
+        mpr.updateCursorPosition(
+            0.0,
+            0.0,
+            column,
+            row,
+            0.0,
+            0.0,
+            valid,
+            # MPR 命中容差使用毫米；此几何的间距为 2/3 mm。
+            0.5,
+            0.5,
+        )
+        return mpr.crosshairHoverTarget
+
+    assert hover(0.1, 0.1) == "center"
+    assert hover(2.0, 0.1) == "horizontalLine"
+    assert hover(0.1, 2.0) == "verticalLine"
+    assert hover(2.0, 2.0) == ""
+    assert hover(0.0, 0.0, valid=False) == ""
+
+
+def test_crosshair_interactions_take_priority_over_3d_rotation() -> None:
+    tool_controller = ToolController()
+    tool_controller.selectInteraction(InteractionType.MPR_ROTATE_3D)
+    mpr = MprViewportController(
+        _viewport_config(MprPlane.AXIAL),
+        tool_controller,
+    )
+    mpr.handleRenderResult(
+        _mpr_result(
+            mpr,
+            MprFrame.standard_lps((10.0, 20.0, 30.0)),
+        )
+    )
+
+    def interaction_context(
+        column: float,
+        row: float,
+    ):
+        interaction = mpr._begin_specific_interaction(
+            PointerPosition(
+                viewport=Point(column, row),
+                image=ImagePoint(column, row),
+            ),
+            endpoint_tolerance=0.5,
+            line_tolerance=0.5,
+        )
+        assert interaction is not None
+        return interaction[1]
+
+    assert isinstance(
+        interaction_context(0.1, 0.1),
+        CrosshairMoveContext,
+    )
+    assert isinstance(
+        interaction_context(2.0, 0.1),
+        CrosshairRotationContext,
+    )
+    assert isinstance(
+        interaction_context(2.0, 2.0),
+        Mpr3DRotationContext,
+    )
 
 
 def test_tab_creates_specific_controller_types() -> None:
@@ -315,6 +559,47 @@ def test_tab_updates_shared_frame_and_rerenders_all_mpr_views() -> None:
         and request.mpr_frame.center_patient == (11.0, 22.0, 33.0)
         for request in requests
     )
+
+
+def test_tab_propagates_fixed_grid_to_each_mpr_view() -> None:
+    tab = TabController(
+        TabConfig("mpr-tab", "MPR", TabType.MPR, (_series_meta(),))
+    )
+    requests = []
+    tab.renderRequested.connect(requests.append)
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    grids = MprViewGrids(
+        axial=MprGridSpec(100, 120, 0.8, 0.8),
+        coronal=MprGridSpec(80, 120, 1.2, 0.8),
+        sagittal=MprGridSpec(80, 100, 1.2, 0.8),
+    )
+
+    tab.init_render()
+    initial_request = requests.pop()
+    axial = tab.viewports_by_id[initial_request.viewport_id]
+    assert isinstance(axial, MprViewportController)
+    tab.handleRenderResult(
+        _mpr_result(
+            axial,
+            frame,
+            initial_request.request_id,
+            grids,
+        )
+    )
+
+    assert len(requests) == 2
+    for request in requests:
+        viewport = tab.viewports_by_id[request.viewport_id]
+        assert isinstance(viewport, MprViewportController)
+        plane = viewport.viewport_config.viewport_type
+        assert request.mpr_grid == grids.for_plane(plane)
+        assert request.mpr_grid_anchor is not None
+        assert request.mpr_grid_anchor.column == pytest.approx(
+            (request.mpr_grid.columns - 1) / 2.0
+        )
+        assert request.mpr_grid_anchor.row == pytest.approx(
+            (request.mpr_grid.rows - 1) / 2.0
+        )
 
 
 def test_mpr_render_coalesces_drag_updates_to_the_latest_frame() -> None:
@@ -393,6 +678,99 @@ def test_mpr_single_view_invalidation_starts_one_request() -> None:
 
     assert len(requests) == 1
     assert requests[0].viewport_id == axial.viewport_config.viewport_id
+
+
+def test_tab_schedules_crosshair_and_3d_rotation_differently() -> None:
+    tab = TabController(
+        TabConfig("mpr-tab", "MPR", TabType.MPR, (_series_meta(),))
+    )
+    requests = []
+    tab.renderRequested.connect(requests.append)
+    initial_frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+
+    tab.init_render()
+    initial_request = requests.pop()
+    axial = tab.viewports_by_id[initial_request.viewport_id]
+    assert isinstance(axial, MprViewportController)
+    tab.handleRenderResult(
+        _mpr_result(axial, initial_frame, initial_request.request_id)
+    )
+    for request in list(requests):
+        viewport = tab.viewports_by_id[request.viewport_id]
+        assert isinstance(viewport, MprViewportController)
+        tab.handleRenderResult(
+            _mpr_result(viewport, initial_frame, request.request_id)
+        )
+    requests.clear()
+
+    axial.crosshairRotationRequested.emit(MprPlane.AXIAL, 0.2)
+
+    assert len(requests) == 2
+    assert all(
+        request.viewport_id != axial.viewport_config.viewport_id
+        for request in requests
+    )
+    assert tab._target_mpr_state is not None
+    assert (
+        tab._target_mpr_state.view_rolls.axial_radians
+        == pytest.approx(-0.2)
+    )
+    for request in list(requests):
+        viewport = tab.viewports_by_id[request.viewport_id]
+        assert isinstance(viewport, MprViewportController)
+        assert request.mpr_frame is not None
+        tab.handleRenderResult(
+            _mpr_result(
+                viewport,
+                request.mpr_frame,
+                request.request_id,
+            )
+        )
+    requests.clear()
+
+    axial.mpr3DRotationRequested.emit((1.0, 0.0, 0.0), 0.1)
+
+    assert len(requests) == 3
+    assert {
+        request.viewport_id for request in requests
+    } == set(tab._mpr_viewport_ids())
+
+
+def test_scoped_3d_reset_preserves_crosshair_rotation_but_full_reset_does_not() -> None:
+    tab = TabController(
+        TabConfig("mpr-tab", "MPR", TabType.MPR, (_series_meta(),))
+    )
+    requests = []
+    tab.renderRequested.connect(requests.append)
+    initial_frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+
+    tab.init_render()
+    initial_request = requests.pop()
+    axial = tab.viewports_by_id[initial_request.viewport_id]
+    assert isinstance(axial, MprViewportController)
+    tab.handleRenderResult(
+        _mpr_result(axial, initial_frame, initial_request.request_id)
+    )
+    assert tab._initial_mpr_state is not None
+
+    axial.mpr3DRotationRequested.emit((0.0, 0.0, 1.0), 0.2)
+    axial.crosshairRotationRequested.emit(MprPlane.AXIAL, 0.1)
+    assert tab._target_mpr_state is not None
+    assert tab._target_mpr_state.frame != initial_frame
+
+    tab.toolController.activateTool("mpr-rotate-3d")
+    tab.toolController.resetActiveTool()
+
+    assert tab._target_mpr_state is not None
+    assert (
+        tab._target_mpr_state.view_rolls.axial_radians
+        == pytest.approx(-0.1)
+    )
+    assert tab._target_mpr_state.frame != initial_frame
+
+    tab.toolController.activateTool("reset")
+
+    assert tab._target_mpr_state == tab._initial_mpr_state
 
 
 def test_mpr_failure_finishes_the_active_round() -> None:

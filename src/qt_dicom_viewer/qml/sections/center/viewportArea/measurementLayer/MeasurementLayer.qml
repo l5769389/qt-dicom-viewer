@@ -7,6 +7,10 @@ Item {
 
     required property var measurementController
 
+    // 测量坐标属于无限延伸的图像坐标系，可以绘制到图像矩形之外。
+    // 最外层 ImageCanvas 仍会将最终内容限制在整个视口画布内。
+    clip: false
+
     Repeater {
         model: measurementLayer.measurementController
             ? measurementLayer.measurementController.measurementItems

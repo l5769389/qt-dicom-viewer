@@ -6,9 +6,15 @@ from qt_dicom_viewer.model import MprPlane
 from qt_dicom_viewer.model.dicom_core import (
     DicomVolume,
     MprFrame,
+    MprGridAnchor,
+    MprGridSpec,
     MprImageGeometry,
     MprSlice,
+    MprState,
+    MprViewRolls,
+    MprViewGrids,
 )
+from qt_dicom_viewer.core.mpr_rotation import resolve_sampling_basis
 
 
 class MprResliceError(RuntimeError):
@@ -30,6 +36,9 @@ class MprReslicer:
         volume: DicomVolume,
         plane: MprPlane,
         frame: MprFrame | None = None,
+        view_roll_radians: float = 0.0,
+        grid_spec: MprGridSpec | None = None,
+        grid_anchor: MprGridAnchor | None = None,
     ) -> MprSlice:
         """从任意朝向的源 Volume 中重采样一个 MPR 平面。
 
@@ -42,27 +51,39 @@ class MprReslicer:
         resolved_frame = frame or MprFrame.standard_lps(
             volume.geometry.center_patient
         )
-        # - row_direction_mpr：图像 row 增大时，在 MPR 中向哪里移动。
-        # - column_direction_mpr：图像 column 增大时，在 MPR 中向哪里移动。
-        # - navigation_direction_mpr：切片索引增大时，在 MPR 中向哪里移动。
-        (
-            row_direction_mpr,
-            column_direction_mpr,
-            navigation_direction_mpr,
-        ) = self._plane_axes_mpr(plane)
+        rolls = MprViewRolls()
+        match plane:
+            case MprPlane.AXIAL:
+                rolls = MprViewRolls(axial_radians=view_roll_radians)
+            case MprPlane.CORONAL:
+                rolls = MprViewRolls(coronal_radians=view_roll_radians)
+            case MprPlane.SAGITTAL:
+                rolls = MprViewRolls(sagittal_radians=view_roll_radians)
+            case _:
+                raise MprResliceError(f"Unsupported MPR plane: {plane}")
+
+        sampling_basis = resolve_sampling_basis(
+            MprState(frame=resolved_frame, view_rolls=rolls),
+            plane,
+        )
+        patient_to_mpr_direction = resolved_frame.patient_to_mpr[:3, :3]
+        row_direction_mpr = patient_to_mpr_direction @ np.asarray(
+            sampling_basis.row_direction_patient,
+            dtype=np.float64,
+        )
+        column_direction_mpr = patient_to_mpr_direction @ np.asarray(
+            sampling_basis.column_direction_patient,
+            dtype=np.float64,
+        )
+        navigation_direction_mpr = patient_to_mpr_direction @ np.asarray(
+            sampling_basis.navigation_direction_patient,
+            dtype=np.float64,
+        )
         # 将 Volume 的 8 个极端体素中心转到 MPR 物理坐标系。
         # 后续范围计算均以 MPR Frame 原点为原点，单位为 mm。
         volume_corner_centers_mpr = self._volume_corners_mpr(
             volume,
             resolved_frame,
-        )
-        row_bounds = self._project_bounds(
-            volume_corner_centers_mpr,
-            row_direction_mpr,
-        )
-        column_bounds = self._project_bounds(
-            volume_corner_centers_mpr,
-            column_direction_mpr,
         )
         navigation_bounds = self._project_bounds(
             volume_corner_centers_mpr,
@@ -81,8 +102,6 @@ class MprReslicer:
                 "Volume contains an invalid voxel spacing"
             )
 
-        row_extent = row_bounds[1] - row_bounds[0]
-        column_extent = column_bounds[1] - column_bounds[0]
         navigation_extent = (
             navigation_bounds[1] - navigation_bounds[0]
         )
@@ -92,49 +111,62 @@ class MprReslicer:
         # Axial/Coronal/Sagittal 的导航层数会分别对应源数据的
         # depth/height/width。Oblique MPR 后续可以使用独立的采样策略。
         row_direction_patient = np.asarray(
-            resolved_frame.direction_to_patient(
-                self._to_vector3(row_direction_mpr)
-            )
+            sampling_basis.row_direction_patient
         )
         column_direction_patient = np.asarray(
-            resolved_frame.direction_to_patient(
-                self._to_vector3(column_direction_mpr)
-            )
+            sampling_basis.column_direction_patient
         )
         navigation_direction_patient = np.asarray(
-            resolved_frame.direction_to_patient(
-                self._to_vector3(navigation_direction_mpr)
-            )
-        )
-        preferred_row_spacing = self._spacing_along_direction(
-            volume,
-            row_direction_patient,
-        )
-        preferred_column_spacing = self._spacing_along_direction(
-            volume,
-            column_direction_patient,
+            sampling_basis.navigation_direction_patient
         )
         preferred_navigation_spacing = self._spacing_along_direction(
             volume,
             navigation_direction_patient,
         )
-        row_spacing = self._bounded_axis_spacing(
-            preferred_spacing=preferred_row_spacing,
-            extent=row_extent,
-        )
-        column_spacing = self._bounded_axis_spacing(
-            preferred_spacing=preferred_column_spacing,
-            extent=column_extent,
-        )
-        # 计算输出宽高和切片数量
-        rows = self._sample_count(
-            row_extent,
-            row_spacing,
-        )
-        columns = self._sample_count(
-            column_extent,
-            column_spacing,
-        )
+        if grid_spec is None:
+            row_bounds = self._project_bounds(
+                volume_corner_centers_mpr,
+                row_direction_mpr,
+            )
+            column_bounds = self._project_bounds(
+                volume_corner_centers_mpr,
+                column_direction_mpr,
+            )
+            row_extent = row_bounds[1] - row_bounds[0]
+            column_extent = column_bounds[1] - column_bounds[0]
+            preferred_row_spacing = self._spacing_along_direction(
+                volume,
+                row_direction_patient,
+            )
+            preferred_column_spacing = self._spacing_along_direction(
+                volume,
+                column_direction_patient,
+            )
+            row_spacing = self._bounded_axis_spacing(
+                preferred_spacing=preferred_row_spacing,
+                extent=row_extent,
+            )
+            column_spacing = self._bounded_axis_spacing(
+                preferred_spacing=preferred_column_spacing,
+                extent=column_extent,
+            )
+            grid_spec = MprGridSpec(
+                rows=self._sample_count(row_extent, row_spacing),
+                columns=self._sample_count(
+                    column_extent,
+                    column_spacing,
+                ),
+                row_spacing=row_spacing,
+                column_spacing=column_spacing,
+            )
+
+        # 有了固定网格后，旋转只会改变采样方向，不再改变
+        # 输出数组尺寸和毫米间距。
+        rows = grid_spec.rows
+        columns = grid_spec.columns
+        row_spacing = grid_spec.row_spacing
+        column_spacing = grid_spec.column_spacing
+        resolved_anchor = grid_anchor or MprGridAnchor.centered(grid_spec)
 
         navigation_count = self._sample_count(
             # 正交 MPR 的导航切片总数使用当前导航轴的首选间距，
@@ -159,11 +191,16 @@ class MprReslicer:
             navigation_spacing,
         )
         plane_offset_mpr = 0.0
-        # 第一个输出像素中心由 row/column 的最小投影坐标
-        # 和当前平面沿导航轴的偏移共同确定。
+        # anchor 表示 MPR Frame 中心应该落在固定网格的哪个
+        # 连续索引上。移动十字线时改变 anchor，可以在网格大小
+        # 不变的同时保持源视图的采样原点不动。
         image_origin_mpr = (
-            column_direction_mpr * column_bounds[0]
-            + row_direction_mpr * row_bounds[0]
+            -column_direction_mpr
+            * resolved_anchor.column
+            * grid_spec.column_spacing
+            - row_direction_mpr
+            * resolved_anchor.row
+            * grid_spec.row_spacing
             + navigation_direction_mpr * plane_offset_mpr
         )
         plane_geometry = MprImageGeometry(
@@ -195,6 +232,85 @@ class MprReslicer:
             geometry=plane_geometry,
             slice_index=navigation_index,
             slice_count=navigation_count,
+        )
+
+    def create_view_grids(
+        self,
+        volume: DicomVolume,
+        frame: MprFrame | None = None,
+    ) -> MprViewGrids:
+        """按初始 MPR 方向为三个视图生成一次性固定网格。"""
+        resolved_frame = frame or MprFrame.standard_lps(
+            volume.geometry.center_patient
+        )
+        return MprViewGrids(
+            axial=self._create_grid_spec(
+                volume,
+                resolved_frame,
+                MprPlane.AXIAL,
+            ),
+            coronal=self._create_grid_spec(
+                volume,
+                resolved_frame,
+                MprPlane.CORONAL,
+            ),
+            sagittal=self._create_grid_spec(
+                volume,
+                resolved_frame,
+                MprPlane.SAGITTAL,
+            ),
+        )
+
+    def _create_grid_spec(
+        self,
+        volume: DicomVolume,
+        frame: MprFrame,
+        plane: MprPlane,
+    ) -> MprGridSpec:
+        """根据初始方向下 Volume 的投影范围构造固定网格。"""
+        sampling_basis = resolve_sampling_basis(
+            MprState(frame=frame),
+            plane,
+        )
+        patient_to_mpr_direction = frame.patient_to_mpr[:3, :3]
+        row_direction_mpr = patient_to_mpr_direction @ np.asarray(
+            sampling_basis.row_direction_patient,
+            dtype=np.float64,
+        )
+        column_direction_mpr = patient_to_mpr_direction @ np.asarray(
+            sampling_basis.column_direction_patient,
+            dtype=np.float64,
+        )
+        corners_mpr = self._volume_corners_mpr(volume, frame)
+        row_bounds = self._project_bounds(corners_mpr, row_direction_mpr)
+        column_bounds = self._project_bounds(
+            corners_mpr,
+            column_direction_mpr,
+        )
+        row_extent = row_bounds[1] - row_bounds[0]
+        column_extent = column_bounds[1] - column_bounds[0]
+        row_spacing = self._bounded_axis_spacing(
+            preferred_spacing=self._spacing_along_direction(
+                volume,
+                np.asarray(sampling_basis.row_direction_patient),
+            ),
+            extent=row_extent,
+        )
+        column_spacing = self._bounded_axis_spacing(
+            preferred_spacing=self._spacing_along_direction(
+                volume,
+                np.asarray(sampling_basis.column_direction_patient),
+            ),
+            extent=column_extent,
+        )
+        return MprGridSpec(
+            rows=self._sample_count(row_extent, row_spacing),
+            columns=self._sample_count(
+                column_extent,
+                column_spacing,
+            ),
+            row_spacing=row_spacing,
+            column_spacing=column_spacing,
         )
 
     def _sample_plane(
@@ -453,40 +569,6 @@ class MprReslicer:
             @ corners.T
         ).T
         return mpr[:, :3]
-
-    @staticmethod
-    def _plane_axes_mpr(
-        plane: MprPlane,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """返回图像向下、向右和翻到下一层的 MPR 方向。"""
-        # 三个视图从同一个 MPR U/V/W 坐标系派生。这里的向量位于
-        # MPR 局部坐标中；MprFrame 再负责把它们转换到患者 LPS。
-        match plane:
-            case MprPlane.AXIAL:
-                # 屏幕向下 +V，向右 +U，沿 +W 翻页。
-                row = (0.0, 1.0, 0.0)
-                column = (1.0, 0.0, 0.0)
-                navigation = (0.0, 0.0, 1.0)
-            case MprPlane.CORONAL:
-                # 屏幕向下 -W，向右 +U，沿 +V 翻页。
-                row = (0.0, 0.0, -1.0)
-                column = (1.0, 0.0, 0.0)
-                navigation = (0.0, 1.0, 0.0)
-            case MprPlane.SAGITTAL:
-                # 屏幕向下 -W，向右 +V，沿 +U 翻页。
-                row = (0.0, 0.0, -1.0)
-                column = (0.0, 1.0, 0.0)
-                navigation = (1.0, 0.0, 0.0)
-            case _:
-                raise MprResliceError(
-                    f"Unsupported MPR plane: {plane}"
-                )
-
-        return (
-            np.asarray(row, dtype=np.float64),
-            np.asarray(column, dtype=np.float64),
-            np.asarray(navigation, dtype=np.float64),
-        )
 
     @staticmethod
     def _to_vector3(

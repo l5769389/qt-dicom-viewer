@@ -66,6 +66,8 @@ Rectangle {
                 required property var modelData
                 readonly property bool feedbackActive: primaryButton.modelData.toolType === toolBar.feedbackTool
                 readonly property bool toolActive: toolBar.toolController ? primaryButton.modelData.toolType === toolBar.toolController.activeTool : false
+                readonly property bool resetAction:
+                    primaryButton.modelData.toolType === "reset"
 
                 width: toolFlow.buttonWidth
                 height: toolFlow.buttonHeight
@@ -88,7 +90,9 @@ Rectangle {
                         anchors.centerIn: parent
                         iconName: primaryButton.modelData.iconName
                         iconSize: 22
-                        iconColor: primaryButton.checked
+                        iconColor: primaryButton.resetAction
+                            ? Theme.resetActionColor
+                            : primaryButton.checked
                             ? Theme.iconActive
                             : primaryButton.hovered
                                 ? Theme.iconHover
@@ -97,15 +101,24 @@ Rectangle {
                 }
 
                 background: Rectangle {
-                    color: primaryButton.checked
+                    color: primaryButton.resetAction
+                        ? primaryButton.down
+                            ? Theme.resetActionPressed
+                            : primaryButton.hovered
+                                ? Theme.resetActionHover
+                                : Theme.resetActionSurface
+                        : primaryButton.checked
                         ? Theme.selectionBackground
                         : primaryButton.hovered
                             ? Theme.controlHover
                             : "transparent"
-                    border.color: primaryButton.checked
+                    border.color: primaryButton.resetAction
+                        ? "transparent"
+                        : primaryButton.checked
                         ? Theme.selectionBorder
                         : "transparent"
-                    border.width: 1
+                    border.width: !primaryButton.resetAction
+                        && primaryButton.checked ? 1 : 0
                     radius: 6
                 }
             }

@@ -83,6 +83,13 @@ QtObject {
     readonly property color dangerColor: "#ef7777"
     readonly property color dangerSurface: "#412124"
 
+    // 重置操作使用独立的琥珀色，不与普通操作、选中态或危险操作混用。
+    readonly property color resetActionColor: "#f3c66b"
+    readonly property color resetActionSurface: "#302819"
+    readonly property color resetActionHover: "#40351e"
+    readonly property color resetActionPressed: "#241e14"
+    readonly property color resetActionBorder: "#8f7438"
+
     // Measurement colors are separate from UI selection colors so overlays
     // remain visible on grayscale and pseudo-color images.
     readonly property color measurementPrimary: "#ffd45c"

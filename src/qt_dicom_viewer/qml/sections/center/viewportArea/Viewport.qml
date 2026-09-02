@@ -7,6 +7,12 @@ Item {
     id: viewportRoot
     required property var viewportController
     required property bool hasTabs
+    readonly property bool isMprViewport:
+        viewportRoot.viewportController
+        && ["axial", "sagittal", "coronal"].indexOf(
+            viewportRoot.viewportController.viewportType
+        ) >= 0
+
 
     function syncViewportSize() {
         if (!viewportRoot.viewportController)
@@ -20,7 +26,12 @@ Item {
 
     function getCrosshairPosition() {
         const mpr_planes = ['axial', 'sagittal', 'coronal']
-        if (!viewportRoot.viewportController || !mpr_planes.contains(viewportRoot.viewportController.viewportType)) {
+        if (
+            !viewportRoot.viewportController
+            || mpr_planes.indexOf(
+                viewportRoot.viewportController.viewportType
+            ) < 0
+        ) {
             return
         }
         const position = viewportRoot.viewportController.crosshairPosition
@@ -98,6 +109,10 @@ Item {
         crosshairPosition:
             imageCanvas.crosshairViewportPosition
         crosshairStyle: viewportRoot.viewportController.crosshairStyle
+        rotationDegrees:
+            viewportRoot.viewportController
+                ? viewportRoot.viewportController.crosshairRotationDegrees
+                : 0
         z: 10
     }
 
@@ -106,6 +121,14 @@ Item {
         anchors.fill: parent
         z: 20
         enabled: viewportRoot.viewportController !== null
+        crosshairHoverTarget:
+            viewportRoot.viewportController
+                ? viewportRoot.viewportController.crosshairHoverTarget
+                : ""
+        activeInteraction:
+            viewportRoot.viewportController
+                ? viewportRoot.viewportController.activeInteraction
+                : ""
 
         onTapped: position => {
             if (!viewportRoot.viewportController)
@@ -116,9 +139,9 @@ Item {
                 position
             )
             const endpointTolerance =
-                imageCanvas.hitToleranceInImagePixels(8)
+                imageCanvas.pointHitToleranceInImagePixels
             const lineTolerance =
-                imageCanvas.hitToleranceInImagePixels(6)
+                imageCanvas.lineHitToleranceInImagePixels
 
             viewportRoot.viewportController.selectMeasurementAt(
                 hit.valid,
@@ -136,9 +159,11 @@ Item {
                 interactionLayer,
                 startPosition
             )
-            const endpointTolerance = imageCanvas.hitToleranceInImagePixels(8)
+            const endpointTolerance =
+                imageCanvas.pointHitToleranceInImagePixels
 
-            const lineTolerance = imageCanvas.hitToleranceInImagePixels(6)
+            const lineTolerance =
+                imageCanvas.lineHitToleranceInImagePixels
 
             viewportRoot.viewportController.beginInteraction(
                 startPosition.x,
@@ -221,20 +246,18 @@ Item {
                 interactionLayer,
                 position
             )
-
-            if (!hit.valid) {
-                return;
-            }
-
             viewportRoot.viewportController.updateCursorPosition(
+                position.x,
+                position.y,
                 hit.column,
                 hit.row,
                 hit.clipColumn,
                 hit.clipRow,
                 hit.valid,
-                hit.columnIndex,
-                hit.rowIndex
+                imageCanvas.pointHitToleranceInImagePixels,
+                imageCanvas.lineHitToleranceInImagePixels
             )
         }
     }
+
 }

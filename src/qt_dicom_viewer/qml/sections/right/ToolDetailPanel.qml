@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
+import "components" as Components
 import "panels" as Panels
 import "../../theme"
 
@@ -10,23 +12,57 @@ Rectangle {
     required property string activePanel
     required property var viewportController
     required property var toolController
+    readonly property Item loadedPanel: contentLoader.item as Item
+    readonly property string activeToolLabel:
+        detailPanel.toolController
+            ? detailPanel.toolController.activeToolLabel
+            : ""
+    readonly property string activeToolIcon:
+        detailPanel.toolController
+            ? detailPanel.toolController.activeToolIcon
+            : ""
 
+    implicitHeight: loadedPanel
+        ? loadedPanel.implicitHeight + 80
+        : 64
     color: Theme.panelBackgroundSoft
 
-    Loader {
+    ColumnLayout {
         anchors.fill: parent
         anchors.margins: 12
+        spacing: 10
 
+        Components.ToolPanelHeader {
+            Layout.fillWidth: true
+            iconName: detailPanel.activeToolIcon
+            title: detailPanel.activeToolLabel
+        }
 
-        active: detailPanel.activePanel !== ""
-        sourceComponent: {
-            const map = {
-                'rotate': rotatePanelComponent,
-                'window': windowLevelComponent,
-                'measure': measureComponent,
-                "annotate": annotateComponent
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Theme.dividerColor
+        }
+
+        Loader {
+            id: contentLoader
+
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: detailPanel.loadedPanel
+                ? detailPanel.loadedPanel.implicitHeight
+                : 0
+
+            active: detailPanel.activePanel !== ""
+            sourceComponent: {
+                const map = {
+                    'rotate': rotatePanelComponent,
+                    'window': windowLevelComponent,
+                    'measure': measureComponent,
+                    "annotate": annotateComponent
+                }
+                return map[detailPanel.activePanel] ?? null
             }
-            return map[detailPanel.activePanel] ?? null
         }
     }
 

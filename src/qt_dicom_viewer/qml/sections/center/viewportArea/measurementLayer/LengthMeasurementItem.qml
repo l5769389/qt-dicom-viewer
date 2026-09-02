@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import "../../../../theme"
 
 Item {
     id: root
@@ -10,7 +11,9 @@ Item {
     required property bool isSelected
 
     readonly property color measurementColor:
-        isDraft || isSelected ? "#36d399" : "#ffd43b"
+        isDraft || isSelected
+            ? Theme.measurementSelected
+            : Theme.measurementPrimary
 
     readonly property real startX:
         Number(measurement.startColumn ?? 0) + 0.5
@@ -72,6 +75,6 @@ Item {
         font.bold: true
 
         style: Text.Outline
-        styleColor: "#80000000"
+        styleColor: Theme.overlayOutline
     }
 }

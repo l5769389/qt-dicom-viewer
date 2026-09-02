@@ -5,7 +5,13 @@ from typing import TypeAlias
 
 import numpy as np
 
-from .dicom_core import MprFrame, MprImageGeometry
+from .dicom_core import (
+    MprFrame,
+    MprGridAnchor,
+    MprGridSpec,
+    MprImageGeometry,
+    MprViewGrids,
+)
 from .dicom_models import ViewportType, MprPlane, TwoDViewType
 from .dicom_types import FrameDisplayMeta, WindowLevel
 
@@ -46,6 +52,9 @@ class StackRenderRequest(_RenderRequestBase):
 class MprRenderRequest(_RenderRequestBase):
     plane: MprPlane
     mpr_frame: MprFrame | None
+    view_roll_radians: float = 0.0
+    mpr_grid: MprGridSpec | None = None
+    mpr_grid_anchor: MprGridAnchor | None = None
 
     @property
     def view_type(self) -> ViewportType:
@@ -77,6 +86,7 @@ class _RenderResultBase:
 class MprRenderResult(_RenderResultBase):
     mpr_frame: MprFrame | None
     plane_geometry: MprImageGeometry | None
+    mpr_view_grids: MprViewGrids | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

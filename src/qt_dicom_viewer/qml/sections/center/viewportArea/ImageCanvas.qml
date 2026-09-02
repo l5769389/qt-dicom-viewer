@@ -12,12 +12,18 @@ Rectangle {
         : Theme.canvasBackground
     clip: true
 
-    function hitToleranceInImagePixels(screenTolerance,) {
+    function hitToleranceInImagePixels(screenTolerance) {
         return screenTolerance / Math.max(
             Math.abs(imageScene.scale),
             0.0001
         )
     }
+
+    readonly property real pointHitToleranceInImagePixels:
+        hitToleranceInImagePixels(8)
+
+    readonly property real lineHitToleranceInImagePixels:
+        hitToleranceInImagePixels(6)
 
     readonly property point crosshairViewportPosition: {
     const controller = imageCanvasRoot.viewportController
@@ -57,7 +63,13 @@ Rectangle {
             || pixelLayer.height <= 0
         ) {
             return {
-                valid: false
+                valid: false,
+                column: 0,
+                row: 0,
+                clipColumn: 0,
+                clipRow: 0,
+                columnIndex: 0,
+                rowIndex: 0
             }
         }
 
@@ -78,6 +90,10 @@ Rectangle {
                 valid: false,
                 column: local.x - 0.5,
                 row: local.y - 0.5,
+                clipColumn: 0,
+                clipRow: 0,
+                columnIndex: 0,
+                rowIndex: 0
             }
         }
 

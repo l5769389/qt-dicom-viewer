@@ -10,7 +10,8 @@ from qt_dicom_viewer.core.patient_orientation import (
 )
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
-    DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, OperationStartContext
+    DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, OperationStartContext, ToolType, \
+    PointerHoverContext
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
@@ -41,17 +42,20 @@ DISPLAY_STYLES = {
     ),
 }
 
+
 def _make_pointer_position(
         viewport_x: float,
         viewport_y: float,
         image_valid: bool,
         column: float,
         row: float,
+        *,
+        include_outside_image: bool = False,
 ) -> PointerPosition:
     image_point = None
 
     if (
-            image_valid
+            (image_valid or include_outside_image)
             and isfinite(column)
             and isfinite(row)
     ):
@@ -73,9 +77,12 @@ class Image2DViewportController(ViewportController):
     imageSourceChanged = Signal()
     overlayChanged = Signal()
     imageDimensionChanged = Signal()
+    sliceChanged = Signal()
     transformChanged = Signal()
     displayStyleChanged = Signal()
     crosshairImagePositionChanged = Signal()
+    crosshairHoverTargetChanged = Signal()
+    activeInteractionChanged = Signal()
     directionLabelsChanged = Signal()
     hit_tolerance = 6
 
@@ -89,8 +96,13 @@ class Image2DViewportController(ViewportController):
         self._image_revision = 0
         self._has_image = False
         self._frame_meta: FrameDisplayMeta | None = None
+        self._baseline_window: WindowLevel | None = None
+        self._baseline_slice_index: int | None = None
         self._measure_controller = MeasurementController(self)
         self._tool_controller = tool_controller
+        self._tool_controller.activeInteractionChanged.connect(
+            self._handle_active_interaction_changed
+        )
         self._scroll_operation = ScrollOperation()
         self._pan_operation = PanOperation()
         self._zoom_operation = ZoomOperation()
@@ -125,24 +137,41 @@ class Image2DViewportController(ViewportController):
             self._state,
             slice_index=index,
         )
+        self.sliceChanged.emit()
         return True
 
     def _begin_specific_interaction(
-        self,
-        position: PointerPosition,
-        endpoint_tolerance: float,
+            self,
+            position: PointerPosition,
+            endpoint_tolerance: float,
+            line_tolerance: float
     ) -> tuple[DragOperation, OperationStartContext] | None:
         return None
 
     def _apply_specific_interaction_result(
-        self,
-        result: InteractionResult,
+            self,
+            result: InteractionResult,
     ) -> bool:
         return False
+
+    def _handle_specific_pointer_hover(
+            self,
+            context: PointerHoverContext,
+    ) -> None:
+        """处理具体二维视图特有的指针 hover 状态。"""
+        return None
 
     @Property(QObject, constant=True)
     def cursorController(self):
         return self._cursor_controller
+
+    @Property(str, notify=activeInteractionChanged)
+    def activeInteraction(self) -> str:
+        return self._tool_controller.activeInteraction
+
+
+    def _handle_active_interaction_changed(self) -> None:
+        self.activeInteractionChanged.emit()
 
 
     def request_first_loader(self) -> None:
@@ -193,7 +222,15 @@ class Image2DViewportController(ViewportController):
         ):
             return
         self._validate_render_result(result)
+        if self._baseline_window is None:
+            self._baseline_window = result.frame_meta.window
+        if self._baseline_slice_index is None:
+            self._baseline_slice_index = result.frame_meta.slice_index
         self._frame_meta = result.frame_meta
+        slice_changed = (
+            self._state.slice_index != result.frame_meta.slice_index
+            or self._state.slice_count != result.frame_meta.slice_count
+        )
         self._state = replace(
             self._state,
             slice_index=result.frame_meta.slice_index,
@@ -201,6 +238,8 @@ class Image2DViewportController(ViewportController):
             window=result.frame_meta.window,
             inverted=result.frame_meta.inverted,
         )
+        if slice_changed:
+            self.sliceChanged.emit()
         self._modality_pixel = result.modality_pixel
         self._apply_specific_render_result(result)
 
@@ -241,7 +280,7 @@ class Image2DViewportController(ViewportController):
         frame = self._frame_meta
 
         return self._overlay_presenter.build(
-            viewport_config = self.viewport_config,
+            viewport_config=self.viewport_config,
             series=series,
             frame=frame,
             state=self._state,
@@ -273,6 +312,7 @@ class Image2DViewportController(ViewportController):
         specific_interaction = self._begin_specific_interaction(
             position,
             endpoint_tolerance,
+            line_tolerance
         )
         if specific_interaction is not None:
             self._active_drag_operation, context = specific_interaction
@@ -311,10 +351,21 @@ class Image2DViewportController(ViewportController):
                         )
                         return
 
+                    # 测量使用无限延伸的图像坐标系。即使指针位于图像矩形外，
+                    # 只要仍在视口画布内，也保留换算后的连续图像坐标。
+                    position = _make_pointer_position(
+                        viewport_x=x,
+                        viewport_y=y,
+                        image_valid=image_valid,
+                        column=column,
+                        row=row,
+                        include_outside_image=True,
+                    )
+
                     measurement_kind = (
                         MeasurementKind.LENGTH
                         if self._tool_controller.active_interaction
-                        == InteractionType.MEASURE_LENGTH
+                           == InteractionType.MEASURE_LENGTH
                         else MeasurementKind.ANGLE
                     )
                     if self._state.slice_index is not None:
@@ -372,6 +423,9 @@ class Image2DViewportController(ViewportController):
             image_valid=image_valid,
             column=column,
             row=row,
+            include_outside_image=(
+                operation is self._measure_controller
+            ),
         )
 
         event = DragUpdateEvent(
@@ -413,29 +467,42 @@ class Image2DViewportController(ViewportController):
             image_valid=image_valid,
             column=column,
             row=row,
+            include_outside_image=(
+                operation is self._measure_controller
+            ),
         )
 
         result = operation.end(position)
         self._apply_interaction_result(result)
 
-    @Slot(QPointF)
-    def handlePointerMoved(self, point: QPointF) -> None:
-        current_point = Point(
-            x=point.x(),
-            y=point.y()),
-        ...
-
-    @Slot(float, float, float, float, bool, int, int)
+    @Slot(float,float,float, float, float, float, bool, float, float)
     def updateCursorPosition(
             self,
+            x: float,
+            y: float,
             column: float,
             row: float,
             clipColumn: float,
             clipRow: float,
             image_valid: bool,
-            column_index: int,
-            row_index: int,
+            point_tolerance: float,
+            line_tolerance: float,
     ) -> None:
+        pointer_position = _make_pointer_position(
+            viewport_x=x,
+            viewport_y=y,
+            image_valid=image_valid,
+            column=column,
+            row=row,
+        )
+        self._handle_specific_pointer_hover(
+            PointerHoverContext(
+                position=pointer_position,
+                point_tolerance=point_tolerance,
+                line_tolerance=line_tolerance,
+            )
+        )
+
         if self._modality_pixel is None or not image_valid:
             self._cursor_controller.clearPosition()
             return
@@ -448,6 +515,7 @@ class Image2DViewportController(ViewportController):
             return
 
         self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
+
 
     @Slot(float, float, float, float, int)
     def handleWheel(
@@ -518,7 +586,6 @@ class Image2DViewportController(ViewportController):
         self.overlayChanged.emit()
         self.request_render()
 
-
     @Property(QObject, constant=True)
     def measurementController(self) -> QObject:
         return self._measure_controller
@@ -538,6 +605,28 @@ class Image2DViewportController(ViewportController):
 
         rows = self._frame_meta.instance_meta.rows
         return rows or 0
+
+    @Property(int, notify=sliceChanged)
+    def sliceIndex(self) -> int:
+        """返回从 0 开始的当前切片索引；尚未加载时返回 -1。"""
+        index = self._state.slice_index
+        return -1 if index is None else index
+
+    @Property(int, notify=sliceChanged)
+    def sliceCount(self) -> int:
+        """返回当前序列的切片总数；尚未加载时返回 0。"""
+        count = self._state.slice_count
+        return 0 if count is None else count
+
+    @Slot(int)
+    def setSliceIndex(self, index: int) -> None:
+        """从界面设置切片，并将越界值限制到有效范围。"""
+        count = self._state.slice_count
+        if count is None or count <= 0:
+            return
+
+        clamped_index = max(0, min(int(index), count - 1))
+        self.apply_slice_index(clamped_index)
 
     @Property(float, notify=imageDimensionChanged)
     def imageRowSpacing(self) -> float:
@@ -610,6 +699,111 @@ class Image2DViewportController(ViewportController):
 
         # overlayInfo 中显示了 zoom，因此也要更新
         self.overlayChanged.emit()
+
+    def reset_tool_state(self, tool_type: ToolType) -> None:
+        """只重置一个一级工具负责的当前视口状态。"""
+        state = self._state
+
+        match tool_type:
+            case ToolType.WINDOW:
+                if (
+                    self._baseline_window is None
+                    or state.window == self._baseline_window
+                ):
+                    return
+                self._state = replace(
+                    state,
+                    window=self._baseline_window,
+                )
+                self.request_render()
+
+            case ToolType.SCROLL:
+                if self._baseline_slice_index is not None:
+                    self.apply_slice_index(self._baseline_slice_index)
+
+            case ToolType.PAN:
+                if state.pan_x == 0.0 and state.pan_y == 0.0:
+                    return
+                self._state = replace(state, pan_x=0.0, pan_y=0.0)
+                self.transformChanged.emit()
+
+            case ToolType.ZOOM:
+                if state.zoom == 1.0:
+                    return
+                self._state = replace(state, zoom=1.0)
+                self.transformChanged.emit()
+                self.overlayChanged.emit()
+
+            case ToolType.ROTATE:
+                if (
+                    state.rotation_degrees == 0.0
+                    and not state.horizontal_flip
+                    and not state.vertical_flip
+                ):
+                    return
+                self._state = replace(
+                    state,
+                    rotation_degrees=0.0,
+                    horizontal_flip=False,
+                    vertical_flip=False,
+                )
+                self.transformChanged.emit()
+                self.directionLabelsChanged.emit()
+
+            case ToolType.MEASURE:
+                self._measure_controller.clear_all()
+
+            case _:
+                return
+
+    def reset_all_view_state(self, *, reset_slice: bool = True) -> None:
+        """重置当前视口的全部局部显示状态。"""
+        state = self._state
+        window = self._baseline_window or state.window
+        transform_changed = any(
+            (
+                state.pan_x != 0.0,
+                state.pan_y != 0.0,
+                state.zoom != 1.0,
+                state.rotation_degrees != 0.0,
+                state.horizontal_flip,
+                state.vertical_flip,
+            )
+        )
+        window_changed = window != state.window
+        direction_changed = (
+            state.rotation_degrees != 0.0
+            or state.horizontal_flip
+            or state.vertical_flip
+        )
+
+        self._state = replace(
+            state,
+            window=window,
+            pan_x=0.0,
+            pan_y=0.0,
+            zoom=1.0,
+            rotation_degrees=0.0,
+            horizontal_flip=False,
+            vertical_flip=False,
+        )
+        self._measure_controller.clear_all()
+
+        if transform_changed:
+            self.transformChanged.emit()
+            self.overlayChanged.emit()
+        if direction_changed:
+            self.directionLabelsChanged.emit()
+
+        slice_changed = (
+            reset_slice
+            and self._baseline_slice_index is not None
+            and self._baseline_slice_index != state.slice_index
+        )
+        if slice_changed and self._baseline_slice_index is not None:
+            self.apply_slice_index(self._baseline_slice_index)
+        elif window_changed:
+            self.request_render()
 
     @Slot(str)
     def applyTransformAction(self, action: str) -> None:
@@ -692,13 +886,15 @@ class Image2DViewportController(ViewportController):
             line_tolerance: float,
     ) -> None:
         if self._tool_controller.active_interaction not in (
-            InteractionType.MEASURE_LENGTH,
-            InteractionType.MEASURE_ANGLE,
+                InteractionType.MEASURE_LENGTH,
+                InteractionType.MEASURE_ANGLE,
         ):
             return
 
         point = None
-        if image_valid and isfinite(column) and isfinite(row):
+        # 点击位置已经受 InteractionLayer 的画布范围约束；测量命中测试
+        # 可以使用图像矩形外的连续坐标。
+        if isfinite(column) and isfinite(row):
             point = ImagePoint(column=column, row=row)
         if self._state.slice_index is not None:
             self._measure_controller.tap_at(
@@ -717,10 +913,17 @@ class Image2DViewportController(ViewportController):
             "verticalColor": "transparent",
         }
 
-
     @Property(QPointF, notify=crosshairImagePositionChanged)
     def crosshairImagePosition(self) -> QPointF:
         return QPointF(-1.0, -1.0)
+
+    @Property(str, notify=crosshairHoverTargetChanged)
+    def crosshairHoverTarget(self) -> str:
+        return ""
+
+    @Property(float, notify=crosshairImagePositionChanged)
+    def crosshairRotationDegrees(self) -> float:
+        return 0.0
 
     @Property(
         "QVariantMap",
@@ -745,7 +948,6 @@ class Image2DViewportController(ViewportController):
             horizontal_flip=self._state.horizontal_flip,
             vertical_flip=self._state.vertical_flip,
         ).as_dict()
-
 
     @staticmethod
     def _empty_direction_labels() -> dict[str, str]:

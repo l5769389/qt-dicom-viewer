@@ -4,6 +4,7 @@ from PySide6.QtCore import Slot, Property, Signal, QObject
 
 from qt_dicom_viewer.model import (
     InteractionType,
+    TabType,
     ToolBehavior,
     ToolType,
 )
@@ -22,10 +23,17 @@ class ToolController(QObject):
     activePanelChanged = Signal()
     activeInteractionChanged = Signal()
     commandRequested = Signal(str)
+    resetRequested = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(
+            self,
+            parent=None,
+            *,
+            tab_type: TabType | None = None,
+    ):
         super().__init__(parent)
 
+        self._tab_type = tab_type
         self._active_tool = ToolType.WINDOW
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
@@ -33,6 +41,16 @@ class ToolController(QObject):
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
         return self._active_tool
+
+    @Property(str, notify=activeToolChanged)
+    def activeToolLabel(self) -> str:
+        definition = TOOL_DEFINITIONS.get(self._active_tool)
+        return "" if definition is None else definition.label
+
+    @Property(str, notify=activeToolChanged)
+    def activeToolIcon(self) -> str:
+        definition = TOOL_DEFINITIONS.get(self._active_tool)
+        return "" if definition is None else definition.icon_name
 
     @Property(str, notify=activePanelChanged)
     def activePanel(self) -> str:
@@ -46,6 +64,21 @@ class ToolController(QObject):
     def active_interaction(self) -> InteractionType:
         return self._active_interaction
 
+    @Property(str, notify=activeToolChanged)
+    def resetLabel(self) -> str:
+        definition = TOOL_DEFINITIONS.get(self._active_tool)
+        if definition is None or definition.reset_label is None:
+            return "暂无可重置内容"
+        return definition.reset_label
+
+    @Property(bool, notify=activeToolChanged)
+    def canResetActiveTool(self) -> bool:
+        definition = TOOL_DEFINITIONS.get(self._active_tool)
+        return (
+            definition is not None
+            and definition.reset_label is not None
+        )
+
     @Slot(str)
     def activateTool(self, tool_value: str) -> None:
         try:
@@ -57,6 +90,17 @@ class ToolController(QObject):
         definition = TOOL_DEFINITIONS.get(tool_type)
         if definition is None:
             logger.warning("Missing tool definition: %s", tool_type.value)
+            return
+        if (
+            self._tab_type is not None
+            and definition.supported_tab_types is not None
+            and self._tab_type not in definition.supported_tab_types
+        ):
+            logger.warning(
+                "Tool %s is not available for tab type %s",
+                tool_type.value,
+                self._tab_type.value,
+            )
             return
 
         match definition.behavior:
@@ -89,6 +133,12 @@ class ToolController(QObject):
 
         self._set_active_interaction(interaction)
 
+    @Slot()
+    def resetActiveTool(self) -> None:
+        if not self.canResetActiveTool:
+            return
+        self.resetRequested.emit(self._active_tool.value)
+
     def _set_active_tool(self, tool: ToolType | None) -> None:
         if tool is None or tool == self._active_tool:
             return
@@ -116,7 +166,7 @@ class ToolController(QObject):
 
     @Property(list, constant=True)
     def tools(self) -> list[dict]:
-        return build_tool_items()
+        return build_tool_items(self._tab_type)
 
     @Property(list, constant=True)
     def rotateActions(self) -> list[dict]:
@@ -153,7 +203,9 @@ def build_window_presets() -> list[dict]:
     ]
 
 
-def build_tool_items() -> list[dict]:
+def build_tool_items(
+        tab_type: TabType | None = None,
+) -> list[dict]:
     return [
         {
             "toolType": definition.tool_type.value,
@@ -162,4 +214,9 @@ def build_tool_items() -> list[dict]:
             "behavior": definition.behavior.value,
         }
         for definition in TOOL_CATALOG
+        if (
+            definition.supported_tab_types is None
+            or tab_type is None
+            or tab_type in definition.supported_tab_types
+        )
     ]

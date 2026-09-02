@@ -1,8 +1,7 @@
 pragma ComponentBehavior: Bound
-import "../components" as Components
-
 import QtQuick
 import QtQuick.Layouts
+import "../components" as Components
 import "../../../theme"
 
 ColumnLayout {
@@ -12,13 +11,6 @@ ColumnLayout {
 
     signal actionTriggered(string action)
 
-    Components.ToolPanelHeader {
-        Layout.fillWidth: true
-        Layout.bottomMargin: 4
-        iconName: "measure"
-        title: "测量"
-    }
-
     Repeater {
         model: measurePanel.toolController
             ? measurePanel.toolController.measureActions
@@ -27,7 +19,9 @@ ColumnLayout {
         {
             id: measureButton
             required property var modelData
-            readonly  property bool btnChecked : measureButton.modelData.action === toolController.activeInteraction
+            readonly property bool btnChecked:
+                measureButton.modelData.action
+                    === measurePanel.toolController.activeInteraction
 
             checked:measureButton.btnChecked
             Layout.fillWidth: true

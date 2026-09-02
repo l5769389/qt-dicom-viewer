@@ -11,13 +11,6 @@ ColumnLayout {
     signal actionTriggered(string action)
     spacing: 8
 
-    Components.ToolPanelHeader {
-        Layout.fillWidth: true
-        Layout.bottomMargin: 4
-        iconName: "rotate"
-        title: "旋转与镜像"
-    }
-
     Repeater {
         model: rotatePanel.toolController
             ? rotatePanel.toolController.rotateActions

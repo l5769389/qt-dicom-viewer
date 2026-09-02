@@ -29,6 +29,7 @@ class EditTargetKind(StrEnum):
     LABEL = "label"
 
 
+
 @dataclass(frozen=True, slots=True)
 class MeasurementEditTarget:
     kind: EditTargetKind
@@ -40,6 +41,10 @@ class MeasurementHit:
     measurement_id: str
     target: MeasurementEditTarget
     distance: float
+
+
+
+
 
 
 @dataclass(slots=True)

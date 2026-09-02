@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "right" as Right
 import "../theme"
@@ -36,12 +37,42 @@ Rectangle {
             }
         }
 
-        Right.ToolDetailPanel {
+        Flickable {
+            id: detailFlickable
+
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
+            contentWidth: width
+            contentHeight: Math.max(
+                height,
+                toolDetailPanel.implicitHeight
+            )
+            boundsBehavior: Flickable.StopAtBounds
+
+            Right.ToolDetailPanel {
+                id: toolDetailPanel
+
+                width: detailFlickable.width
+                height: detailFlickable.contentHeight
+                toolController: rightPanel.toolController
+                activePanel: rightPanel.toolController
+                    ? rightPanel.toolController.activePanel
+                    : ""
+                viewportController: rightPanel.viewportController
+            }
+
+            Basic.ScrollBar.vertical: Basic.ScrollBar {
+                policy: detailFlickable.contentHeight
+                    > detailFlickable.height
+                    ? Basic.ScrollBar.AsNeeded
+                    : Basic.ScrollBar.AlwaysOff
+            }
+        }
+
+        Right.ToolResetBar {
+            Layout.fillWidth: true
             toolController: rightPanel.toolController
-            activePanel: rightPanel.toolController ? rightPanel.toolController.activePanel : ""
-            viewportController: rightPanel.viewportController
         }
     }
 }

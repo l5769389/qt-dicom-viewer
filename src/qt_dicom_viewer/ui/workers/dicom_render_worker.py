@@ -10,6 +10,7 @@ from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
+    MprFrame,
     PixelSpacing,
     MprRenderRequest,
     RenderFailure,
@@ -144,10 +145,26 @@ class DicomRenderWorker(QObject):
             )
 
         volume = self._volume_manager.get_or_build(series)
+        resolved_frame = request.mpr_frame or MprFrame.standard_lps(
+            volume.geometry.center_patient
+        )
+        view_grids = None
+        grid_spec = request.mpr_grid
+        if grid_spec is None:
+            # 首次 MPR 请求同时生成三个视图的固定网格，
+            # 由 TabController 保存并在后续旋转请求中复用。
+            view_grids = self._mpr_reslicer.create_view_grids(
+                volume,
+                resolved_frame,
+            )
+            grid_spec = view_grids.for_plane(request.plane)
         mpr_slice = self._mpr_reslicer.reslice(
             volume=volume,
             plane=request.plane,
-            frame=request.mpr_frame,
+            frame=resolved_frame,
+            view_roll_radians=request.view_roll_radians,
+            grid_spec=grid_spec,
+            grid_anchor=request.mpr_grid_anchor,
         )
         plane_pixels = mpr_slice.modality_pixels
         plane_geometry = mpr_slice.geometry
@@ -211,7 +228,8 @@ class DicomRenderWorker(QObject):
                     ),
                 ),
                 mpr_frame=plane_geometry.frame,
-                plane_geometry = plane_geometry
+                plane_geometry=plane_geometry,
+                mpr_view_grids=view_grids,
             )
         )
 

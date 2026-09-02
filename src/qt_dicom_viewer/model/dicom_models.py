@@ -31,4 +31,5 @@ class ToolType(StrEnum):
     MEASURE = "measure"
     ANNOTATE = "annotate"
     ROTATE = "rotate"
+    MPR_ROTATE_3D = "mpr-rotate-3d"
     RESET = "reset"

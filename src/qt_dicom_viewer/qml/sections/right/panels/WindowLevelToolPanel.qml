@@ -1,30 +1,27 @@
-pragma ComponentBehavior: Bound
+pragma
+ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import "../components" as Components
 import QtQuick.Controls.Basic as Basic
 import "../../../theme"
+
 ColumnLayout {
     id: windowPanel
 
     required property var presets
+
     signal actionTriggered(
-                string presetId,
+        string presetId,
         real center,
         real width
     )
 
 
-    Components.ToolPanelHeader {
-        Layout.fillWidth: true
-        iconName: "window"
-        title: "窗宽窗位"
-    }
-
     Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: 30
+        Layout.maximumHeight: 30
         color: Theme.secondarySoft
         radius: 4
 
@@ -59,12 +56,16 @@ ColumnLayout {
         id: presetList
 
         Layout.fillWidth: true
-        Layout.fillHeight: true
+        Layout.preferredHeight: contentHeight
+        Layout.maximumHeight: contentHeight
+        implicitHeight: contentHeight
         spacing: 4
         clip: true
+        interactive: false
         model: windowPanel.presets
 
-        delegate: Basic.ItemDelegate {
+        delegate: Basic.ItemDelegate
+        {
             id: presetItem
 
             required property var modelData
@@ -114,5 +115,8 @@ ColumnLayout {
                 radius: 5
             }
         }
+    }
+    Item {
+        Layout.fillHeight: true
     }
 }

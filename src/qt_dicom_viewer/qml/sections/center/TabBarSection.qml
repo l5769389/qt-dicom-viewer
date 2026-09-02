@@ -9,8 +9,20 @@ Basic.TabBar {
     id: workspaceTabs
 
     required property var workspaceController
-    readonly property int tabWidth: 180
-    spacing: 2
+    readonly property int tabCount:
+        workspaceTabs.workspaceController.tabs.length
+    readonly property real tabWidth: Math.min(
+        200,
+        Math.max(
+            136,
+            (workspaceTabs.width - 8
+                - Math.max(0, workspaceTabs.tabCount - 1)
+                    * workspaceTabs.spacing)
+                / Math.max(1, workspaceTabs.tabCount)
+        )
+    )
+    spacing: 3
+    leftPadding: 6
 
     background: Rectangle {
         color: Theme.panelBackgroundStrong
@@ -27,13 +39,16 @@ Basic.TabBar {
     Repeater {
         model: workspaceTabs.workspaceController.tabs
 
-        delegate: Basic.TabButton
-        {
+        delegate: Basic.TabButton {
             required property var modelData
 
             id: tabButton
-            width: tabWidth
-            implicitWidth: tabWidth
+            width: workspaceTabs.tabWidth
+            implicitWidth: workspaceTabs.tabWidth
+            leftPadding: 10
+            rightPadding: 6
+            topPadding: 6
+            bottomPadding: 6
             checked: tabButton.modelData.tabId
                 === workspaceTabs.workspaceController.activeTabId
 
@@ -44,7 +59,36 @@ Basic.TabBar {
             }
             contentItem: RowLayout {
                 id: tabContent
-                spacing: 2
+                spacing: 7
+
+                // 视图类型先作为上下文标识，再显示序列名称。
+                Rectangle {
+                    Layout.preferredWidth:
+                        String(tabButton.modelData.tabType).toLowerCase()
+                            === "mpr" ? 38 : 30
+                    Layout.preferredHeight: 22
+                    radius: 5
+                    color: tabButton.checked
+                        ? Theme.primarySoft
+                        : Theme.secondarySoft
+                    border.color: tabButton.checked
+                        ? Theme.selectionBorder
+                        : "transparent"
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        font.pixelSize: 11
+                        text: String(
+                            tabButton.modelData.tabType
+                        ).toUpperCase()
+                        font.weight: tabButton.checked
+                            ? Font.DemiBold : Font.Normal
+                        color: tabButton.checked
+                            ? Theme.primaryColor
+                            : Theme.textMuted
+                    }
+                }
 
                 Text {
                     Layout.fillWidth: true
@@ -59,36 +103,19 @@ Basic.TabBar {
                     verticalAlignment: Text.AlignVCenter
                 }
 
-                Rectangle {
-                    radius: 6
-                    Layout.fillHeight: true
-                    width: 30
-                    color: tabButton.checked
-                        ? Theme.selectionBackground
-                        : Theme.secondarySoft
-                    border.color: tabButton.checked
-                        ? Theme.selectionBorder
-                        : Theme.borderSubtle
-                    border.width: 1
-                    Text {
-                        anchors.centerIn: parent
-                        font.pixelSize: 12
-                        text: tabButton.modelData.tabType
-                        font.weight: tabButton.checked
-                            ? Font.DemiBold : Font.Normal
-                        elide: Text.ElideRight
-                        color: tabButton.checked
-                            ? Theme.primaryColor
-                            : Theme.textSecondary
-
-                    }
-                }
-
                 Basic.ToolButton {
                     id: closeButton
                     text: "×"
                     implicitWidth: 24
                     implicitHeight: 24
+                    opacity: tabButton.checked
+                        || tabButton.hovered
+                        || closeButton.hovered ? 1 : 0
+                    enabled: opacity > 0.5
+
+                    Behavior on opacity {
+                        NumberAnimation { duration: 100 }
+                    }
 
                     contentItem: Text {
                         text: closeButton.text
@@ -116,8 +143,9 @@ Basic.TabBar {
             }
 
             background: Rectangle {
+                radius: 5
                 color: tabButton.checked
-                    ? Theme.selectionBackground
+                    ? Theme.elevatedBackground
                     : tabButton.hovered
                         ? Theme.controlHover
                         : "transparent"
@@ -127,7 +155,7 @@ Basic.TabBar {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    height: 1
+                    height: 2
                     color: Theme.activeIndicator
                 }
             }

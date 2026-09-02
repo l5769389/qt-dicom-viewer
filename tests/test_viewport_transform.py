@@ -7,6 +7,7 @@ from qt_dicom_viewer.model import (
     PixelSpacing,
     SeriesDisplayMeta,
     StackRenderResult,
+    ToolType,
     TwoDViewType,
     ViewportConfig,
     WindowLevel,
@@ -122,6 +123,44 @@ def test_unknown_transform_action_is_ignored() -> None:
     controller.applyTransformAction("rotate:unsupported")
 
     assert controller.viewport_state == initial_state
+
+
+def test_scoped_resets_only_change_the_selected_tool_state() -> None:
+    controller = _controller()
+    controller.handleRenderResult(_render_result(controller))
+    controller.apply_pan(12.0, -8.0)
+    controller.apply_zoom(2.5)
+    controller.applyTransformAction("rotate:cw90")
+
+    controller.reset_tool_state(ToolType.PAN)
+
+    assert controller.panX == 0.0
+    assert controller.panY == 0.0
+    assert controller.zoom == 2.5
+    assert controller.rotationDegrees == 90.0
+
+    controller.reset_tool_state(ToolType.ZOOM)
+    controller.reset_tool_state(ToolType.ROTATE)
+
+    assert controller.zoom == 1.0
+    assert controller.rotationDegrees == 0.0
+
+
+def test_reset_all_view_state_restores_all_display_transforms() -> None:
+    controller = _controller()
+    controller.handleRenderResult(_render_result(controller))
+    controller.applyWindowPreset(80.0, 200.0)
+    controller.apply_pan(12.0, -8.0)
+    controller.apply_zoom(2.5)
+    controller.applyTransformAction("rotate:mirror-h")
+
+    controller.reset_all_view_state()
+
+    assert controller.viewport_state.window == WindowLevel(40.0, 400.0)
+    assert controller.panX == 0.0
+    assert controller.panY == 0.0
+    assert controller.zoom == 1.0
+    assert controller.horizontalFlip is False
 
 
 def test_direction_labels_follow_geometry_and_display_transform() -> None:

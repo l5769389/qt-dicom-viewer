@@ -11,19 +11,28 @@ RowLayout {
     required property string iconName
     required property string title
 
-    spacing: 8
+    implicitHeight: 32
+    spacing: 10
 
-    Components.AppIcon {
-        iconName: header.iconName
-        iconSize: 18
-        iconColor: Theme.iconActive
+    Rectangle {
+        Layout.preferredWidth: 28
+        Layout.preferredHeight: 28
+        radius: 6
+        color: Theme.primarySoft
+
+        Components.AppIcon {
+            anchors.centerIn: parent
+            iconName: header.iconName
+            iconSize: 17
+            iconColor: Theme.iconActive
+        }
     }
 
     Text {
         Layout.fillWidth: true
         text: header.title
         color: Theme.textPrimary
-        font.pixelSize: 13
+        font.pixelSize: 14
         font.weight: Font.DemiBold
     }
 }
