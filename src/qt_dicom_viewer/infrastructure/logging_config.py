@@ -29,10 +29,6 @@ def configure_logging(debug: bool = False) -> Path:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
-
     file_handler = RotatingFileHandler(
         log_path,
         maxBytes=5 * 1024 * 1024,
@@ -42,12 +38,17 @@ def configure_logging(debug: bool = False) -> Path:
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 
+    handlers: list[logging.Handler] = [file_handler]
+    # Windows 无控制台 EXE 中 stdout/stderr 可能为空，仍保留文件日志。
+    if sys.stdout is not None:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(level)
+        console_handler.setFormatter(formatter)
+        handlers.append(console_handler)
+
     logging.basicConfig(
         level=logging.DEBUG,
-        handlers=[
-            console_handler,
-            file_handler,
-        ],
+        handlers=handlers,
         force=True,
     )
 

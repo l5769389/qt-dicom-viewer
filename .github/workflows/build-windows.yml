@@ -1,0 +1,67 @@
+name: Build Windows EXE
+
+# 仅手动触发，日常推送不自动启动 Windows 构建。
+on:
+  workflow_dispatch:
+    inputs:
+      console:
+        description: "生成带控制台的诊断版本"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and package Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      UV_PROJECT_ENVIRONMENT: .venv-build-windows
+
+    steps:
+      # 固定 Action 提交，避免上游标签变化导致构建行为改变。
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --locked --python 3.13 --group dev python -m pytest -q
+
+      - name: Build single-file EXE
+        shell: pwsh
+        env:
+          BUILD_CONSOLE: ${{ inputs.console }}
+        run: |
+          if ($env:BUILD_CONSOLE -eq "true") {
+            & .\scripts\build_windows.bat --console
+          } else {
+            & .\scripts\build_windows.bat
+          }
+          exit $LASTEXITCODE
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: DICOMVision-windows-x64${{ inputs.console && '-debug' || '' }}
+          path: dist/*.exe
+          if-no-files-found: error
+          # 单文件 EXE 已压缩，避免重复压缩消耗构建时间。
+          compression-level: 0
+          retention-days: 14
