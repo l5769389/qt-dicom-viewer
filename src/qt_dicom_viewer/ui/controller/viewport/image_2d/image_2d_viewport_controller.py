@@ -27,6 +27,13 @@ from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportC
 
 logger = logging.getLogger(__name__)
 
+MEASUREMENT_KINDS = {
+    InteractionType.MEASURE_LENGTH: MeasurementKind.LENGTH,
+    InteractionType.MEASURE_ANGLE: MeasurementKind.ANGLE,
+    InteractionType.MEASURE_RECT: MeasurementKind.RECT,
+    InteractionType.MEASURE_ELLIPSE: MeasurementKind.ELLIPSE,
+}
+
 DISPLAY_STYLES = {
     "grayscale": DisplayStyle(
         color_map="grayscale",
@@ -111,6 +118,7 @@ class Image2DViewportController(ViewportController):
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation()
         self._active_drag_start_position: PointerPosition | None = None
+        self.transformChanged.connect(self._measure_controller.clearHover)
 
     def _initial_slice_index(self) -> int | None:
         return None
@@ -131,8 +139,7 @@ class Image2DViewportController(ViewportController):
         if index == self._state.slice_index:
             return False
 
-        self._measure_controller.cancel_transaction()
-        self._measure_controller.clear_selection()
+        self._measure_controller.set_current_slice(index)
         self._state = replace(
             self._state,
             slice_index=index,
@@ -171,6 +178,9 @@ class Image2DViewportController(ViewportController):
 
 
     def _handle_active_interaction_changed(self) -> None:
+        self.cancelMeasurement()
+        self._measure_controller.clear_selection()
+        self._measure_controller.clearHover()
         self.activeInteractionChanged.emit()
 
 
@@ -241,6 +251,7 @@ class Image2DViewportController(ViewportController):
         if slice_changed:
             self.sliceChanged.emit()
         self._modality_pixel = result.modality_pixel
+        self._measure_controller.set_frame(result.series_uid, result.frame_meta)
         self._apply_specific_render_result(result)
 
         self.overlayChanged.emit()
@@ -344,7 +355,8 @@ class Image2DViewportController(ViewportController):
                         viewport_size=self.viewport_size,
                         current_zoom=self._state.zoom,
                     )
-                case InteractionType.MEASURE_LENGTH | InteractionType.MEASURE_ANGLE:
+                case (InteractionType.MEASURE_LENGTH | InteractionType.MEASURE_ANGLE
+                      | InteractionType.MEASURE_RECT | InteractionType.MEASURE_ELLIPSE):
                     if self._frame_meta is None:
                         logger.error(
                             "Cannot measure before an image is loaded"
@@ -362,27 +374,15 @@ class Image2DViewportController(ViewportController):
                         include_outside_image=True,
                     )
 
-                    measurement_kind = (
-                        MeasurementKind.LENGTH
-                        if self._tool_controller.active_interaction
-                           == InteractionType.MEASURE_LENGTH
-                        else MeasurementKind.ANGLE
-                    )
-                    if self._state.slice_index is not None:
+                    context = self._measurement_context(endpoint_tolerance, line_tolerance)
+                    if context is not None:
                         self._active_drag_operation = self._measure_controller
-                        context = MeasureContext(
-                            measurement_kind=measurement_kind,
-                            series_uid=self.viewport_config.series_uid,
-                            sop_instance_uid=self._frame_meta.instance_meta.sop_instance_uid or '',
-                            slice_index=self._state.slice_index,
-                            geometry=self._frame_meta.geometry,
-                            endpoint_tolerance=endpoint_tolerance,
-                            line_tolerance=line_tolerance,
-                        )
                 case _:
                     context = None
         if self._active_drag_operation is None or context is None:
             return None
+        if self._active_drag_operation is not self._measure_controller:
+            self._measure_controller.cancel_transaction()
         self._active_drag_start_position = position
         result = self._active_drag_operation.begin(
             position,
@@ -488,6 +488,12 @@ class Image2DViewportController(ViewportController):
             point_tolerance: float,
             line_tolerance: float,
     ) -> None:
+        # UI 已拦截按住鼠标的 hover；这里再防御拖动期间的晚到事件。
+        if self._active_drag_operation is not None:
+            return
+        if self._tool_controller.active_interaction == InteractionType.MEASURE_ANGLE:
+            preview = ImagePoint(column, row) if isfinite(column) and isfinite(row) else None
+            self._measure_controller.preview_at(preview)
         pointer_position = _make_pointer_position(
             viewport_x=x,
             viewport_y=y,
@@ -503,6 +509,8 @@ class Image2DViewportController(ViewportController):
             )
         )
 
+        self.updateMeasurementHover(x, y, column, row, point_tolerance, line_tolerance)
+
         if self._modality_pixel is None or not image_valid:
             self._cursor_controller.clearPosition()
             return
@@ -515,6 +523,24 @@ class Image2DViewportController(ViewportController):
             return
 
         self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
+
+    @Slot(float, float, float, float, float, float)
+    def updateMeasurementHover(self, x: float, y: float, column: float, row: float,
+                               point_tolerance: float, line_tolerance: float) -> None:
+        """只刷新测量命中；点击或拖动结束后使用它，不额外触发 XY/CT 采样。"""
+        if self._active_drag_operation is not None:
+            return
+        context = self._measurement_context(point_tolerance, line_tolerance)
+        if context is None:
+            self._measure_controller.clearHover()
+            return
+        # 测量可以在图像之外的画布绘制，不能用 image_valid 拦截其悬停命中。
+        point = ImagePoint(column, row) if isfinite(column) and isfinite(row) else None
+        self._measure_controller.update_hover(
+            point, slice_index=context.slice_index,
+            endpoint_tolerance=point_tolerance, line_tolerance=line_tolerance,
+            viewport_point=Point(x, y),
+        )
 
 
     @Slot(float, float, float, float, int)
@@ -877,6 +903,7 @@ class Image2DViewportController(ViewportController):
         self.request_render()
 
     @Slot(bool, float, float, float, float)
+    @Slot(bool, float, float, float, float, float, float)
     def selectMeasurementAt(
             self,
             image_valid: bool,
@@ -884,11 +911,13 @@ class Image2DViewportController(ViewportController):
             row: float,
             endpoint_tolerance: float,
             line_tolerance: float,
+            viewport_x: float | None = None,
+            viewport_y: float | None = None,
     ) -> None:
-        if self._tool_controller.active_interaction not in (
-                InteractionType.MEASURE_LENGTH,
-                InteractionType.MEASURE_ANGLE,
-        ):
+        if self._tool_controller.active_interaction not in MEASUREMENT_KINDS:
+            return
+        context = self._measurement_context(endpoint_tolerance, line_tolerance)
+        if context is None:
             return
 
         point = None
@@ -902,7 +931,41 @@ class Image2DViewportController(ViewportController):
                 slice_index=self._state.slice_index,
                 endpoint_tolerance=endpoint_tolerance,
                 line_tolerance=line_tolerance,
+                context=context,
+                viewport_point=Point(viewport_x, viewport_y)
+                    if viewport_x is not None and viewport_y is not None else None,
             )
+            if viewport_x is not None and viewport_y is not None:
+                self.updateMeasurementHover(viewport_x, viewport_y, column, row,
+                                            endpoint_tolerance, line_tolerance)
+
+    def _measurement_context(self, endpoint_tolerance: float,
+                             line_tolerance: float) -> MeasureContext | None:
+        frame = self._frame_meta
+        kind = MEASUREMENT_KINDS.get(self._tool_controller.active_interaction)
+        # 翻页但新图尚未返回时，不把旧像素误当成新切片的统计数据。
+        if frame is None or kind is None or frame.slice_index != self._state.slice_index:
+            return None
+        return MeasureContext(
+            measurement_kind=kind, series_uid=self.viewport_config.series_uid,
+            sop_instance_uid=frame.instance_meta.sop_instance_uid or "",
+            slice_index=frame.slice_index, geometry=frame.geometry,
+            endpoint_tolerance=endpoint_tolerance, line_tolerance=line_tolerance,
+            modality_pixels=self._modality_pixel,
+            pixel_unit="HU" if self.viewport_config.series_meta.modality == "CT" else "",
+        )
+
+    @Slot()
+    def cancelMeasurement(self) -> None:
+        self._measure_controller.cancel_transaction()
+        if self._active_drag_operation is self._measure_controller:
+            self._active_drag_operation = None
+            self._active_drag_start_position = None
+
+    @Slot()
+    def deleteSelectedMeasurement(self) -> None:
+        self.cancelMeasurement()
+        self._measure_controller.delete_selected()
 
     @Property("QVariantMap", constant=True)
     def crosshairStyle(self) -> dict:

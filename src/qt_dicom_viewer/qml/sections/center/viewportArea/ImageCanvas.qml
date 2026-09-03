@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import 'measurementLayer' as MeasurementLayer
 import "../../../theme"
 
@@ -12,9 +11,18 @@ Rectangle {
         : Theme.canvasBackground
     clip: true
 
+    function updateMeasurementHitRegions(interactionLayer) {
+        if (imageCanvasRoot.viewportController
+                && imageCanvasRoot.viewportController.activeInteraction.startsWith("measure:")) {
+            imageCanvasRoot.viewportController.measurementController.setLabelHitRegions(
+                measurementOverlay.labelHitRegions(interactionLayer)
+            )
+        }
+    }
+
     function hitToleranceInImagePixels(screenTolerance) {
         return screenTolerance / Math.max(
-            Math.abs(imageScene.scale),
+            Math.abs(imageScene.scale) * Math.min(imageScene.rowSpacing, imageScene.columnSpacing),
             0.0001
         )
     }
@@ -145,6 +153,14 @@ Rectangle {
         )
     }
 
+    // 将测量轮廓映射到屏幕层，文字、线宽和控制点不随缩放/翻转变形。
+    readonly property var measurementTransformState: [
+        imageScene.x, imageScene.y, imageScene.scale, imageScene.rotation,
+        imageScene.rowSpacing, imageScene.columnSpacing, pixelLayer.width, pixelLayer.height,
+        imageScene.controller ? imageScene.controller.horizontalFlip : false,
+        imageScene.controller ? imageScene.controller.verticalFlip : false
+    ]
+
     // 图像场景使用毫米作为局部尺寸，负责整体平移、缩放和旋转。
     Item {
         id: imageScene
@@ -214,6 +230,7 @@ Rectangle {
             // 负责水平、垂直翻转
             Item {
                 id: pixelLayer
+                objectName: "dicomPixelLayer"
                 anchors.fill: parent
 
                 transform: Scale {
@@ -244,15 +261,17 @@ Rectangle {
                     smooth: true
                 }
 
-                MeasurementLayer.MeasurementLayer {
-                    anchors.fill: parent
-                    measurementController:
-                        imageCanvasRoot.viewportController
-                            ? imageCanvasRoot.viewportController.measurementController
-                            : null
-                }
             }
         }
+    }
+
+    MeasurementLayer.MeasurementLayer {
+        id: measurementOverlay
+        anchors.fill: parent
+        coordinateMapper: imageCanvasRoot
+        transformState: imageCanvasRoot.measurementTransformState
+        measurementController: imageCanvasRoot.viewportController
+            ? imageCanvasRoot.viewportController.measurementController : null
     }
 
 }

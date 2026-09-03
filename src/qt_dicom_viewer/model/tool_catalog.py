@@ -81,6 +81,13 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         behavior=ToolBehavior.INTERACTION_PANEL,
     ),
     ToolDefinition(
+        tool_type=ToolType.SERVICE,
+        label="服务",
+        icon_name="service",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.TWO_D,)),
+    ),
+    ToolDefinition(
         tool_type=ToolType.RESET,
         label="重置",
         icon_name="reset",
@@ -99,6 +106,13 @@ class ToolActionDefinition:
     action: str
     label: str
     icon_name: str
+
+
+# 服务菜单暂时只保存入口选择，不对应任何绘制交互或执行命令。
+SERVICE_ACTIONS = (
+    ToolActionDefinition(action="service:mtf", label="MTF", icon_name="mtf"),
+    ToolActionDefinition(action="service:qa", label="QA", icon_name="qa"),
+)
 
 
 ROTATE_ACTIONS = (
@@ -137,7 +151,7 @@ MEASURE_ACTIONS = (
     ),
     ToolActionDefinition(
         action=InteractionType.MEASURE_RECT,
-        label="区域",
+        label="矩形",
         icon_name="measure-rect",
     ),
     ToolActionDefinition(

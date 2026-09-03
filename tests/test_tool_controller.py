@@ -1,3 +1,5 @@
+import pytest
+
 from qt_dicom_viewer.model import InteractionType, TabType
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 
@@ -119,3 +121,92 @@ def test_mpr_3d_rotation_is_hidden_outside_mpr_tabs() -> None:
 
     assert controller.activeTool == "window"
     assert controller.activeInteraction == "window"
+
+
+def test_services_are_available_as_a_primary_panel_only_tool_in_2d() -> None:
+    controller = ToolController(tab_type=TabType.TWO_D)
+    assert any(tool["toolType"] == "service" and tool["iconName"] == "service"
+               for tool in controller.tools)
+    assert controller.serviceActions == [
+        {"action": "service:mtf", "label": "MTF", "iconName": "mtf"},
+        {"action": "service:qa", "label": "QA", "iconName": "qa"},
+    ]
+
+    controller.activateTool("service")
+
+    assert controller.activeToolLabel == "服务"
+    assert controller.activeToolIcon == "service"
+    assert controller.activePanel == "service"
+    assert controller.activeInteraction == ""
+    assert controller.activeService == ""
+    assert not controller.canResetActiveTool
+
+
+@pytest.mark.parametrize("action", ["service:mtf", "service:qa"])
+def test_service_selection_does_not_start_drawing_or_emit_commands(action) -> None:
+    controller = ToolController(tab_type=TabType.TWO_D)
+    commands, resets, selections = [], [], []
+    controller.commandRequested.connect(commands.append)
+    controller.resetRequested.connect(resets.append)
+    controller.activeServiceChanged.connect(lambda: selections.append(controller.activeService))
+    controller.activateTool("measure")
+    controller.selectInteraction("measure:rect")
+
+    controller.selectService(action)
+    controller.selectService(action)
+    controller.resetActiveTool()
+
+    assert controller.activeTool == controller.activePanel == "service"
+    assert controller.activeService == action
+    assert controller.active_interaction is InteractionType.NONE
+    assert selections == [action]
+    assert commands == resets == []
+
+    # 离开后重新打开面板保留入口选择，但不改变其他工具的行为。
+    controller.activateTool("pan")
+    assert controller.activeInteraction == "pan"
+    controller.activateTool("service")
+    assert controller.activeService == action
+    assert controller.activeInteraction == ""
+
+
+def test_unknown_service_entry_is_ignored() -> None:
+    controller = ToolController()
+    controller.selectService("measure:rect")
+    assert controller.activeTool == "window"
+    assert controller.activeInteraction == "window"
+    assert controller.activeService == ""
+
+
+def test_global_reset_remains_available_from_services() -> None:
+    controller = ToolController(tab_type=TabType.TWO_D)
+    commands = []
+    controller.commandRequested.connect(commands.append)
+    controller.selectService("service:mtf")
+    controller.activateTool("reset")
+    assert commands == ["viewport:reset"]
+    assert controller.activePanel == "service"
+    assert controller.activeService == "service:mtf"
+    assert controller.activeInteraction == ""
+
+
+@pytest.mark.parametrize("tab_type", [TabType.MPR, TabType.THREE_D, TabType.FOUR_D, TabType.TAG])
+def test_services_are_hidden_and_cannot_be_selected_outside_2d(tab_type) -> None:
+    controller = ToolController(tab_type=tab_type)
+    assert all(tool["toolType"] != "service" for tool in controller.tools)
+    events = []
+    controller.activeToolChanged.connect(lambda: events.append("tool"))
+    controller.activePanelChanged.connect(lambda: events.append("panel"))
+    controller.activeServiceChanged.connect(lambda: events.append("service"))
+    controller.activeInteractionChanged.connect(lambda: events.append("interaction"))
+    controller.commandRequested.connect(events.append)
+    controller.resetRequested.connect(events.append)
+
+    controller.activateTool("service")
+    controller.selectService("service:mtf")
+    controller.selectService("service:qa")
+
+    assert controller.activeTool == controller.activePanel == "window"
+    assert controller.activeInteraction == "window"
+    assert controller.activeService == ""
+    assert events == []

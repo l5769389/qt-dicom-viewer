@@ -8,9 +8,11 @@ import "../../../theme"
 
 Item {
     id: interactionLayer
+    objectName: "viewportInteractionLayer"
     clip: true
 
     signal pointerMoved(point position)
+    signal pointerExited()
 
     signal tapped(point position)
 
@@ -43,6 +45,7 @@ Item {
     property point dragStart: Qt.point(0, 0)
     property point lastPosition: Qt.point(0, 0)
     property string crosshairHoverTarget: ""
+    property string measurementCursorKind: ""
     property string activeInteraction: ""
     property string dragCursorKind: ""
     // 从按下到释放持续为 true，不受 DragHandler 拖动阈值影响。
@@ -71,8 +74,8 @@ Item {
         : crosshairHoverTarget === "horizontalLine"
             || crosshairHoverTarget === "verticalLine"
             ? "rotate-3d-variant"
-            : activeInteraction === "mpr:rotate3d"
-                ? "rotate-3d"
+            : activeInteraction.startsWith("measure:") && measurementCursorKind !== ""
+                ? measurementCursorKind
                 : cursorKindForInteraction(activeInteraction)
 
     readonly property string effectiveCursorKind:
@@ -116,6 +119,11 @@ Item {
             return Qt.CrossCursor
         }
 
+        onHoveredChanged: {
+            if (!hovered)
+                interactionLayer.pointerExited()
+        }
+
         onPointChanged: {
             if (
                 !hoverHandler.hovered
@@ -131,23 +139,30 @@ Item {
 
     Item {
         id: customCursor
+        objectName: "viewportCustomCursor"
+
+        readonly property real pointerHeight: 20
+        readonly property real pointerScale: pointerHeight / 30
+        readonly property real operationIconSize: 20
 
         // 箭头尖端是热点；操作图标紧贴箭头右下方。
-        x: interactionLayer.cursorPosition.x - 2
-        y: interactionLayer.cursorPosition.y - 1.5
+        x: interactionLayer.cursorPosition.x - 2 * pointerScale
+        y: interactionLayer.cursorPosition.y - 1.5 * pointerScale
         z: 100
 
-        width: 34
-        height: 34
+        width: cursorBadge.x + cursorBadge.width
+        height: Math.max(pointerHeight, cursorBadge.y + cursorBadge.height)
         visible:
             (hoverHandler.hovered || dragHandler.active)
             && interactionLayer.customCursorActive
 
         Rectangle {
-            x: 13
-            y: 12
-            width: 19
-            height: 19
+            id: cursorBadge
+            objectName: "viewportCursorBadge"
+            x: 10
+            y: 6
+            width: customCursor.operationIconSize + 6
+            height: width
             radius: 4
             color: Qt.rgba(
                 Theme.panelBackgroundStrong.r,
@@ -157,17 +172,24 @@ Item {
             )
 
             Components.AppIcon {
+                objectName: "viewportCursorOperationIcon"
                 anchors.centerIn: parent
                 iconName: interactionLayer.effectiveCursorKind
-                iconSize: 14
+                iconSize: customCursor.operationIconSize
                 iconColor: "#ffffff"
             }
         }
 
         Shape {
+            objectName: "viewportCursorPointer"
             width: 22
             height: 30
             antialiasing: true
+            // PathSvg 不会随 Shape 的宽高自动缩放，显式缩放路径和描边。
+            transform: Scale {
+                xScale: customCursor.pointerScale
+                yScale: customCursor.pointerScale
+            }
 
             ShapePath {
                 fillColor: "#ffffff"

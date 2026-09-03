@@ -32,18 +32,6 @@ Rectangle {
         anchors.margins: 12
         spacing: 10
 
-        Components.ToolPanelHeader {
-            Layout.fillWidth: true
-            iconName: detailPanel.activeToolIcon
-            title: detailPanel.activeToolLabel
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.dividerColor
-        }
-
         Loader {
             id: contentLoader
 
@@ -59,7 +47,8 @@ Rectangle {
                     'rotate': rotatePanelComponent,
                     'window': windowLevelComponent,
                     'measure': measureComponent,
-                    "annotate": annotateComponent
+                    "annotate": annotateComponent,
+                    "service": serviceComponent
                 }
                 return map[detailPanel.activePanel] ?? null
             }
@@ -104,6 +93,16 @@ Rectangle {
                 if (detailPanel.toolController) {
                     detailPanel.toolController.selectInteraction(action)
                 }
+            }
+        }
+    }
+
+    Component {
+        id: serviceComponent
+        Panels.ServicePanel {
+            toolController: detailPanel.toolController
+            onActionTriggered: action => {
+                detailPanel.toolController?.selectService(action)
             }
         }
     }

@@ -9,6 +9,11 @@ Item {
 
     required property var isDraft
     required property bool isSelected
+    property alias labelItem: measurementLabel
+    property var mappedPoints: [
+        Qt.point(Number(measurement.startColumn ?? 0) + 0.5, Number(measurement.startRow ?? 0) + 0.5),
+        Qt.point(Number(measurement.endColumn ?? 0) + 0.5, Number(measurement.endRow ?? 0) + 0.5)
+    ]
 
     readonly property color measurementColor:
         isDraft || isSelected
@@ -16,16 +21,16 @@ Item {
             : Theme.measurementPrimary
 
     readonly property real startX:
-        Number(measurement.startColumn ?? 0) + 0.5
+        mappedPoints.length > 0 ? mappedPoints[0].x : 0
 
     readonly property real startY:
-        Number(measurement.startRow ?? 0) + 0.5
+        mappedPoints.length > 0 ? mappedPoints[0].y : 0
 
     readonly property real endX:
-        Number(measurement.endColumn ?? 0) + 0.5
+        mappedPoints.length > 1 ? mappedPoints[1].x : 0
 
     readonly property real endY:
-        Number(measurement.endRow ?? 0) + 0.5
+        mappedPoints.length > 1 ? mappedPoints[1].y : 0
 
     Shape {
         anchors.fill: parent
@@ -34,7 +39,10 @@ Item {
             strokeColor: root.measurementColor
             strokeWidth: 1.5
             fillColor: "transparent"
-
+            strokeStyle: root.isDraft
+                ? ShapePath.DashLine
+                : ShapePath.SolidLine
+            dashPattern: [4, 2]
             startX: root.startX
             startY: root.startY
 
@@ -66,6 +74,8 @@ Item {
     }
 
     Text {
+        id: measurementLabel
+        objectName: "measurementLabel"
         x: (root.startX + root.endX) / 2 + 6
         y: (root.startY + root.endY) / 2 - height - 4
 

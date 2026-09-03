@@ -1,5 +1,11 @@
+from dataclasses import replace
+
+import numpy as np
+import pytest
+
 from qt_dicom_viewer.model import (
     DragUpdateEvent,
+    EditTargetKind,
     ImageGeometryMeta,
     ImagePoint,
     MeasureContext,
@@ -135,3 +141,123 @@ def test_tap_empty_space_clears_selection() -> None:
     )
 
     assert controller.selectedMeasurementId == ""
+
+
+def _tap(controller, point, context):
+    controller.tap_at(point, slice_index=context.slice_index,
+                      endpoint_tolerance=context.endpoint_tolerance,
+                      line_tolerance=context.line_tolerance, context=context)
+
+
+def test_angle_three_clicks_with_hover_and_edit():
+    controller = MeasurementController()
+    context = replace(_context(), measurement_kind=MeasurementKind.ANGLE)
+    _tap(controller, ImagePoint(20, 0), context)
+    controller.preview_at(ImagePoint(0, 0))
+    assert controller.measurementItems == []
+    assert "顶点" in controller.instruction
+    _tap(controller, ImagePoint(0, 0), context)
+    controller.preview_at(ImagePoint(0, 20))
+    assert controller.activeTransaction["label"] == "90.0°"
+    _tap(controller, ImagePoint(0, 20), context)
+    assert controller.measurementItems[0]["label"] == "90.0°"
+    assert controller.activeTransaction == {}
+    controller.begin(_position(0, 20), context)
+    controller.end(_position(20, 20))
+    assert controller.measurementItems[0]["label"] == "45.0°"
+
+
+def test_angle_two_drags_commit_only_after_second_release():
+    controller = MeasurementController()
+    context = replace(_context(), measurement_kind=MeasurementKind.ANGLE)
+    controller.begin(_position(20, 0), context)
+    controller.end(_position(0, 0))
+    assert controller.measurementItems == []
+    assert "终点" in controller.instruction
+    controller.begin(_position(0, 0), context)
+    controller.end(_position(0, 20))
+    assert controller.measurementItems[0]["type"] == "angle"
+    assert controller.measurementItems[0]["label"] == "90.0°"
+
+
+def test_angle_repeated_vertex_does_not_commit_degenerate_angle():
+    controller = MeasurementController()
+    context = replace(_context(), measurement_kind=MeasurementKind.ANGLE)
+    for point in [ImagePoint(20, 0), ImagePoint(0, 0), ImagePoint(0, 0)]:
+        _tap(controller, point, context)
+    assert controller.measurementItems == []
+    assert controller.has_active_transaction
+    controller.cancel_transaction()
+    assert controller.activeTransaction == {}
+
+
+def test_angle_invalid_spacing_is_not_committed_as_zero_degrees():
+    controller = MeasurementController()
+    context = replace(_context(), measurement_kind=MeasurementKind.ANGLE,
+                      geometry=replace(_context().geometry, pixel_spacing=PixelSpacing(0, 1)))
+    for point in [ImagePoint(20, 0), ImagePoint(0, 0), ImagePoint(0, 20)]:
+        _tap(controller, point, context)
+    assert controller.measurementItems == []
+    assert controller.activeTransaction["label"] == "—°"
+
+
+@pytest.mark.parametrize("kind", [MeasurementKind.RECT, MeasurementKind.ELLIPSE])
+def test_roi_create_resize_move_cancel_and_delete(kind):
+    controller = MeasurementController()
+    context = replace(_context(), measurement_kind=kind, modality_pixels=np.arange(1600).reshape(40, 40))
+    controller.begin(_position(0, 0), context)
+    controller.end(_position(10, 20))
+    original = controller.measurementItems[0]
+    assert original["type"] == kind.value
+    assert original["metrics"]["area_mm2"] == pytest.approx(200 if kind == MeasurementKind.RECT else 50 * np.pi)
+    # 右上角不是保存的对角点之一，也应支持调整。
+    controller.begin(_position(10, 0), context)
+    controller.end(_position(20, -5))
+    resized = controller.measurementItems[0]
+    assert resized["metrics"]["width_mm"] == 20
+    assert resized["metrics"]["height_mm"] == 25
+    # 下边中点同时处于矩形和椭圆轮廓上；多次更新按拖动起点计算。
+    controller.begin(_position(10, 20), context)
+    controller.update(_drag(_position(10, 20), _position(12, 22)))
+    controller.update(_drag(_position(10, 20), _position(15, 25)))
+    controller.end(_position(15, 25))
+    moved = controller.measurementItems[0]
+    assert moved["metrics"]["width_mm"] == 20
+    assert moved["metrics"]["height_mm"] == 25
+    assert min(p["column"] for p in moved["points"]) == 5
+    controller.begin(_position(15, 25), context)
+    controller.update(_drag(_position(15, 25), _position(20, 30)))
+    controller.cancel_transaction()
+    assert controller.measurementItems[0] == moved
+    controller.delete_selected()
+    assert controller.measurementItems == []
+
+
+def test_end_uses_release_position_and_line_body_translation_does_not_accumulate():
+    controller = MeasurementController()
+    context = _context()
+    controller.begin(_position(0, 0), context)
+    controller.update(_drag(_position(0, 0), _position(10, 0)))
+    controller.end(_position(20, 0))
+    assert controller.measurementItems[0]["label"] == "20.0 mm"
+    controller.begin(_position(10, 0), context)
+    controller.update(_drag(_position(10, 0), _position(11, 2)))
+    controller.update(_drag(_position(10, 0), _position(12, 3)))
+    controller.end(_position(12, 3))
+    item = controller.measurementItems[0]
+    assert (item["startColumn"], item["startRow"], item["endColumn"], item["endRow"]) == (2, 3, 22, 3)
+
+
+def test_ellipse_hit_test_ignores_diagonal_and_bounding_rectangle_edges():
+    controller = MeasurementController()
+    context = replace(_context(), measurement_kind=MeasurementKind.ELLIPSE)
+    controller.begin(_position(0, 0), context)
+    controller.end(_position(100, 100))
+    # 中心属于 INTERIOR，不是连接两个对角点形成的 OUTLINE；无需预先选中。
+    controller.clear_selection()
+    assert controller.hit_test(ImagePoint(50, 50), slice_index=3,
+                               endpoint_tolerance=1, line_tolerance=1).target.kind == EditTargetKind.INTERIOR
+    assert controller.hit_test(ImagePoint(10, 0), slice_index=3,
+                               endpoint_tolerance=1, line_tolerance=1) is None
+    assert controller.hit_test(ImagePoint(50, 0), slice_index=3,
+                               endpoint_tolerance=1, line_tolerance=1) is not None

@@ -1,4 +1,5 @@
-pragma ComponentBehavior: Bound
+pragma
+ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import "../components" as Components
@@ -11,6 +12,14 @@ ColumnLayout {
 
     signal actionTriggered(string action)
 
+    Text {
+        Layout.fillWidth: true
+        text: "Esc 取消绘制 · Delete / Backspace 删除选中测量"
+        color: Theme.textSubtle
+        font.pixelSize: 11
+        wrapMode: Text.Wrap
+    }
+
     Repeater {
         model: measurePanel.toolController
             ? measurePanel.toolController.measureActions
@@ -21,9 +30,9 @@ ColumnLayout {
             required property var modelData
             readonly property bool btnChecked:
                 measureButton.modelData.action
-                    === measurePanel.toolController.activeInteraction
+                === measurePanel.toolController.activeInteraction
 
-            checked:measureButton.btnChecked
+            checked: measureButton.btnChecked
             Layout.fillWidth: true
             iconName: modelData.iconName
             label: modelData.label
@@ -46,6 +55,7 @@ ColumnLayout {
             }
         }
     }
+
 
     Item {
         Layout.fillHeight: true

@@ -5,9 +5,9 @@ from uuid import uuid4
 from qt_dicom_viewer.core.geometry_2d import (
     image_point_distance_mm,
 )
+from qt_dicom_viewer.core.measurement_geometry import edited_points
 from qt_dicom_viewer.model import DragUpdateEvent, ImagePoint
 from qt_dicom_viewer.model.measure import (
-    EditTargetKind,
     LengthMeasurement,
     LengthMeasurementDraft,
     MeasureContext,
@@ -16,7 +16,7 @@ from qt_dicom_viewer.model.measure import (
 
 
 class LengthMeasureOperation:
-    """Stateless geometry operations for length measurements."""
+    """长度测量的无状态几何操作。"""
 
     def create_draft(
         self,
@@ -59,17 +59,7 @@ class LengthMeasureOperation:
         if image_point is None:
             return draft
 
-        points = draft.points.copy()
-
-        if (
-            target.kind == EditTargetKind.CONTROL_POINT
-            and target.index is not None
-            and 0 <= target.index < len(points)
-        ):
-            points[target.index] = image_point
-
-        # Segment/body translation needs an image-space delta and will be
-        # implemented with the corresponding edit strategy.
+        points = edited_points(draft.points, target, drag_event)
 
         spacing = context.geometry.pixel_spacing
         length = image_point_distance_mm(

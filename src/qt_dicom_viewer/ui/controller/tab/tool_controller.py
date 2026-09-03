@@ -9,9 +9,11 @@ from qt_dicom_viewer.model import (
     ToolType,
 )
 from qt_dicom_viewer.model.tool_catalog import (
+    MEASURE_ACTIONS,
     ROTATE_ACTIONS,
+    SERVICE_ACTIONS,
     TOOL_CATALOG,
-    TOOL_DEFINITIONS, MEASURE_ACTIONS,
+    TOOL_DEFINITIONS,
 )
 from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
 
@@ -22,6 +24,7 @@ class ToolController(QObject):
     activeToolChanged = Signal()
     activePanelChanged = Signal()
     activeInteractionChanged = Signal()
+    activeServiceChanged = Signal()
     commandRequested = Signal(str)
     resetRequested = Signal(str)
 
@@ -37,6 +40,7 @@ class ToolController(QObject):
         self._active_tool = ToolType.WINDOW
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
+        self._active_service = ""
 
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
@@ -59,6 +63,10 @@ class ToolController(QObject):
     @Property(str, notify=activeInteractionChanged)
     def activeInteraction(self) -> str:
         return self._active_interaction.value
+
+    @Property(str, notify=activeServiceChanged)
+    def activeService(self) -> str:
+        return self._active_service
 
     @property
     def active_interaction(self) -> InteractionType:
@@ -133,6 +141,22 @@ class ToolController(QObject):
 
         self._set_active_interaction(interaction)
 
+    @Slot(str)
+    def selectService(self, action: str) -> None:
+        """选择服务入口，但不启动绘制、计算或其他视口操作。"""
+        if action not in {item.action for item in SERVICE_ACTIONS}:
+            logger.warning("Unknown service entry: %s", action)
+            return
+
+        self.activateTool(ToolType.SERVICE.value)
+        # 不能通过二级入口绕过一级工具的视图类型限制。
+        if self._active_tool != ToolType.SERVICE:
+            return
+        if action == self._active_service:
+            return
+        self._active_service = action
+        self.activeServiceChanged.emit()
+
     @Slot()
     def resetActiveTool(self) -> None:
         if not self.canResetActiveTool:
@@ -188,6 +212,17 @@ class ToolController(QObject):
                 "iconName": item.icon_name,
             }
             for item in MEASURE_ACTIONS
+        ]
+
+    @Property(list, constant=True)
+    def serviceActions(self) -> list[dict]:
+        return [
+            {
+                "action": item.action,
+                "label": item.label,
+                "iconName": item.icon_name,
+            }
+            for item in SERVICE_ACTIONS
         ]
 
 

@@ -78,7 +78,11 @@ from .measure import (
     MeasurementEditTarget,
     MeasurementHit,
     MeasurementKind,
+    MeasurementLabelRegion,
     MeasurementTransaction,
+    RoiMeasurement,
+    RoiMeasurementDraft,
+    RoiMetrics,
 )
 from .render_models import (
     MprRenderResult,
@@ -149,7 +153,11 @@ __all__ = [
     "MeasurementEditTarget",
     "MeasurementHit",
     "MeasurementKind",
+    "MeasurementLabelRegion",
     "MeasurementTransaction",
+    "RoiMeasurement",
+    "RoiMeasurementDraft",
+    "RoiMetrics",
     "MprFrame",
     "MprGridAnchor",
     "MprGridSpec",

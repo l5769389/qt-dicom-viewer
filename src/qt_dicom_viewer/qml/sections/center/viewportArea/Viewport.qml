@@ -7,6 +7,22 @@ Item {
     id: viewportRoot
     required property var viewportController
     required property bool hasTabs
+    Keys.onEscapePressed: event => {
+        if (viewportRoot.viewportController)
+            viewportRoot.viewportController.cancelMeasurement()
+        event.accepted = true
+    }
+    Keys.onDeletePressed: event => {
+        if (viewportRoot.viewportController)
+            viewportRoot.viewportController.deleteSelectedMeasurement()
+        event.accepted = true
+    }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Backspace && viewportRoot.viewportController) {
+            viewportRoot.viewportController.deleteSelectedMeasurement()
+            event.accepted = true
+        }
+    }
     readonly property bool isMprViewport:
         viewportRoot.viewportController
         && ["axial", "sagittal", "coronal"].indexOf(
@@ -47,6 +63,10 @@ Item {
     onWidthChanged: syncViewportSize()
     onHeightChanged: syncViewportSize()
     onViewportControllerChanged: syncViewportSize()
+    onVisibleChanged: {
+        if (!visible && viewportRoot.viewportController)
+            viewportRoot.viewportController.measurementController.clearHover()
+    }
 
     Component.onCompleted: syncViewportSize()
 
@@ -129,11 +149,22 @@ Item {
             viewportRoot.viewportController
                 ? viewportRoot.viewportController.activeInteraction
                 : ""
+        measurementCursorKind:
+            viewportRoot.viewportController
+                ? viewportRoot.viewportController.measurementController.hoverCursorKind
+                : ""
+
+        onPointerExited: {
+            if (viewportRoot.viewportController)
+                viewportRoot.viewportController.measurementController.clearHover()
+        }
 
         onTapped: position => {
+            viewportRoot.forceActiveFocus()
             if (!viewportRoot.viewportController)
                 return
 
+            imageCanvas.updateMeasurementHitRegions(interactionLayer)
             const hit = imageCanvas.mapToDicomPixel(
                 interactionLayer,
                 position
@@ -148,13 +179,17 @@ Item {
                 hit.column,
                 hit.row,
                 endpointTolerance,
-                lineTolerance
+                lineTolerance,
+                position.x,
+                position.y
             )
         }
 
         onDragStarted: (startPosition, buttons) => {
+            viewportRoot.forceActiveFocus()
             if (!viewportRoot.viewportController)
                 return
+            imageCanvas.updateMeasurementHitRegions(interactionLayer)
             const hit = imageCanvas.mapToDicomPixel(
                 interactionLayer,
                 startPosition
@@ -165,6 +200,12 @@ Item {
             const lineTolerance =
                 imageCanvas.lineHitToleranceInImagePixels
 
+            // 按下前可能没有 move 事件，按本次拖动起点确认光标，再锁定到本次拖动。
+            viewportRoot.viewportController.updateMeasurementHover(
+                startPosition.x, startPosition.y, hit.column, hit.row,
+                endpointTolerance, lineTolerance
+            )
+            interactionLayer.dragCursorKind = interactionLayer.hoverCursorKind
             viewportRoot.viewportController.beginInteraction(
                 startPosition.x,
                 startPosition.y,
@@ -218,6 +259,12 @@ Item {
                 hit.column,
                 hit.row
             )
+            imageCanvas.updateMeasurementHitRegions(interactionLayer)
+            viewportRoot.viewportController.updateMeasurementHover(
+                endPosition.x, endPosition.y, hit.column, hit.row,
+                imageCanvas.pointHitToleranceInImagePixels,
+                imageCanvas.lineHitToleranceInImagePixels
+            )
         }
 
         onWheelMoved: (
@@ -242,6 +289,7 @@ Item {
             if (!viewportRoot.viewportController)
                 return
 
+            imageCanvas.updateMeasurementHitRegions(interactionLayer)
             const hit = imageCanvas.mapToDicomPixel(
                 interactionLayer,
                 position

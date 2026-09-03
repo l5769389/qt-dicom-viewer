@@ -1,4 +1,7 @@
+from dataclasses import replace
+
 import numpy as np
+import pytest
 
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
@@ -123,6 +126,62 @@ def test_unknown_transform_action_is_ignored() -> None:
     controller.applyTransformAction("rotate:unsupported")
 
     assert controller.viewport_state == initial_state
+
+
+@pytest.mark.parametrize("kind", ["rect", "ellipse"])
+def test_roi_uses_modality_pixels_and_is_independent_of_window_and_view_transform(kind):
+    controller = _controller()
+    pixels = np.array([[-1000, 0], [100, 4000]], dtype=float)
+    result = replace(_render_result(controller), modality_pixel=pixels)
+    controller.handleRenderResult(result)
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    controller.beginInteraction(0, 0, 1, False, -.5, -.5, .05, .05)
+    controller.endInteraction(10, 10, False, 1.5, 1.5)
+    item = controller.measurementController.measurementItems[0]
+    assert item["type"] == kind
+    assert item["metrics"]["mean"] == 775
+    assert item["metrics"]["unit"] == "HU"
+    controller.applyTransformAction("rotate:cw90")
+    controller.applyTransformAction("rotate:mirror-h")
+    controller.apply_zoom(3)
+    controller.handleRenderResult(replace(result, frame_meta=replace(result.frame_meta,
+                                   window=WindowLevel(center=100, width=50))))
+    assert controller.measurementController.measurementItems == [item]
+
+
+def test_measurements_are_hidden_on_other_slice_or_plane_and_restored_on_return():
+    controller = _controller()
+    original = _render_result(controller)
+    controller.handleRenderResult(original)
+    controller._tool_controller.selectInteraction("measure:rect")
+    controller.beginInteraction(0, 0, 1, True, 0, 0, .05, .05)
+    controller.endInteraction(10, 10, True, 1, 1)
+    saved = controller.measurementController.measurementItems
+    other_slice = replace(original, frame_meta=replace(original.frame_meta, slice_index=1))
+    controller.handleRenderResult(other_slice)
+    assert controller.measurementController.measurementItems == []
+    controller.handleRenderResult(original)
+    assert controller.measurementController.measurementItems == saved
+    other_plane = replace(original, frame_meta=replace(original.frame_meta,
+                          geometry=replace(original.frame_meta.geometry,
+                          image_orientation_patient=(0, 1, 0, -1, 0, 0))))
+    controller.handleRenderResult(other_plane)
+    assert controller.measurementController.measurementItems == []
+    controller.handleRenderResult(original)
+    assert controller.measurementController.measurementItems == saved
+
+
+def test_angle_viewport_clicks_and_tool_change_cancel_preview():
+    controller = _controller()
+    controller.handleRenderResult(_render_result(controller))
+    controller._tool_controller.selectInteraction("measure:angle")
+    for column, row in [(20, 0), (0, 0), (0, 20)]:
+        controller.selectMeasurementAt(False, column, row, .05, .05)
+    assert controller.measurementController.measurementItems[0]["label"] == "90.0°"
+    controller.selectMeasurementAt(False, 100, 100, .05, .05)
+    assert controller.measurementController.has_active_transaction
+    controller._tool_controller.selectInteraction("measure:ellipse")
+    assert not controller.measurementController.has_active_transaction
 
 
 def test_scoped_resets_only_change_the_selected_tool_state() -> None:

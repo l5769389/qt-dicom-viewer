@@ -11,6 +11,7 @@ Basic.Button {
 
     required property string iconName
     required property string label
+    property real iconSize: 20
 
     implicitHeight: 40
 
@@ -19,7 +20,7 @@ Basic.Button {
 
         Components.AppIcon {
             iconName: actionButton.iconName
-            iconSize: 20
+            iconSize: actionButton.iconSize
             iconColor: actionButton.checked
                 ? Theme.iconActive
                 : actionButton.hovered

@@ -1,0 +1,397 @@
+"""通过真实 QML 指针事件验证测量链路，不需要真实患者数据。"""
+
+import os
+from dataclasses import replace
+from pathlib import Path
+
+import numpy as np
+import pytest
+from PySide6.QtCore import QPoint, QPointF, QUrl, Qt
+from PySide6.QtQuick import QQuickItem, QQuickView
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
+from shiboken6 import delete
+
+from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
+from qt_dicom_viewer.model import EditTargetKind, ImagePoint, Point
+from test_viewport_transform import _controller, _render_result
+
+
+@pytest.fixture(scope="module")
+def qt_app():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    os.environ.setdefault("QT_QUICK_BACKEND", "software")
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+@pytest.fixture
+def viewport(qt_app):
+    controller = _controller()
+    original = _render_result(controller)
+    pixels = np.add.outer(np.arange(256), np.arange(256)).astype(np.float32) - 100
+    result = replace(original, image=np.clip(pixels + 70, 0, 255).astype(np.uint8),
+                     modality_pixel=pixels, frame_meta=replace(original.frame_meta,
+                     instance_meta=replace(original.frame_meta.instance_meta, rows=256, columns=256),
+                     geometry=replace(original.frame_meta.geometry, rows=256, columns=256)))
+    controller.handleRenderResult(result)
+    view = QQuickView()
+    view.setResizeMode(QQuickView.SizeRootObjectToView)
+    view.resize(1000, 720)
+    provider = DicomImageProvider()
+    provider.set_array(controller.viewport_config.viewport_id, result.image)
+    view.engine().addImageProvider("dicom", provider)
+    warnings = []
+    view.engine().warnings.connect(lambda errors: warnings.extend(error.toString() for error in errors))
+    view.setInitialProperties({"viewportController": controller, "hasTabs": True})
+    source = Path(__file__).resolve().parents[1] / "src/qt_dicom_viewer/qml/sections/center/viewportArea/Viewport.qml"
+    view.setSource(QUrl.fromLocalFile(str(source)))
+    assert view.status() == QQuickView.Ready, [error.toString() for error in view.errors()]
+    view.show()
+    QTest.qWait(80)
+    root = view.rootObject()
+    pixel_layer = root.findChild(QQuickItem, "dicomPixelLayer")
+    assert pixel_layer is not None
+    try:
+        yield view, controller, pixel_layer, warnings
+    finally:
+        view.hide()
+        delete(view)  # 保持控制器活到 QML 销毁之后，避免退出时空绑定。
+
+
+def _scene(pixel_layer, column, row):
+    return pixel_layer.mapToScene(QPointF(column + .5, row + .5)).toPoint()
+
+
+def _visual_children(item):
+    # Repeater 委托的 QObject 所属关系与视觉父子关系不同。
+    for child in item.childItems():
+        yield child
+        yield from _visual_children(child)
+
+
+def _mouse_drag(view, start, end):
+    QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, start)
+    QTest.mouseMove(view, (start + end) / 2, 20)
+    QTest.mouseMove(view, end, 20)
+    QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, end)
+    QTest.qWait(40)
+
+
+@pytest.mark.parametrize("kind", ["rect", "ellipse"])
+def test_real_drag_renders_roi_metrics_and_keeps_card_upright(viewport, tmp_path, kind):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    start, end = _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95)
+    _mouse_drag(view, start, end)
+    items = controller.measurementController.measurementItems
+    assert len(items) == 1
+    assert items[0]["type"] == kind
+    assert items[0]["metrics"]["pixel_count"] > 0
+    cards = [item for item in _visual_children(view.rootObject())
+             if item.objectName() == "roiMetricCard" and item.isVisible()]
+    assert len(cards) == 1
+    card = cards[0]
+    assert card.width() == 238
+    assert card.height() > 100
+    before_width = card.mapToScene(QPointF(card.width(), 0)) - card.mapToScene(QPointF(0, 0))
+    controller.applyTransformAction("rotate:cw90")
+    controller.applyTransformAction("rotate:mirror-h")
+    controller.apply_zoom(1.3)
+    QTest.qWait(80)
+    after_width = card.mapToScene(QPointF(card.width(), 0)) - card.mapToScene(QPointF(0, 0))
+    assert before_width == after_width == QPointF(238, 0)
+    assert not warnings, warnings
+    screenshot = view.grabWindow()
+    if not screenshot.isNull():
+        output = tmp_path / f"{kind}-measurement.png"
+        assert screenshot.save(str(output))
+        print(f"QML preview: {output}")
+
+
+def test_real_three_click_angle_and_keyboard_cancel_delete(viewport, tmp_path):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction("measure:angle")
+    for column, row in [(30, 50), (100, 50), (100, 140)]:
+        QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, _scene(pixel_layer, column, row))
+        QTest.qWait(20)
+    items = controller.measurementController.measurementItems
+    assert len(items) == 1
+    assert items[0]["label"] == "90.0°"
+    screenshot = view.grabWindow()
+    if not screenshot.isNull():
+        output = tmp_path / "angle-measurement.png"
+        assert screenshot.save(str(output))
+        print(f"QML preview: {output}")
+    QTest.keyClick(view, Qt.Key_Delete)
+    assert controller.measurementController.measurementItems == []
+    QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, _scene(pixel_layer, 150, 180))
+    assert controller.measurementController.has_active_transaction
+    QTest.keyClick(view, Qt.Key_Escape)
+    assert not controller.measurementController.has_active_transaction
+    assert not warnings, warnings
+
+
+def test_real_two_drag_angle_and_vertex_edit(viewport):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction("measure:angle")
+    _mouse_drag(view, _scene(pixel_layer, 30, 50), _scene(pixel_layer, 100, 50))
+    assert controller.measurementController.measurementItems == []
+    assert "终点" in controller.measurementController.instruction
+    _mouse_drag(view, _scene(pixel_layer, 100, 50), _scene(pixel_layer, 100, 140))
+    original = controller.measurementController.measurementItems[0]
+    assert original["label"] == "90.0°"
+    _mouse_drag(view, _scene(pixel_layer, 100, 50), _scene(pixel_layer, 125, 65))
+    edited = controller.measurementController.measurementItems[0]
+    assert edited["measurementId"] == original["measurementId"]
+    assert edited["points"][0] == original["points"][0]
+    assert edited["points"][2] == original["points"][2]
+    assert edited["points"][1]["column"] == pytest.approx(125, abs=.5)
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["rect", "ellipse"])
+@pytest.mark.parametrize("transformed", [False, True])
+def test_real_roi_corner_resize_and_outline_move(viewport, kind, transformed):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    if transformed:
+        controller.applyTransformAction("rotate:cw90")
+        controller.applyTransformAction("rotate:mirror-h")
+        controller.apply_zoom(1.1)
+        QTest.qWait(40)
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    original = controller.measurementController.measurementItems[0]
+    _mouse_drag(view, _scene(pixel_layer, 95, 35), _scene(pixel_layer, 115, 25))
+    resized = controller.measurementController.measurementItems[0]
+    assert resized["measurementId"] == original["measurementId"]
+    assert resized["metrics"]["width_mm"] == pytest.approx(85, abs=.5)
+    assert resized["metrics"]["height_mm"] == pytest.approx(70, abs=.5)
+    _mouse_drag(view, _scene(pixel_layer, 72.5, 95), _scene(pixel_layer, 87.5, 110))
+    moved = controller.measurementController.measurementItems[0]
+    assert moved["metrics"]["width_mm"] == pytest.approx(resized["metrics"]["width_mm"])
+    assert moved["metrics"]["height_mm"] == pytest.approx(resized["metrics"]["height_mm"])
+    assert min(p["column"] for p in moved["points"]) == pytest.approx(45, abs=.5)
+    assert moved["metrics"]["mean"] > resized["metrics"]["mean"]
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["length", "angle", "rect", "ellipse"])
+def test_measurement_can_start_in_canvas_outside_image(viewport, kind):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    start, end = _scene(pixel_layer, -25, 35), _scene(pixel_layer, 60, 95)
+    _mouse_drag(view, start, end)
+    if kind == "angle":
+        _mouse_drag(view, end, _scene(pixel_layer, 30, 140))
+    item = controller.measurementController.measurementItems[0]
+    assert min(point["column"] for point in item["points"]) == pytest.approx(-25, abs=.5)
+    if kind in ("rect", "ellipse"):
+        assert item["metrics"]["pixel_count"] > 0
+        assert item["metrics"]["width_mm"] == pytest.approx(85, abs=.5)
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["length", "angle", "rect", "ellipse"])
+@pytest.mark.parametrize("transformed", [False, True])
+def test_label_hit_selects_and_moves_entire_measurement(viewport, kind, transformed):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    start = _scene(pixel_layer, 30, 35)
+    end = _scene(pixel_layer, 95, 95)
+    if kind == "angle":
+        vertex = _scene(pixel_layer, 95, 35)
+        _mouse_drag(view, start, vertex)
+        _mouse_drag(view, vertex, end)
+    else:
+        _mouse_drag(view, start, end)
+    measurement_controller = controller.measurementController
+    original = measurement_controller.measurementItems[0]
+    measurement_controller.clear_selection()
+    if transformed:
+        controller.applyTransformAction("rotate:cw90")
+        controller.applyTransformAction("rotate:mirror-h")
+        controller.apply_zoom(1.1)
+    QTest.qWait(40)
+    label_name = "roiMetricCard" if kind in ("rect", "ellipse") else "measurementLabel"
+    labels = [item for item in _visual_children(view.rootObject())
+              if item.objectName() == label_name and item.isVisible()]
+    assert len(labels) == 1
+    label = labels[0]
+    label_center = label.mapToScene(QPointF(label.width() / 2, label.height() / 2)).toPoint()
+    # 点击标签应选中所属测量，角度工具下也不能误建新的角度草稿。
+    QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, label_center)
+    assert measurement_controller.selectedMeasurementId == original["measurementId"]
+    assert not measurement_controller.has_active_transaction
+    image_position = pixel_layer.mapFromScene(QPointF(label_center))
+    hit = measurement_controller.hit_test(
+        ImagePoint(image_position.x() - .5, image_position.y() - .5),
+        slice_index=0, endpoint_tolerance=1, line_tolerance=1,
+        viewport_point=Point(label_center.x(), label_center.y()),
+    )
+    assert hit.target.kind == EditTargetKind.LABEL
+    assert hit.target.index is None
+    end = label_center + QPoint(24, 18)
+    delta = pixel_layer.mapFromScene(QPointF(end)) - image_position
+    targets = []
+    measurement_controller.activeTransactionChanged.connect(
+        lambda: targets.append(measurement_controller.activeTransaction.get("editTarget"))
+    )
+    _mouse_drag(view, label_center, end)
+    moved = measurement_controller.measurementItems
+    assert len(moved) == 1
+    assert moved[0]["measurementId"] == original["measurementId"]
+    assert {target["kind"] for target in targets if target} == {"label"}
+    for before, after in zip(original["points"], moved[0]["points"]):
+        assert after["column"] == pytest.approx(before["column"] + delta.x(), abs=.01)
+        assert after["row"] == pytest.approx(before["row"] + delta.y(), abs=.01)
+    if kind in ("rect", "ellipse"):
+        assert moved[0]["metrics"]["area_mm2"] == pytest.approx(original["metrics"]["area_mm2"])
+    else:
+        assert moved[0]["label"] == original["label"]
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["rect", "ellipse"])
+def test_selected_roi_interior_drag_reports_interior_not_outline(viewport, kind):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    measurement_controller = controller.measurementController
+    original = measurement_controller.measurementItems[0]
+    targets = []
+    measurement_controller.activeTransactionChanged.connect(
+        lambda: targets.append(measurement_controller.activeTransaction.get("editTarget"))
+    )
+    _mouse_drag(view, _scene(pixel_layer, 60, 65), _scene(pixel_layer, 75, 75))
+    moved = measurement_controller.measurementItems
+    assert len(moved) == 1
+    assert moved[0]["measurementId"] == original["measurementId"]
+    assert moved[0]["metrics"]["area_mm2"] == pytest.approx(original["metrics"]["area_mm2"])
+    assert {target["kind"] for target in targets if target} == {"interior"}
+    assert not warnings, warnings
+
+
+def _move_pointer(view, position):
+    QTest.mouseMove(view, position, 20)
+    QTest.qWait(30)
+
+
+def test_custom_cursor_sizes_and_arrow_hotspot(viewport, tmp_path):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction("measure:rect")
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    _move_pointer(view, _scene(pixel_layer, 60, 65))
+    root = view.rootObject()
+    interaction = root.findChild(QQuickItem, "viewportInteractionLayer")
+    pointer = root.findChild(QQuickItem, "viewportCursorPointer")
+    icon = root.findChild(QQuickItem, "viewportCursorOperationIcon")
+    badge = root.findChild(QQuickItem, "viewportCursorBadge")
+    top = pointer.mapToScene(QPointF(0, 0))
+    bottom = pointer.mapToScene(QPointF(0, pointer.height()))
+    assert bottom.y() - top.y() == pytest.approx(20)
+    assert icon.width() == icon.height() == 20
+    assert badge.width() == badge.height() == 26
+    assert (badge.x(), badge.y()) == (10, 6)
+    tip = pointer.mapToScene(QPointF(2, 1.5))
+    hotspot = interaction.mapToScene(interaction.property("cursorPosition"))
+    assert tip.x() == pytest.approx(hotspot.x())
+    assert tip.y() == pytest.approx(hotspot.y())
+    assert not warnings, warnings
+    screenshot = view.grabWindow()
+    if not screenshot.isNull():
+        output = tmp_path / "cursor-preview.png"
+        assert screenshot.save(str(output))
+        print(f"Cursor preview: {output}")
+
+
+@pytest.mark.parametrize("kind", ["rect", "ellipse"])
+@pytest.mark.parametrize("transformed", [False, True])
+def test_click_unselected_roi_interior_shows_move_cursor_without_an_extra_move(viewport, kind, transformed):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    measurement = controller.measurementController
+    original = measurement.measurementItems[0]
+    measurement.clear_selection()
+    if transformed:
+        controller.applyTransformAction("rotate:cw90")
+        controller.applyTransformAction("rotate:mirror-h")
+        controller.apply_zoom(1.1)
+        QTest.qWait(30)
+    interaction = view.rootObject().findChild(QQuickItem, "viewportInteractionLayer")
+    center = _scene(pixel_layer, 60, 65)
+    _move_pointer(view, center)
+    assert measurement.hoverHit["kind"] == "interior"
+    assert measurement.hoverCursorKind == ""
+    assert interaction.property("hoverCursorKind") == ""
+    QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, center)
+    QTest.qWait(30)
+    assert measurement.selectedMeasurementId == original["measurementId"]
+    assert measurement.hoverCursorKind == "pan"
+    assert interaction.property("hoverCursorKind") == "pan"
+    assert interaction.property("customCursorActive") is True
+    assert measurement.measurementItems == [original]
+    _move_pointer(view, _scene(pixel_layer, 30, 35))
+    assert measurement.hoverHit["kind"] == "controlPoint"
+    assert interaction.property("hoverCursorKind") == ""
+    _move_pointer(view, _scene(pixel_layer, 60, 65))
+    assert interaction.property("hoverCursorKind") == "pan"
+    _move_pointer(view, QPoint(10, 10))
+    assert measurement.hoverHit == {}
+    assert interaction.property("hoverCursorKind") == ""
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["length", "angle", "rect", "ellipse"])
+def test_selected_outline_has_move_cursor_and_crosshair_keeps_priority(viewport, kind):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    if kind == "angle":
+        _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 35))
+        _mouse_drag(view, _scene(pixel_layer, 95, 35), _scene(pixel_layer, 95, 95))
+        hover_position = _scene(pixel_layer, 60, 35)
+    elif kind == "length":
+        _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 35))
+        hover_position = _scene(pixel_layer, 45, 35)
+    else:
+        _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+        hover_position = _scene(pixel_layer, 30, 65)
+    measurement = controller.measurementController
+    interaction = view.rootObject().findChild(QQuickItem, "viewportInteractionLayer")
+    _move_pointer(view, hover_position)
+    assert measurement.hoverHit["kind"] == "outline"
+    assert interaction.property("hoverCursorKind") == "pan"
+    # 仅验证统一光标层的优先级，不修改实际 MPR 状态。
+    interaction.setProperty("crosshairHoverTarget", "horizontalLine")
+    assert interaction.property("hoverCursorKind") == "rotate-3d-variant"
+    interaction.setProperty("crosshairHoverTarget", "")
+    measurement.clear_selection()
+    assert interaction.property("hoverCursorKind") == ""
+    assert not warnings, warnings
+
+
+def test_move_cursor_is_locked_during_drag_without_xy_sampling_and_cleared_on_tool_change(viewport):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction("measure:rect")
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    interaction = view.rootObject().findChild(QQuickItem, "viewportInteractionLayer")
+    start = _scene(pixel_layer, 60, 65)
+    _move_pointer(view, start)
+    assert interaction.property("hoverCursorKind") == "pan"
+    sample_updates = []
+    controller._cursor_controller.cursorInfoChanged.connect(lambda: sample_updates.append(True))
+    QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, start)
+    QTest.mouseMove(view, start + QPoint(40, 30), 20)
+    QTest.qWait(30)
+    assert interaction.property("effectiveCursorKind") == "pan"
+    assert controller.measurementController.hoverHit == {}
+    assert sample_updates == []
+    QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, start + QPoint(40, 30))
+    QTest.qWait(30)
+    assert controller.measurementController.hoverHit["kind"] == "interior"
+    assert interaction.property("hoverCursorKind") == "pan"
+    controller._tool_controller.selectInteraction("window")
+    assert controller.measurementController.hoverHit == {}
+    assert interaction.property("hoverCursorKind") == "window"
+    assert not warnings, warnings

@@ -64,6 +64,7 @@ Rectangle {
                 id: primaryButton
 
                 required property var modelData
+                objectName: "primaryTool-" + primaryButton.modelData.toolType
                 readonly property bool feedbackActive: primaryButton.modelData.toolType === toolBar.feedbackTool
                 readonly property bool toolActive: toolBar.toolController ? primaryButton.modelData.toolType === toolBar.toolController.activeTool : false
                 readonly property bool resetAction:

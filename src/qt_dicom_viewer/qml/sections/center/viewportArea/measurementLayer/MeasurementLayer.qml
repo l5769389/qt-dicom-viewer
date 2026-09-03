@@ -1,22 +1,37 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../../../../theme"
 
 Item {
     id: measurementLayer
 
     required property var measurementController
+    required property var coordinateMapper
+    required property var transformState
 
     // 测量坐标属于无限延伸的图像坐标系，可以绘制到图像矩形之外。
     // 最外层 ImageCanvas 仍会将最终内容限制在整个视口画布内。
     clip: false
 
+    function labelHitRegions(targetItem) {
+        const regions = []
+        for (let index = 0; index < measurements.count; ++index) {
+            const item = measurements.itemAt(index) as MeasurementItem
+            const region = item ? item.labelHitRegion(targetItem) : null
+            if (region)
+                regions.push(region)
+        }
+        return regions
+    }
+
     Repeater {
+        id: measurements
         model: measurementLayer.measurementController
             ? measurementLayer.measurementController.measurementItems
             : []
 
-        delegate: LengthMeasurementItem {
+        delegate: MeasurementItem {
             required property var modelData
             isDraft: false
             isSelected: measurementLayer.measurementController
@@ -26,10 +41,12 @@ Item {
             width: measurementLayer.width
             height: measurementLayer.height
             measurement: modelData
+            coordinateMapper: measurementLayer.coordinateMapper
+            transformState: measurementLayer.transformState
         }
     }
 
-    LengthMeasurementItem {
+    MeasurementItem {
         width: measurementLayer.width
         height: measurementLayer.height
 
@@ -42,5 +59,20 @@ Item {
         measurement: measurementLayer.measurementController
             ? measurementLayer.measurementController.activeTransaction
             : ({})
+        coordinateMapper: measurementLayer.coordinateMapper
+        transformState: measurementLayer.transformState
+        z: 3
+    }
+
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 32
+        text: measurementLayer.measurementController ? measurementLayer.measurementController.instruction : ""
+        visible: text.length > 0
+        color: Theme.measurementSelected
+        font.pixelSize: 13
+        style: Text.Outline
+        styleColor: Theme.overlayOutline
     }
 }

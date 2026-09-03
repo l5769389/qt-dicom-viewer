@@ -11,6 +11,13 @@ Item {
     property color iconColor: "#b8c3cf"
 
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
+    // 服务图标直接使用生成的 PNG，不再通过矢量路径重绘。
+    readonly property var rasterSourceMap: ({
+        "service": "../assets/icons/service.png",
+        "mtf": "../assets/icons/mtf.png",
+        "qa": "../assets/icons/qa.png"
+    })
+    readonly property string rasterSource: appIcon.rasterSourceMap[appIcon.iconName] ?? ""
     readonly property var mdiPathMap: ({
         "scroll": "M9,3L5,7H8V14H10V7H13M16,17V10H14V17H11L15,21L19,17H16Z",
         "slice-previous": "M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z",
@@ -46,7 +53,7 @@ Item {
     height: appIcon.iconSize
 
     Shape {
-        visible: !appIcon.isWindowLevelIcon
+        visible: !appIcon.isWindowLevelIcon && appIcon.rasterSource === ""
         width: 24
         height: 24
 
@@ -63,6 +70,17 @@ Item {
                 path: appIcon.pathData
             }
         }
+    }
+
+    Image {
+        objectName: "rasterToolIcon"
+        anchors.fill: parent
+        visible: appIcon.rasterSource !== ""
+        source: appIcon.rasterSource
+        // 保留原图高分辨率供高 DPI 缩放使用，由 Qt 缓存解码结果。
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        mipmap: true
     }
 
     Canvas {
