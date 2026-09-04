@@ -165,6 +165,7 @@ class ToolBehavior(StrEnum):
 
 
 class InteractionType(StrEnum):
+    SERVICE_MTF = "service:mtf"
     NONE = ""
     WINDOW = "window"
     SCROLL = "scroll"

@@ -9,7 +9,9 @@ Item {
     required property var corners
     required property bool isDraft
     required property bool isSelected
-    property alias labelItem: metricCard
+    property bool showMetrics: true
+    property string shortLabel: ""
+    readonly property Item labelItem: showMetrics ? metricCard : compactLabel
     readonly property color lineColor: isDraft || isSelected ? Theme.measurementSelected : Theme.measurementPrimary
 
     readonly property string outlinePath: {
@@ -61,12 +63,37 @@ Item {
     RoiMetricCard {
         id: metricCard
         objectName: "roiMetricCard"
-        visible: root.corners.length === 4
+        visible: root.showMetrics && root.corners.length === 4
         measurement: root.measurement
         accentColor: root.lineColor
         width: Math.max(0, Math.min(238, root.width - 16))
         x: Math.max(8, Math.min(root.width - width - 8,
             root.rightEdge + width + 12 <= root.width ? root.rightEdge + 12 : root.leftEdge - width - 12))
         y: Math.max(8, Math.min(root.height - height - 8, root.topEdge))
+    }
+    Rectangle {
+        id: compactLabel
+        objectName: "mtfRoiMetricBadge"
+        visible: !root.showMetrics && root.corners.length === 4 && root.shortLabel.length > 0
+        implicitWidth: compactText.implicitWidth + 14
+        implicitHeight: compactText.implicitHeight + 8
+        x: Math.max(4, Math.min(root.width - width - 4,
+            root.rightEdge + width + 8 <= root.width ? root.rightEdge + 8 : root.leftEdge - width - 8))
+        y: Math.max(4, Math.min(root.height - height - 4, root.topEdge))
+        color: "#e60d1722"
+        border.width: 1
+        border.color: root.lineColor
+        radius: 4
+
+        Text {
+            id: compactText
+            objectName: "mtfRoiLabel"
+            anchors.centerIn: parent
+            text: root.shortLabel
+            color: Theme.overlayText
+            font.pixelSize: 10
+            font.weight: Font.DemiBold
+            lineHeight: 1.2
+        }
     }
 }

@@ -57,12 +57,15 @@ def _assert_service_panel_has_only_top_aligned_buttons(view):
     panel = _find(view, "servicePanel")
     visible_texts = {item.property("text") for item in _visual_children(panel)
                      if item.isVisible() and item.property("text")}
-    assert visible_texts == {"MTF", "QA"}
+    assert {"MTF", "QA"} <= visible_texts
+    assert not any("预留" in text or "待实现" in text or text == "服务" for text in visible_texts)
     assert not any(item.objectName() == "serviceEntryStatus"
                    for item in _visual_children(panel))
     first, second = _find(view, "serviceEntry-mtf"), _find(view, "serviceEntry-qa")
     assert first.mapToItem(panel, QPointF(0, 0)).y() == pytest.approx(0)
-    assert second.mapToItem(panel, QPointF(0, 0)).y() == pytest.approx(first.height() + 10)
+    assert second.mapToItem(panel, QPointF(0, 0)).y() == pytest.approx(0)
+    assert first.width() == pytest.approx(second.width())
+    assert second.mapToItem(panel, QPointF(0, 0)).x() == pytest.approx(first.width() + 8)
 
 
 def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(service_panel, tmp_path):
@@ -77,7 +80,7 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
         button = _find(view, "serviceEntry-" + entry)
         _click(view, button)
         assert controller.activeService == "service:" + entry
-        assert controller.activeInteraction == ""
+        assert controller.activeInteraction == ("service:mtf" if entry == "mtf" else "")
         assert button.property("checked")
         _assert_service_panel_has_only_top_aligned_buttons(view)
         other = _find(view, "serviceEntry-" + ("qa" if entry == "mtf" else "mtf"))
@@ -111,7 +114,7 @@ def test_non_2d_toolbar_has_no_service_entry(service_panel):
     assert not warnings, warnings
 
 
-@pytest.mark.parametrize("entry", ["mtf", "qa"])
+@pytest.mark.parametrize("entry", ["qa"])
 def test_service_placeholder_cancels_draft_and_does_not_draw_on_drag(viewport, entry):
     view, controller, pixel_layer, warnings = viewport
     tools = controller._tool_controller

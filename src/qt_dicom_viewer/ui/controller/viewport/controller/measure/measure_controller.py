@@ -32,16 +32,25 @@ class MeasurementController(QObject):
     activeTransactionChanged = Signal()
     selectionChanged = Signal()
     hoverChanged = Signal()
+    measurementCommitted = Signal(object)
 
-    def __init__(self, parent: QObject | None = None):
+    def __init__(self, parent: QObject | None = None, *,
+                 max_per_frame: int | None = None, geometry_only: bool = False,
+                 adaptive_roi_hit_tolerance: bool = False,
+                 physical_square_roi: bool = False):
         super().__init__(parent)
+        self._max_per_frame = max_per_frame
+        self._geometry_only = geometry_only
+        self._adaptive_roi_hit_tolerance = adaptive_roi_hit_tolerance
         self._measurements: dict[str, Measurement] = {}
         self._active_transaction: MeasurementTransaction | None = None
         self._selected_measurement_id: str | None = None
         self._hover_hit: MeasurementHit | None = None
         self._length_operation = LengthMeasureOperation()
         self._angle_operation = AngleMeasureOperation()
-        self._roi_operation = RoiMeasureOperation()
+        self._roi_operation = RoiMeasureOperation(
+            physical_square=physical_square_roi
+        )
         self._drag_reference: MeasurementDraft | None = None
         self._drag_start: PointerPosition | None = None
         self._frame_key: tuple | None = None
@@ -61,8 +70,13 @@ class MeasurementController(QObject):
         pose = (geometry.pixel_spacing.row, geometry.pixel_spacing.column,
                 *(geometry.image_position_patient or ()),
                 *(geometry.image_orientation_patient or ()))
+        if self._geometry_only:
+            # MTF 使用原始间距而非显示回退值，两者变化时不能复用旧分析。
+            pose += tuple(frame.instance_meta.pixel_spacing or (None, None))
         key = (series_uid, frame.instance_meta.sop_instance_uid, frame.slice_index,
-               geometry.rows, geometry.columns, tuple(round(v, 7) for v in pose))
+               geometry.rows, geometry.columns,
+               tuple(round(v, 7) if isinstance(v, (int, float)) and math.isfinite(v) else str(v)
+                     for v in pose))
         if key == self._frame_key and self._visible_slice == frame.slice_index:
             return
         self.cancel_transaction()
@@ -80,6 +94,18 @@ class MeasurementController(QObject):
     def _visible(self, measurement: Measurement) -> bool:
         return ((self._visible_slice is None or measurement.slice_index == self._visible_slice)
                 and self._measurement_frames.get(measurement.measurement_id) == self._frame_key)
+
+    @property
+    def frame_key(self) -> tuple | None:
+        return self._frame_key
+
+    @property
+    def committed_measurements(self) -> tuple[Measurement, ...]:
+        return tuple(self._measurements.values())
+
+    @property
+    def visible_measurements(self) -> tuple[Measurement, ...]:
+        return tuple(m for m in self._measurements.values() if self._visible(m))
 
     @Property("QVariantList", notify=measurementsChanged)
     def measurementItems(self) -> list[dict]:
@@ -210,6 +236,8 @@ class MeasurementController(QObject):
     def begin(self, position: PointerPosition, context: MeasureContext | None) -> None:
         if not isinstance(context, MeasureContext):
             raise TypeError("MeasurementController requires MeasureContext")
+        if self._geometry_only:
+            context = replace(context, modality_pixels=None)
         point = position.image
         if point is None:
             return
@@ -264,10 +292,21 @@ class MeasurementController(QObject):
             return
         operation = self._operation(transaction.draft)
         measurement = operation.commit(transaction.draft)
-        if not operation.is_valid(measurement):
+        valid = operation.is_valid(measurement)
+        if self._geometry_only and isinstance(measurement, RoiMeasurement):
+            # 服务 ROI 可先保存几何，真实间距无效时由分析层给出明确错误。
+            a, b = measurement.points
+            valid = (all(math.isfinite(v) for v in (a.column, a.row, b.column, b.row))
+                     and abs(a.column - b.column) >= 1e-3 and abs(a.row - b.row) >= 1e-3)
+        if not valid:
             if not self._creating_angle():
                 self.cancel_transaction()
             return
+        if self._max_per_frame is not None and measurement.measurement_id not in self._measurements:
+            same_frame = [m for m in self._measurements.values() if self._visible(m)]
+            for old in same_frame[:max(0, len(same_frame) - self._max_per_frame + 1)]:
+                self._measurements.pop(old.measurement_id)
+                self._measurement_frames.pop(old.measurement_id, None)
         self._measurements[measurement.measurement_id] = measurement
         self._measurement_frames[measurement.measurement_id] = self._frame_key
         self._selected_measurement_id = measurement.measurement_id
@@ -277,6 +316,7 @@ class MeasurementController(QObject):
         self.measurementsChanged.emit()
         self.activeTransactionChanged.emit()
         self.selectionChanged.emit()
+        self.measurementCommitted.emit(measurement)
 
     def cancel_transaction(self) -> None:
         transaction = self._active_transaction
@@ -344,6 +384,21 @@ class MeasurementController(QObject):
         return sorted(candidates, key=lambda measurement:
                       measurement.measurement_id != self._selected_measurement_id)
 
+    def _hit_tolerances(self, measurement: Measurement,
+                        endpoint_tolerance: float,
+                        line_tolerance: float) -> tuple[float, float]:
+        if not self._adaptive_roi_hit_tolerance or not isinstance(measurement, RoiMeasurement):
+            return endpoint_tolerance, line_tolerance
+        first, opposite = measurement.points
+        short_side = min(
+            abs(first.column - opposite.column),
+            abs(first.row - opposite.row),
+        )
+        return (
+            min(endpoint_tolerance, short_side / 3),
+            min(line_tolerance, short_side / 4),
+        )
+
     def hit_test(
         self,
         point: ImagePoint,
@@ -363,7 +418,13 @@ class MeasurementController(QObject):
 
         # 1. 控制点负责调整形状，优先于其附近的轮廓和标签。
         control_hit = nearest_hit(
-            hit_test_control_points(measurement, point, endpoint_tolerance)
+            hit_test_control_points(
+                measurement,
+                point,
+                self._hit_tolerances(
+                    measurement, endpoint_tolerance, line_tolerance,
+                )[0],
+            )
             for measurement in measurements
         )
         if control_hit is not None:
@@ -380,7 +441,13 @@ class MeasurementController(QObject):
 
         # 3. 所有图形统一叫 OUTLINE；矩形边不再被误称为 BODY。
         outline_hit = nearest_hit(
-            hit_test_outline(measurement, point, line_tolerance)
+            hit_test_outline(
+                measurement,
+                point,
+                self._hit_tolerances(
+                    measurement, endpoint_tolerance, line_tolerance,
+                )[1],
+            )
             for measurement in measurements
         )
         if outline_hit is not None:

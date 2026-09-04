@@ -12,6 +12,10 @@ Rectangle {
     clip: true
 
     function updateMeasurementHitRegions(interactionLayer) {
+        if (imageCanvasRoot.viewportController?.activeInteraction === "service:mtf") {
+            imageCanvasRoot.viewportController.activeAnnotationController.setLabelHitRegions(
+                mtfOverlay.labelHitRegions(interactionLayer))
+        }
         if (imageCanvasRoot.viewportController
                 && imageCanvasRoot.viewportController.activeInteraction.startsWith("measure:")) {
             imageCanvasRoot.viewportController.measurementController.setLabelHitRegions(
@@ -272,6 +276,17 @@ Rectangle {
         transformState: imageCanvasRoot.measurementTransformState
         measurementController: imageCanvasRoot.viewportController
             ? imageCanvasRoot.viewportController.measurementController : null
+    }
+
+    MeasurementLayer.MeasurementLayer {
+        id: mtfOverlay
+        objectName: "mtfOverlay"
+        anchors.fill: parent
+        coordinateMapper: imageCanvasRoot
+        transformState: imageCanvasRoot.measurementTransformState
+        measurementController: imageCanvasRoot.viewportController?.mtfController?.roiController ?? null
+        showRoiMetrics: false
+        roiLabel: imageCanvasRoot.viewportController?.mtfController?.roiMetricLabel ?? ""
     }
 
 }

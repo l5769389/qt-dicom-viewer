@@ -36,6 +36,8 @@
         <file>src/qt_dicom_viewer/qml/sections/right/panels/AnnotatePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/MeasurePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/ServicePanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/MtfResults.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/MtfChart.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/RotateToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/WindowLevelToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumeDirectionPanel.qml</file>

@@ -50,9 +50,17 @@ Item {
     property string dragCursorKind: ""
     // 从按下到释放持续为 true，不受 DragHandler 拖动阈值影响。
     readonly property bool pointerPressed: pressTracker.active
+    // ROI 的几何编辑需要从第一个像素位移就反馈。其他视图操作继续沿用
+    // 平台拖动阈值，避免一次普通点击被解释成调窗、平移或缩放。
+    readonly property bool immediateRoiDrag:
+        activeInteraction === "measure:rect"
+        || activeInteraction === "measure:ellipse"
+        || activeInteraction === "service:mtf"
 
     function cursorKindForInteraction(interaction) {
         switch (interaction) {
+            case "service:mtf":
+                return "mtf"
             case "window":
                 return "window"
             case "scroll":
@@ -74,7 +82,8 @@ Item {
         : crosshairHoverTarget === "horizontalLine"
             || crosshairHoverTarget === "verticalLine"
             ? "rotate-3d-variant"
-            : activeInteraction.startsWith("measure:") && measurementCursorKind !== ""
+            : (activeInteraction.startsWith("measure:") || activeInteraction === "service:mtf")
+                && measurementCursorKind !== ""
                 ? measurementCursorKind
                 : cursorKindForInteraction(activeInteraction)
 
@@ -227,6 +236,9 @@ Item {
         id: dragHandler
 
         target: null
+        // undefined 会恢复 Qt 的平台默认值；零阈值只用于矩形类 ROI。
+        dragThreshold: interactionLayer.immediateRoiDrag ? 0 : undefined
+
         acceptedButtons: Qt.LeftButton
             | Qt.RightButton
             | Qt.MiddleButton
@@ -240,12 +252,34 @@ Item {
                     dragHandler.centroid.pressPosition
 
                 interactionLayer.lastPosition =
-                    dragHandler.centroid.position
+                    interactionLayer.dragStart
 
                 interactionLayer.dragStarted(
                     interactionLayer.dragStart,
                     dragHandler.centroid.pressedButtons
                 )
+
+                // DragHandler 用本次 move 激活时，不一定再发一次
+                // activeTranslationChanged。立即转发激活点，避免 ROI 的首个位移丢失。
+                if (interactionLayer.immediateRoiDrag) {
+                    const current = dragHandler.centroid.position
+                    const initial = Qt.point(
+                        current.x - interactionLayer.dragStart.x,
+                        current.y - interactionLayer.dragStart.y
+                    )
+                    if (initial.x !== 0 || initial.y !== 0) {
+                        interactionLayer.dragMoved(
+                            interactionLayer.dragStart,
+                            current,
+                            initial,
+                            initial
+                        )
+                    }
+                    interactionLayer.lastPosition = current
+                } else {
+                    interactionLayer.lastPosition =
+                        dragHandler.centroid.position
+                }
             } else {
                 interactionLayer.dragCursorKind = ""
 

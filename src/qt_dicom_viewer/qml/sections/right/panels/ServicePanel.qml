@@ -9,6 +9,7 @@ Item {
     objectName: "servicePanel"
 
     required property var toolController
+    property var viewportController: null
     readonly property string selectedService: servicePanel.toolController
         ? servicePanel.toolController.activeService : ""
 
@@ -23,25 +24,36 @@ Item {
         width: parent.width
         spacing: 10
 
-        Repeater {
-            model: servicePanel.toolController
-                ? servicePanel.toolController.serviceActions : []
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
 
-            delegate: Controls.ToolActionButton {
-                id: serviceButton
-                required property var modelData
+            Repeater {
+                model: servicePanel.toolController
+                    ? servicePanel.toolController.serviceActions : []
 
-                objectName: "serviceEntry-" + serviceButton.modelData.iconName
-                Layout.fillWidth: true
-                implicitHeight: 44
-                iconSize: 24
-                iconName: serviceButton.modelData.iconName
-                label: serviceButton.modelData.label
-                checked: servicePanel.selectedService === serviceButton.modelData.action
+                delegate: Controls.ToolActionButton {
+                    id: serviceButton
+                    required property var modelData
 
-                onClicked: servicePanel.actionTriggered(serviceButton.modelData.action)
+                    objectName: "serviceEntry-" + serviceButton.modelData.iconName
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    implicitHeight: 44
+                    iconSize: 24
+                    iconName: serviceButton.modelData.iconName
+                    label: serviceButton.modelData.label
+                    checked: servicePanel.selectedService === serviceButton.modelData.action
+
+                    onClicked: servicePanel.actionTriggered(serviceButton.modelData.action)
+                }
             }
         }
 
+        MtfResults {
+            Layout.fillWidth: true
+            visible: servicePanel.selectedService === "service:mtf"
+            controller: servicePanel.viewportController?.mtfController ?? null
+        }
     }
 }

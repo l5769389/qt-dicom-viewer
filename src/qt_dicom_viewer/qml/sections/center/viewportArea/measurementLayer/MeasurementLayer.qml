@@ -9,6 +9,8 @@ Item {
     required property var measurementController
     required property var coordinateMapper
     required property var transformState
+    property bool showRoiMetrics: true
+    property string roiLabel: ""
 
     // 测量坐标属于无限延伸的图像坐标系，可以绘制到图像矩形之外。
     // 最外层 ImageCanvas 仍会将最终内容限制在整个视口画布内。
@@ -34,6 +36,8 @@ Item {
         delegate: MeasurementItem {
             required property var modelData
             isDraft: false
+            showRoiMetrics: measurementLayer.showRoiMetrics
+            roiLabel: measurementLayer.roiLabel
             isSelected: measurementLayer.measurementController
                 ? modelData.measurementId
                     === measurementLayer.measurementController.selectedMeasurementId
@@ -55,6 +59,8 @@ Item {
                      measurementLayer.measurementController.activeTransaction
                  ).length > 0
         isDraft: true
+        showRoiMetrics: measurementLayer.showRoiMetrics
+        roiLabel: measurementLayer.roiLabel
         isSelected: false
         measurement: measurementLayer.measurementController
             ? measurementLayer.measurementController.activeTransaction

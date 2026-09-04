@@ -479,6 +479,7 @@ class TabController(QObject):
         if self._tag_controller is not None:
             self._tag_controller.dispose()
         for viewport in self._viewport_dict.values():
+            viewport.shutdown()
             if isinstance(viewport, VolumeViewportController):
                 viewport.dispose()
 

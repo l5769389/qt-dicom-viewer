@@ -32,3 +32,6 @@ class ViewportController(QObject):
 
     def handleRenderResult(self, result: RenderResult) -> None:
         raise NotImplementedError
+
+    def shutdown(self) -> None:
+        """关闭视口时释放后台任务；没有后台资源的视口无需处理。"""

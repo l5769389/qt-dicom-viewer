@@ -51,6 +51,11 @@ class WorkspaceController(QObject):
         self.activeTabChanged.emit()
         self.activeViewportChanged.emit()
 
+    def shutdown(self):
+        for tab in self._tab_dict.values():
+            for viewport in tab.viewports_by_id.values():
+                viewport.shutdown()
+
     @Slot(str)
     def submit(self, render_request: RenderRequest):
         pass

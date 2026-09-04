@@ -198,6 +198,42 @@ def test_click_in_unselected_roi_selects_and_hover_cursor_tracks_selection(kind)
     assert controller.hoverHit == {}
 
 
+def test_adaptive_roi_tolerance_preserves_small_roi_interior_and_nearest_corner():
+    small = replace(
+        _roi(MeasurementKind.RECT),
+        points=(ImagePoint(0, 0), ImagePoint(10, 10)),
+    )
+    standard = _controller(small)
+    adaptive = MeasurementController(adaptive_roi_hit_tolerance=True)
+    adaptive._measurements = {small.measurement_id: small}
+
+    standard_center = standard.hit_test(
+        ImagePoint(5, 5), slice_index=0,
+        endpoint_tolerance=8, line_tolerance=6,
+    )
+    adaptive_center = adaptive.hit_test(
+        ImagePoint(5, 5), slice_index=0,
+        endpoint_tolerance=8, line_tolerance=6,
+    )
+    assert standard_center.target.kind == EditTargetKind.CONTROL_POINT
+    assert adaptive_center.target.kind == EditTargetKind.INTERIOR
+
+    corner = adaptive.hit_test(
+        ImagePoint(9, 1), slice_index=0,
+        endpoint_tolerance=8, line_tolerance=6,
+    )
+    assert corner.target == MeasurementEditTarget(EditTargetKind.CONTROL_POINT, 1)
+    edge = adaptive.hit_test(
+        ImagePoint(5, 1), slice_index=0,
+        endpoint_tolerance=8, line_tolerance=6,
+    )
+    assert edge.target == MeasurementEditTarget(EditTargetKind.OUTLINE, 0)
+
+    large = _roi(MeasurementKind.RECT)
+    adaptive._measurements = {large.measurement_id: large}
+    assert adaptive._hit_tolerances(large, 8, 6) == (8, 6)
+
+
 def test_hover_distinguishes_outline_control_point_label_and_empty_canvas():
     controller = _controller(_line(), selected="line")
     before = controller.measurementItems
