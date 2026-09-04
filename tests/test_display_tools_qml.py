@@ -9,6 +9,7 @@ from PySide6.QtTest import QTest
 from shiboken6 import delete
 
 from test_measurement_qml import (
+    _mouse_drag,
     _scene,
     _visual_children,
     qt_app,
@@ -74,7 +75,7 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
     _find(root, "annotatePanel")
     _find(root, "annotationTextEditor")
     viewport_controller.textAnnotationController.setAnnotationText("病灶")
-    viewport_controller.textAnnotationController.addAnnotation(10, 12)
+    viewport_controller.textAnnotationController.addAnnotation(10, 12, 48, 34)
     assert len(viewport_controller.textAnnotationController.annotationItems) == 1
 
     _click(view, _find(root, "primaryTool-pseudocolor"))
@@ -90,7 +91,10 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
     assert not warnings, warnings
 
 
-def test_viewport_renders_text_scale_and_color_overlays(viewport):
+def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
+        viewport,
+        tmp_path,
+):
     view, controller, pixel_layer, warnings = viewport
     tools = controller._tool_controller
     tools.activateTool("annotate")
@@ -98,16 +102,34 @@ def test_viewport_renders_text_scale_and_color_overlays(viewport):
     controller.textAnnotationController.setAnnotationColor("#66d0ff")
     controller.textAnnotationController.setAnnotationFontSize(22)
 
+    _mouse_drag(
+        view,
+        _scene(pixel_layer, 60, 70),
+        _scene(pixel_layer, 135, 35),
+    )
+    item = controller.textAnnotationController.annotationItems[0]
+    assert item["tailColumn"] == pytest.approx(60, abs=1)
+    assert item["tailRow"] == pytest.approx(70, abs=1)
+    assert item["headColumn"] == pytest.approx(135, abs=1)
+    assert item["headRow"] == pytest.approx(35, abs=1)
+    rendered = _find(view.rootObject(), "textAnnotation-" + item["annotationId"])
+    arrow = _find(view.rootObject(), "annotationArrow-" + item["annotationId"])
+    label = _find(view.rootObject(), "annotationLabel-" + item["annotationId"])
+    assert rendered.property("arrowLength") > 20
+    assert arrow.isVisible()
+    assert label.width() > 0
+
+    controller.textAnnotationController.clearSelection()
     QTest.mouseClick(
         view,
         Qt.LeftButton,
         Qt.NoModifier,
-        _scene(pixel_layer, 60, 70),
+        _scene(pixel_layer, 98, 52),
     )
-    QTest.qWait(50)
-    item = controller.textAnnotationController.annotationItems[0]
-    rendered = _find(view.rootObject(), "textAnnotation-" + item["annotationId"])
-    assert rendered.property("width") > 0
+    QTest.qWait(20)
+    assert controller.textAnnotationController.selectedAnnotationId \
+        == item["annotationId"]
+    assert len(controller.textAnnotationController.annotationItems) == 1
 
     controller.setViewportSetting("scale-bar", True)
     controller.setViewportSetting("color-bar", True)
@@ -120,4 +142,9 @@ def test_viewport_renders_text_scale_and_color_overlays(viewport):
     assert not _find(
         view.rootObject(), "viewportMetadataOverlay", visible=False
     ).isVisible()
+    screenshot = view.grabWindow()
+    if not screenshot.isNull():
+        output = tmp_path / "arrow-annotation.png"
+        assert screenshot.save(str(output))
+        print(f"QML preview: {output}")
     assert not warnings, warnings

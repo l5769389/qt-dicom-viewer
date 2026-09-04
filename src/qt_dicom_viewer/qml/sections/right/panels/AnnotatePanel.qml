@@ -16,7 +16,7 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
-        text: "输入文字并在影像上单击放置；选中已有标注后可直接编辑。"
+        text: "在影像上按住并拖拽绘制箭头；起点放置文字，箭头尖端指向目标。单击箭身可选中编辑。"
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap
@@ -150,7 +150,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "当前切片标注"
+        text: "当前切片箭头标注"
         color: Theme.textSecondary
         font.pixelSize: 12
         font.weight: Font.DemiBold

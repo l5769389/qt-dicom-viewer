@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QPointF, QSize
 
 from qt_dicom_viewer.core.pseudocolor import (
     COLOR_MAP_SPECS,
@@ -61,7 +61,7 @@ def test_image_provider_accepts_rgb_pseudocolor() -> None:
     assert image.pixelColor(0, 0).green() == 127
 
 
-def test_text_annotations_are_slice_scoped_and_editable() -> None:
+def test_arrow_annotations_are_slice_scoped_selectable_and_editable() -> None:
     controller = TextAnnotationController()
     viewport = _controller()
     frame = replace(_render_result(viewport).frame_meta, slice_index=2)
@@ -69,13 +69,17 @@ def test_text_annotations_are_slice_scoped_and_editable() -> None:
     controller.setAnnotationText("病灶 A")
     controller.setAnnotationColor("#66d0ff")
     controller.setAnnotationFontSize(24)
-    controller.addAnnotation(12.5, 30.25)
+    controller.addAnnotation(12.5, 30.25, 52.5, 10.25)
 
     assert len(controller.annotationItems) == 1
     item = controller.annotationItems[0]
     assert item["text"] == "病灶 A"
     assert item["color"] == "#66d0ff"
     assert item["fontSize"] == 24
+    assert item["tailColumn"] == 12.5
+    assert item["tailRow"] == 30.25
+    assert item["headColumn"] == 52.5
+    assert item["headRow"] == 10.25
     assert controller.hasSelection
 
     controller.setAnnotationText("已编辑")
@@ -86,6 +90,12 @@ def test_text_annotations_are_slice_scoped_and_editable() -> None:
     assert not controller.hasSelection
     controller.set_current_slice(2)
     assert controller.annotationItems[0]["text"] == "已编辑"
+
+    controller.clearSelection()
+    controller.selectAnnotationAt(32.5, 20.25, 2)
+    assert controller.selectedAnnotationId == item["annotationId"]
+    controller.selectAnnotationAt(80, 80, 2)
+    assert not controller.hasSelection
 
     shifted = replace(
         frame,
@@ -133,7 +143,17 @@ def test_viewport_applies_color_map_settings_and_annotation_reset() -> None:
     tools = viewport._tool_controller
     tools.activateTool("annotate")
     viewport.textAnnotationController.setAnnotationText("重点")
-    viewport.selectMeasurementAt(True, 20, 25, 8, 6, 50, 60)
+    viewport.beginInteraction(50, 60, 1, True, 20, 25, 8, 6)
+    viewport.updateInteraction(
+        QPointF(50, 60),
+        QPointF(100, 90),
+        QPointF(50, 30),
+        QPointF(50, 30),
+        True,
+        70,
+        55,
+    )
+    viewport.endInteraction(100, 90, True, 70, 55)
     assert len(viewport.textAnnotationController.annotationItems) == 1
 
     viewport.reset_tool_state(ToolType.ANNOTATE)

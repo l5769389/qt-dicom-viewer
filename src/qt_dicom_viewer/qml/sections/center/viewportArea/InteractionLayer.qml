@@ -50,12 +50,13 @@ Item {
     property string dragCursorKind: ""
     // 从按下到释放持续为 true，不受 DragHandler 拖动阈值影响。
     readonly property bool pointerPressed: pressTracker.active
-    // ROI 的几何编辑需要从第一个像素位移就反馈。其他视图操作继续沿用
+    // ROI 和箭头标注需要从第一个像素位移就反馈。其他视图操作继续沿用
     // 平台拖动阈值，避免一次普通点击被解释成调窗、平移或缩放。
     readonly property bool immediateRoiDrag:
         activeInteraction === "measure:rect"
         || activeInteraction === "measure:ellipse"
         || activeInteraction === "service:mtf"
+        || activeInteraction === "annotate:text"
 
     function cursorKindForInteraction(interaction) {
         switch (interaction) {
@@ -236,7 +237,7 @@ Item {
         id: dragHandler
 
         target: null
-        // undefined 会恢复 Qt 的平台默认值；零阈值只用于矩形类 ROI。
+        // undefined 会恢复 Qt 的平台默认值；零阈值用于 ROI 和箭头标注。
         dragThreshold: interactionLayer.immediateRoiDrag ? 0 : undefined
 
         acceptedButtons: Qt.LeftButton

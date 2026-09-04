@@ -3,7 +3,7 @@ from dataclasses import replace
 from math import isfinite
 
 import numpy as np
-from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
+from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF, Qt
 
 from qt_dicom_viewer.core.patient_orientation import (
     displayed_image_edge_labels,
@@ -133,6 +133,7 @@ class Image2DViewportController(ViewportController):
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation()
         self._active_drag_start_position: PointerPosition | None = None
+        self._annotation_drag_active = False
         self.transformChanged.connect(self._measure_controller.clearHover)
 
     def _initial_slice_index(self) -> int | None:
@@ -374,6 +375,16 @@ class Image2DViewportController(ViewportController):
         )
         self._active_drag_operation = None
         self._active_drag_start_position = None
+        self._annotation_drag_active = False
+        if self._tool_controller.active_interaction == InteractionType.ANNOTATE_TEXT:
+            if (
+                image_valid
+                and buttons & Qt.MouseButton.LeftButton.value
+            ):
+                self._annotation_drag_active = (
+                    self._text_annotation_controller.beginAnnotation(column, row)
+                )
+            return None
         context: OperationStartContext | None = None
         specific_interaction = self._begin_specific_interaction(
             position,
@@ -467,6 +478,9 @@ class Image2DViewportController(ViewportController):
             column: float,
             row: float,
     ) -> None:
+        if self._annotation_drag_active:
+            self._text_annotation_controller.updateAnnotation(column, row)
+            return
         operation = self._active_drag_operation
         start_position = self._active_drag_start_position
 
@@ -507,6 +521,10 @@ class Image2DViewportController(ViewportController):
             column: float,
             row: float,
     ) -> None:
+        if self._annotation_drag_active:
+            self._annotation_drag_active = False
+            self._text_annotation_controller.finishAnnotation(column, row)
+            return
         operation = self._active_drag_operation
 
         self._active_drag_operation = None
@@ -1076,7 +1094,13 @@ class Image2DViewportController(ViewportController):
     ) -> None:
         if self._tool_controller.active_interaction == InteractionType.ANNOTATE_TEXT:
             if image_valid:
-                self._text_annotation_controller.addAnnotation(column, row)
+                self._text_annotation_controller.selectAnnotationAt(
+                    column,
+                    row,
+                    max(endpoint_tolerance, line_tolerance),
+                )
+            else:
+                self._text_annotation_controller.clearSelection()
             return
         context = self._measurement_context(endpoint_tolerance, line_tolerance)
         if context is None:
@@ -1122,6 +1146,9 @@ class Image2DViewportController(ViewportController):
 
     @Slot()
     def cancelMeasurement(self) -> None:
+        if self._annotation_drag_active:
+            self._annotation_drag_active = False
+            self._text_annotation_controller.cancelDraft()
         self._measure_controller.cancel_transaction()
         if self._mtf_controller is not None:
             self._mtf_controller.roiController.cancel_transaction()
