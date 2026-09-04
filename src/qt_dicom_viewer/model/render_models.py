@@ -13,7 +13,12 @@ from .dicom_core import (
     MprViewGrids,
     DicomVolume,
 )
-from .dicom_models import ViewportType, MprPlane, TwoDViewType
+from .dicom_models import (
+    MprPlane,
+    MprProjectionMode,
+    TwoDViewType,
+    ViewportType,
+)
 from .dicom_types import FrameDisplayMeta, WindowLevel
 
 
@@ -71,6 +76,8 @@ class MprRenderRequest(_RenderRequestBase):
     view_roll_radians: float = 0.0
     mpr_grid: MprGridSpec | None = None
     mpr_grid_anchor: MprGridAnchor | None = None
+    projection_mode: MprProjectionMode | None = None
+    slab_thickness_mm: float = 0.0
 
     @property
     def view_type(self) -> ViewportType:

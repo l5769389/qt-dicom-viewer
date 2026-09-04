@@ -17,6 +17,7 @@ from qt_dicom_viewer.model import (
     Mpr3DRotationChange,
     Mpr3DRotationContext,
     MprPlane,
+    MprProjectionSettings,
     MprRenderRequest,
     MprRenderResult,
     OperationStartContext,
@@ -28,6 +29,7 @@ from qt_dicom_viewer.model import (
     ViewportConfig, MprFrame, MprState,
     CrosshairTargetKind,
 )
+from qt_dicom_viewer.core.mpr_rotation import resolve_sampling_basis
 from qt_dicom_viewer.model.ui_models import CrosshairColor, CrosshairStyle
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from .image_2d_viewport_controller import (
@@ -50,12 +52,19 @@ _CROSSHAIR_STYLES = {
     MprPlane.SAGITTAL: CrosshairColor("red", "green"),
 }
 
+_MPR_PLANE_COLORS = {
+    MprPlane.AXIAL: "red",
+    MprPlane.CORONAL: "green",
+    MprPlane.SAGITTAL: "blue",
+}
+
 
 class MprViewportController(Image2DViewportController):
     crosshairCenterChangeRequested = Signal(object)
     crosshairRotationRequested = Signal(object, float)
     mpr3DRotationRequested = Signal(object, float)
     renderInvalidated = Signal(str)
+    mprSlabGuidesChanged = Signal()
 
     def __init__(
             self,
@@ -78,6 +87,9 @@ class MprViewportController(Image2DViewportController):
         self._crosshair_style = CrosshairStyle(
             _CROSSHAIR_STYLES[viewport_config.viewport_type]
         )
+        self._tool_controller.mprProjectionChanged.connect(
+            self.mprSlabGuidesChanged.emit
+        )
 
     def build_mpr_render_request(
             self,
@@ -94,6 +106,12 @@ class MprViewportController(Image2DViewportController):
                 self.viewport_config.viewport_type
             )
         if isinstance(self.viewport_config.viewport_type, MprPlane):
+            projection_mode, slab_thickness_mm = (
+                self._tool_controller.mpr_projection_settings
+                .effective_projection_for_plane(
+                    self.viewport_config.viewport_type
+                )
+            )
             return MprRenderRequest(
                 request_id=str(uuid.uuid4()),
                 viewport_id=self.viewport_config.viewport_id,
@@ -123,6 +141,8 @@ class MprViewportController(Image2DViewportController):
                     )
                     else None
                 ),
+                projection_mode=projection_mode,
+                slab_thickness_mm=float(slab_thickness_mm),
             )
         raise TypeError("MprViewportController requires MprPlane")
 
@@ -151,15 +171,29 @@ class MprViewportController(Image2DViewportController):
         self._crosshair_image_position = None
 
         if geometry is not None:
-            column, row = geometry.mpr_point_to_image_point(
-                (0.0, 0.0, 0.0)
-            )
+            anchor = None
+            if (
+                self._mpr_state is not None
+                and self._mpr_state.view_anchors is not None
+            ):
+                anchor = self._mpr_state.view_anchors.for_plane(
+                    self.viewport_config.viewport_type
+                )
+            if anchor is None:
+                column, row = geometry.mpr_point_to_image_point(
+                    (0.0, 0.0, 0.0)
+                )
+            else:
+                # 渲染结果可能属于一次较早的合并请求。十字线必须继续
+                # 使用最新目标状态的 anchor，不能被旧结果拉回旧位置。
+                column, row = anchor.column, anchor.row
             self._crosshair_image_position = ImagePoint(
                 column=column,
                 row=row,
             )
 
         self.crosshairImagePositionChanged.emit()
+        self.mprSlabGuidesChanged.emit()
 
 
     def _get_crosshair_operation_context(
@@ -349,6 +383,7 @@ class MprViewportController(Image2DViewportController):
                 row=anchor.row,
             )
         self.crosshairImagePositionChanged.emit()
+        self.mprSlabGuidesChanged.emit()
 
     def _apply_crosshair_move(self, position: ImagePoint) -> None:
         geometry = self._plane_geometry
@@ -381,6 +416,13 @@ class MprViewportController(Image2DViewportController):
         return QPointF(position.column, position.row)
 
     @Property(
+        bool,
+        notify=Image2DViewportController.crosshairImagePositionChanged,
+    )
+    def hasCrosshair(self) -> bool:
+        return self._crosshair_image_position is not None
+
+    @Property(
         str,
         notify=Image2DViewportController.crosshairHoverTargetChanged,
     )
@@ -401,6 +443,71 @@ class MprViewportController(Image2DViewportController):
             -self._screen_handedness()
             * state.view_rolls.for_plane(plane)
         )
+
+    @Property("QVariantList", notify=mprSlabGuidesChanged)
+    def mprSlabGuides(self) -> list[dict]:
+        geometry = self._plane_geometry
+        state = self._mpr_state
+        settings: MprProjectionSettings = (
+            self._tool_controller.mpr_projection_settings
+        )
+        current_plane = self.viewport_config.viewport_type
+
+        if geometry is None or state is None or not settings.enabled:
+            return []
+
+        current_normal = np.asarray(
+            geometry.navigation_direction_patient,
+            dtype=np.float64,
+        )
+        center = np.asarray(state.frame.center_patient, dtype=np.float64)
+        patient_to_image = geometry.patient_to_image_index
+        guides: list[dict] = []
+
+        for slab_plane in MprPlane:
+            thickness = settings.thickness_for_plane(slab_plane)
+            if slab_plane == current_plane or thickness == 0:
+                continue
+
+            slab_normal = np.asarray(
+                resolve_sampling_basis(
+                    state,
+                    slab_plane,
+                ).navigation_direction_patient,
+                dtype=np.float64,
+            )
+            line_direction = np.cross(current_normal, slab_normal)
+            norm = float(np.linalg.norm(line_direction))
+            if norm <= 1e-12:
+                continue
+            line_direction /= norm
+
+            for side in (-1.0, 1.0):
+                anchor_patient = (
+                    center + side * thickness / 2.0 * slab_normal
+                )
+                anchor_index = patient_to_image @ np.asarray(
+                    [*anchor_patient, 1.0],
+                    dtype=np.float64,
+                )
+                direction_index = patient_to_image @ np.asarray(
+                    [*(anchor_patient + line_direction), 1.0],
+                    dtype=np.float64,
+                )
+                guides.append({
+                    "plane": slab_plane.value,
+                    "color": _MPR_PLANE_COLORS[slab_plane],
+                    "anchorColumn": float(anchor_index[2]),
+                    "anchorRow": float(anchor_index[1]),
+                    "directionColumn": float(
+                        direction_index[2] - anchor_index[2]
+                    ),
+                    "directionRow": float(
+                        direction_index[1] - anchor_index[1]
+                    ),
+                })
+
+        return guides
 
     def apply_slice_index(self, index: int) -> None:
         geometry = self._plane_geometry

@@ -123,6 +123,73 @@ def test_mpr_3d_rotation_is_hidden_outside_mpr_tabs() -> None:
     assert controller.activeInteraction == "window"
 
 
+def test_mip_tool_is_mpr_only_and_exposes_default_settings() -> None:
+    mpr = ToolController(tab_type=TabType.MPR)
+    stack = ToolController(tab_type=TabType.TWO_D)
+
+    assert any(tool["toolType"] == "mip" for tool in mpr.tools)
+    assert all(tool["toolType"] != "mip" for tool in stack.tools)
+    assert mpr.mprProjectionEnabled is False
+    assert mpr.mprProjectionMode == "mip"
+    assert mpr.mprThicknesses == {
+        "axial": 0,
+        "coronal": 0,
+        "sagittal": 0,
+    }
+
+    mpr.activateTool("mip")
+
+    assert mpr.activeTool == "mip"
+    assert mpr.activePanel == "mip"
+    assert mpr.activeInteraction == ""
+
+
+def test_mip_settings_update_clamp_and_reset() -> None:
+    controller = ToolController(tab_type=TabType.MPR)
+    changes = []
+    controller.mprProjectionChanged.connect(
+        lambda: changes.append(controller.mpr_projection_settings)
+    )
+
+    controller.setMprThickness("axial", 36.4)
+    controller.setMprThickness("coronal", -5)
+    controller.setMprThickness("sagittal", 200)
+    controller.setMprProjectionMode("mean")
+    controller.setMprProjectionEnabled(True)
+
+    assert controller.mprThicknesses == {
+        "axial": 36,
+        "coronal": 0,
+        "sagittal": 100,
+    }
+    assert controller.mprProjectionMode == "mean"
+    assert controller.mprProjectionEnabled is True
+
+    controller.resetMprProjection()
+
+    assert controller.mprProjectionEnabled is False
+    assert controller.mprProjectionMode == "mip"
+    assert controller.mprThicknesses == {
+        "axial": 0,
+        "coronal": 0,
+        "sagittal": 0,
+    }
+    assert len(changes) == 5
+
+
+def test_non_mpr_controller_rejects_mip_settings() -> None:
+    controller = ToolController(tab_type=TabType.TWO_D)
+
+    controller.activateTool("mip")
+    controller.setMprThickness("axial", 20)
+    controller.setMprProjectionMode("sum")
+    controller.setMprProjectionEnabled(True)
+
+    assert controller.activeTool == "window"
+    assert controller.mpr_projection_settings.enabled is False
+    assert controller.mprThicknesses["axial"] == 0
+
+
 def test_services_are_available_as_a_primary_panel_only_tool_in_2d() -> None:
     controller = ToolController(tab_type=TabType.TWO_D)
     assert any(tool["toolType"] == "service" and tool["iconName"] == "service"

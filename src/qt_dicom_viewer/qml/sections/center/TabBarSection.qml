@@ -25,15 +25,8 @@ Basic.TabBar {
     leftPadding: 6
 
     background: Rectangle {
-        color: Theme.panelBackgroundStrong
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 1
-            color: Theme.dividerColor
-        }
+        // 与下方留白使用同一工作区底色，避免色阶交界看起来像横向边框。
+        color: Theme.workspaceBackground
     }
 
     Repeater {
@@ -69,12 +62,12 @@ Basic.TabBar {
                     Layout.preferredHeight: 22
                     radius: 5
                     color: tabButton.checked
-                        ? Theme.primarySoft
+                        ? Theme.primaryStrong
                         : Theme.secondarySoft
                     border.color: tabButton.checked
-                        ? Theme.selectionBorder
+                        ? "transparent"
                         : "transparent"
-                    border.width: 1
+                    border.width: 0
 
                     Text {
                         anchors.centerIn: parent
@@ -85,7 +78,7 @@ Basic.TabBar {
                         font.weight: tabButton.checked
                             ? Font.DemiBold : Font.Normal
                         color: tabButton.checked
-                            ? Theme.primaryColor
+                            ? Theme.textOnPrimary
                             : Theme.textMuted
                     }
                 }
@@ -143,21 +136,16 @@ Basic.TabBar {
             }
 
             background: Rectangle {
-                radius: 5
+                radius: 6
                 color: tabButton.checked
-                    ? Theme.elevatedBackground
+                    ? Theme.selectionBackground
                     : tabButton.hovered
                         ? Theme.controlHover
                         : "transparent"
-
-                Rectangle {
-                    visible: tabButton.checked
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 2
-                    color: Theme.activeIndicator
-                }
+                border.color: tabButton.checked
+                    ? Theme.controlHoverBorder
+                    : "transparent"
+                border.width: tabButton.checked ? 1 : 0
             }
         }
     }

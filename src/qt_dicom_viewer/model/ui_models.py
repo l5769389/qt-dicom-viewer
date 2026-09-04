@@ -2,7 +2,12 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from .dicom_models import TabType, ViewportType
+from .dicom_models import (
+    MprPlane,
+    MprProjectionMode,
+    TabType,
+    ViewportType,
+)
 from .dicom_types import PixelSpacing, WindowLevel
 
 
@@ -198,3 +203,52 @@ class CrosshairStyle:
     color: CrosshairColor
     centerGap: int = 14
     lineWidth: int= 1
+
+
+@dataclass(frozen=True, slots=True)
+class MprProjectionSettings:
+    enabled: bool = False
+    mode: MprProjectionMode = MprProjectionMode.MIP
+    axial_thickness_mm: int = 0
+    coronal_thickness_mm: int = 0
+    sagittal_thickness_mm: int = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.enabled, bool):
+            raise ValueError("MPR projection enabled must be a boolean")
+        if not isinstance(self.mode, MprProjectionMode):
+            raise ValueError("Invalid MPR projection mode")
+        for thickness in (
+            self.axial_thickness_mm,
+            self.coronal_thickness_mm,
+            self.sagittal_thickness_mm,
+        ):
+            if (
+                isinstance(thickness, bool)
+                or not isinstance(thickness, int)
+                or not 0 <= thickness <= 100
+            ):
+                raise ValueError(
+                    "MPR projection thickness must be an integer "
+                    "between 0 and 100 mm"
+                )
+
+    def thickness_for_plane(self, plane: MprPlane) -> int:
+        match plane:
+            case MprPlane.AXIAL:
+                return self.axial_thickness_mm
+            case MprPlane.CORONAL:
+                return self.coronal_thickness_mm
+            case MprPlane.SAGITTAL:
+                return self.sagittal_thickness_mm
+            case _:
+                raise ValueError(f"Unsupported MPR plane: {plane}")
+
+    def effective_projection_for_plane(
+        self,
+        plane: MprPlane,
+    ) -> tuple[MprProjectionMode | None, int]:
+        thickness = self.thickness_for_plane(plane)
+        if not self.enabled or thickness == 0:
+            return None, 0
+        return self.mode, thickness

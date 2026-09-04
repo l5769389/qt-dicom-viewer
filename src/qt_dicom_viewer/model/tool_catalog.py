@@ -66,6 +66,14 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         reset_label="重置旋转",
     ),
     ToolDefinition(
+        tool_type=ToolType.MIP,
+        label="MIP",
+        icon_name="mip",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.MPR,)),
+        reset_label="重置 MIP",
+    ),
+    ToolDefinition(
         tool_type=ToolType.MPR_ROTATE_3D,
         label="3D 旋转",
         icon_name="rotate-3d",

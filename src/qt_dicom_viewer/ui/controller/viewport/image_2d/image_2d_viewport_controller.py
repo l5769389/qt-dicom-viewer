@@ -323,6 +323,7 @@ class Image2DViewportController(ViewportController):
             image_valid=image_valid,
             column=column,
             row=row,
+            include_outside_image=True,
         )
         self._active_drag_operation = None
         self._active_drag_start_position = None
@@ -431,9 +432,7 @@ class Image2DViewportController(ViewportController):
             image_valid=image_valid,
             column=column,
             row=row,
-            include_outside_image=(
-                isinstance(operation, MeasurementController)
-            ),
+            include_outside_image=True,
         )
 
         event = DragUpdateEvent(
@@ -475,9 +474,7 @@ class Image2DViewportController(ViewportController):
             image_valid=image_valid,
             column=column,
             row=row,
-            include_outside_image=(
-                isinstance(operation, MeasurementController)
-            ),
+            include_outside_image=True,
         )
 
         result = operation.end(position)
@@ -508,6 +505,7 @@ class Image2DViewportController(ViewportController):
             image_valid=image_valid,
             column=column,
             row=row,
+            include_outside_image=True,
         )
         self._handle_specific_pointer_hover(
             PointerHoverContext(
@@ -1011,6 +1009,10 @@ class Image2DViewportController(ViewportController):
     @Property(QPointF, notify=crosshairImagePositionChanged)
     def crosshairImagePosition(self) -> QPointF:
         return QPointF(-1.0, -1.0)
+
+    @Property(bool, notify=crosshairImagePositionChanged)
+    def hasCrosshair(self) -> bool:
+        return False
 
     @Property(str, notify=crosshairHoverTargetChanged)
     def crosshairHoverTarget(self) -> str:

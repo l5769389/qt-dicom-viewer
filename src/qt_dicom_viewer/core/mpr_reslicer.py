@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from qt_dicom_viewer.model import MprPlane
+from qt_dicom_viewer.model import MprPlane, MprProjectionMode
 from qt_dicom_viewer.model.dicom_core import (
     DicomVolume,
     MprFrame,
@@ -39,6 +39,8 @@ class MprReslicer:
         view_roll_radians: float = 0.0,
         grid_spec: MprGridSpec | None = None,
         grid_anchor: MprGridAnchor | None = None,
+        projection_mode: MprProjectionMode | None = None,
+        slab_thickness_mm: float = 0.0,
     ) -> MprSlice:
         """从任意朝向的源 Volume 中重采样一个 MPR 平面。
 
@@ -221,11 +223,27 @@ class MprReslicer:
                 navigation_direction_mpr
             ),
         )
-        # 生成整个输出采样网格
-        modality_pixels = self._sample_plane(
-            volume=volume,
-            geometry=plane_geometry,
-        )
+        if (
+            not np.isfinite(slab_thickness_mm)
+            or not 0 <= slab_thickness_mm <= 100
+        ):
+            raise MprResliceError(
+                "Slab thickness must be between 0 and 100 mm"
+            )
+
+        # 关闭投影或厚度为零时仍走原有单平面路径，保证结果与旧版本一致。
+        if projection_mode is None or slab_thickness_mm == 0:
+            modality_pixels = self._sample_plane(
+                volume=volume,
+                geometry=plane_geometry,
+            )
+        else:
+            modality_pixels = self._sample_slab(
+                volume=volume,
+                geometry=plane_geometry,
+                mode=projection_mode,
+                thickness_mm=slab_thickness_mm,
+            )
 
         return MprSlice(
             modality_pixels=modality_pixels,
@@ -317,6 +335,7 @@ class MprReslicer:
         self,
         volume: DicomVolume,
         geometry: MprImageGeometry,
+        navigation_offset_mm: float = 0.0,
     ) -> np.ndarray:
         """把 MPR 输出网格映射到源体素坐标并完成采样。"""
 
@@ -326,7 +345,11 @@ class MprReslicer:
         image_to_voxel = geometry.image_index_to_voxel(
             volume.geometry
         )
-        voxel_origin = image_to_voxel[:3, 3]
+        voxel_origin = (
+            image_to_voxel[:3, 3]
+            + image_to_voxel[:3, 0]
+            * (navigation_offset_mm / geometry.navigation_spacing)
+        )
         voxel_row_step = image_to_voxel[:3, 1]
         voxel_column_step = image_to_voxel[:3, 2]
 
@@ -362,6 +385,77 @@ class MprReslicer:
             row_coordinates,
             column_coordinates,
         )
+
+    def _sample_slab(
+        self,
+        volume: DicomVolume,
+        geometry: MprImageGeometry,
+        mode: MprProjectionMode,
+        thickness_mm: float,
+    ) -> np.ndarray:
+        """沿平面法线对称采样，并以常量内存完成厚层投影。"""
+
+        half_thickness = thickness_mm / 2.0
+        half_interval_count = max(
+            1,
+            int(np.ceil(half_thickness / geometry.navigation_spacing)),
+        )
+        offsets = np.linspace(
+            -half_thickness,
+            half_thickness,
+            2 * half_interval_count + 1,
+            dtype=np.float64,
+        )
+
+        shape = (geometry.rows, geometry.columns)
+        valid_count = np.zeros(shape, dtype=np.int32)
+
+        if mode == MprProjectionMode.MIN_IP:
+            aggregate = np.full(shape, np.inf, dtype=np.float32)
+        elif mode == MprProjectionMode.MIP:
+            aggregate = np.full(shape, -np.inf, dtype=np.float32)
+        elif mode in (MprProjectionMode.MEAN, MprProjectionMode.SUM):
+            # 累加使用 float64，降低厚层 Sum/Mean 的累计舍入误差。
+            aggregate = np.zeros(shape, dtype=np.float64)
+        else:
+            raise MprResliceError(
+                f"Unsupported MPR projection mode: {mode}"
+            )
+
+        for offset in offsets:
+            sampled = self._sample_plane(
+                volume,
+                geometry,
+                navigation_offset_mm=float(offset),
+            )
+            valid = np.isfinite(sampled)
+            valid_count[valid] += 1
+
+            if mode == MprProjectionMode.MIN_IP:
+                aggregate[valid] = np.minimum(
+                    aggregate[valid],
+                    sampled[valid],
+                )
+            elif mode == MprProjectionMode.MIP:
+                aggregate[valid] = np.maximum(
+                    aggregate[valid],
+                    sampled[valid],
+                )
+            else:
+                aggregate[valid] += sampled[valid]
+
+        has_value = valid_count > 0
+        if mode == MprProjectionMode.MEAN:
+            np.divide(
+                aggregate,
+                valid_count,
+                out=aggregate,
+                where=has_value,
+            )
+
+        result = np.asarray(aggregate, dtype=np.float32)
+        result[~has_value] = np.nan
+        return np.ascontiguousarray(result)
 
     @staticmethod
     def _trilinear_sample(
