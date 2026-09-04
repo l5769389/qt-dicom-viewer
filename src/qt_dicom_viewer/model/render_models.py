@@ -11,9 +11,25 @@ from .dicom_core import (
     MprGridSpec,
     MprImageGeometry,
     MprViewGrids,
+    DicomVolume,
 )
 from .dicom_models import ViewportType, MprPlane, TwoDViewType
 from .dicom_types import FrameDisplayMeta, WindowLevel
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class VolumeLoadRequest:
+    request_id: str
+    viewport_id: str
+    series_uid: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class VolumeLoadResult:
+    response_id: str
+    viewport_id: str
+    series_uid: str
+    volume: DicomVolume
 
 # 为什么基础类使用 kw_only=True
 # 这样所有字段都必须显式按名称传递：
@@ -64,6 +80,7 @@ class MprRenderRequest(_RenderRequestBase):
 RenderRequest: TypeAlias = (
     StackRenderRequest
     | MprRenderRequest
+    | VolumeLoadRequest
 )
 
 
@@ -97,6 +114,7 @@ class StackRenderResult(_RenderResultBase):
 RenderResult: TypeAlias = (
     StackRenderResult
     | MprRenderResult
+    | VolumeLoadResult
 )
 
 

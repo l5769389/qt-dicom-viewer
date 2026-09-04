@@ -48,10 +48,26 @@ Rectangle {
                     'window': windowLevelComponent,
                     'measure': measureComponent,
                     "annotate": annotateComponent,
-                    "service": serviceComponent
+                    "service": serviceComponent,
+                    "volume-direction": volumeDirectionComponent,
+                    "volume-preset": volumePresetComponent
                 }
                 return map[detailPanel.activePanel] ?? null
             }
+        }
+    }
+
+    Component {
+        id: volumeDirectionComponent
+        Panels.VolumeDirectionPanel {
+            viewportController: detailPanel.viewportController
+        }
+    }
+
+    Component {
+        id: volumePresetComponent
+        Panels.VolumePresetPanel {
+            viewportController: detailPanel.viewportController
         }
     }
 

@@ -41,6 +41,12 @@ def pyinstaller_command(root: Path, *, console: bool = False) -> list[str]:
         "--hidden-import", "PySide6.QtQuick",
         "--hidden-import", "PySide6.QtQuickControls2",
         "--hidden-import", "PySide6.QtSvg",
+        # Python VTK uses factories and a dynamically selected Qt binding.
+        "--hidden-import", "vtkmodules.qt.QVTKRenderWindowInteractor",
+        "--hidden-import", "vtkmodules.vtkRenderingOpenGL2",
+        "--hidden-import", "vtkmodules.vtkRenderingVolumeOpenGL2",
+        "--hidden-import", "vtkmodules.vtkRenderingFreeType",
+        "--hidden-import", "vtkmodules.vtkInteractionStyle",
         # pydicom 动态解码模块和数据文件由其官方打包钩子收集。
         str(entry),
     ]

@@ -20,7 +20,11 @@ class MprPlane(StrEnum):
     CORONAL = "coronal"
 
 
-ViewportType: TypeAlias = MprPlane | TwoDViewType
+class VolumeViewType(StrEnum):
+    VOLUME = "volume"
+
+
+ViewportType: TypeAlias = MprPlane | TwoDViewType | VolumeViewType
 
 
 class ToolType(StrEnum):
@@ -32,5 +36,8 @@ class ToolType(StrEnum):
     ANNOTATE = "annotate"
     ROTATE = "rotate"
     MPR_ROTATE_3D = "mpr-rotate-3d"
+    VOLUME_ROTATE = "volume-rotate"
+    VOLUME_DIRECTION = "volume-direction"
+    VOLUME_PRESET = "volume-preset"
     SERVICE = "service"
     RESET = "reset"

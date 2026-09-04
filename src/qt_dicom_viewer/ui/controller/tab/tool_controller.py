@@ -41,6 +41,10 @@ class ToolController(QObject):
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
         self._active_service = ""
+        if tab_type == TabType.THREE_D:
+            self._active_tool = ToolType.VOLUME_ROTATE
+            self._active_panel = None
+            self._active_interaction = InteractionType.VOLUME_ROTATE
 
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
@@ -99,11 +103,7 @@ class ToolController(QObject):
         if definition is None:
             logger.warning("Missing tool definition: %s", tool_type.value)
             return
-        if (
-            self._tab_type is not None
-            and definition.supported_tab_types is not None
-            and self._tab_type not in definition.supported_tab_types
-        ):
+        if not tool_available(tool_type, self._tab_type):
             logger.warning(
                 "Tool %s is not available for tab type %s",
                 tool_type.value,
@@ -120,7 +120,9 @@ class ToolController(QObject):
             case ToolBehavior.INTERACTION_PANEL:
                 self._set_active_tool(definition.tool_type)
                 self._set_active_interaction(definition.default_interaction)
-                self._set_active_panel(definition.tool_type)
+                # 3D windowing is drag-only; do not open the 2D preset panel.
+                self._set_active_panel(None if self._tab_type == TabType.THREE_D
+                                       and tool_type == ToolType.WINDOW else definition.tool_type)
 
             case ToolBehavior.PANEL:
                 self._set_active_tool(definition.tool_type)
@@ -139,6 +141,10 @@ class ToolController(QObject):
             logger.warning("Unknown interaction type: %s", interaction_value)
             return
 
+        if self._tab_type == TabType.THREE_D and interaction not in (
+            InteractionType.PAN, InteractionType.ZOOM, InteractionType.VOLUME_ROTATE, InteractionType.WINDOW,
+        ):
+            return
         self._set_active_interaction(interaction)
 
     @Slot(str)
@@ -249,9 +255,13 @@ def build_tool_items(
             "behavior": definition.behavior.value,
         }
         for definition in TOOL_CATALOG
-        if (
-            definition.supported_tab_types is None
-            or tab_type is None
-            or tab_type in definition.supported_tab_types
-        )
+        if tool_available(definition.tool_type, tab_type)
     ]
+
+
+def tool_available(tool: ToolType, tab_type: TabType | None) -> bool:
+    if tab_type == TabType.THREE_D:
+        return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
+                        ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)
+    supported = TOOL_DEFINITIONS[tool].supported_tab_types
+    return tab_type is None or supported is None or tab_type in supported

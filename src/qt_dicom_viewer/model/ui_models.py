@@ -169,6 +169,7 @@ class InteractionType(StrEnum):
     MEASURE_RECT = "measure:rect"
     MEASURE_ELLIPSE = "measure:ellipse"
     MPR_ROTATE_3D = "mpr:rotate3d"
+    VOLUME_ROTATE = "volume:rotate"
 
 @dataclass(frozen=True, slots=True)
 class WindowPreset:

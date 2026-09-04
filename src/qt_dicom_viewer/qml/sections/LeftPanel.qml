@@ -30,7 +30,7 @@ Rectangle {
         ListElement {
             label: "3D"
             tabType: "3d"
-            supported: false
+            supported: true
         }
         ListElement {
             label: "4D"

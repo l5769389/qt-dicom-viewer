@@ -24,6 +24,7 @@ Rectangle {
 
     Basic.Button {
         id: resetButton
+        objectName: "activeToolReset"
 
         anchors.fill: parent
         anchors.margins: 10

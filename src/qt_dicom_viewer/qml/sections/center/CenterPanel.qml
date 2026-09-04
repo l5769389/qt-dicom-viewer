@@ -34,20 +34,37 @@ Rectangle {
             workspaceController: centerPanel.workspaceController
         }
 
-        ViewportSection.ViewportLayout {
+        Loader {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            viewportController: centerPanel.viewportController
+            active: centerPanel.hasTabs
+            sourceComponent: centerPanel.workspaceController.activeTabType === "3d"
+                ? volumeComponent : imageComponent
+        }
+    }
+
+    Component {
+        id: imageComponent
+        ViewportSection.ViewportLayout {
+            viewportController: centerPanel.workspaceController.activeTabType === "3d"
+                ? null : centerPanel.viewportController
             hasTabs: centerPanel.hasTabs
             tabType: centerPanel.workspaceController.activeTabType
-            currentTabAllViewports: centerPanel.currentTabAllViewports
+            currentTabAllViewports: centerPanel.workspaceController.activeTabType === "3d"
+                ? [] : centerPanel.currentTabAllViewports
             onViewportActivated: viewportId => {
                 const activeTab = centerPanel.workspaceController.activeTab
-                if (activeTab){
+                if (activeTab) {
                     activeTab.activateViewport(viewportId)
                 }
-
             }
+        }
+    }
+
+    Component {
+        id: volumeComponent
+        ViewportSection.VolumeViewport {
+            viewportController: centerPanel.viewportController
         }
     }
 

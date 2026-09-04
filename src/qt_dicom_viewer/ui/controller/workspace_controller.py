@@ -13,6 +13,7 @@ from qt_dicom_viewer.ui.controller.tab.tab_controller import TabController
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
+from qt_dicom_viewer.model.render_models import VolumeLoadResult
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class WorkspaceController(QObject):
     def closeTab(self, tab_id: str):
         if tab_id in self._tab_dict:
             tab = self._tab_dict[tab_id]
+            tab.dispose()
             tab.deleteLater()
             del self._tab_dict[tab_id]
         if tab_id == self._active_tab_id:
@@ -208,10 +210,14 @@ class WorkspaceController(QObject):
             )
             return
 
-        if result.image is not None:
+        if not isinstance(result, VolumeLoadResult) and result.image is not None:
             self._image_provider.set_array(result.viewport_id, result.image)
 
         tab.handleRenderResult(result)
+
+    def shutdown(self) -> None:
+        for tab in self._tab_dict.values():
+            tab.dispose()
 
     @Slot(object)
     def handleRenderFailure(self, failure: RenderFailure) -> None:

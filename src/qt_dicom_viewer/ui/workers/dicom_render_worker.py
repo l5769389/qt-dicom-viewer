@@ -20,6 +20,8 @@ from qt_dicom_viewer.model import (
 )
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.model.render_models import MprRenderResult, StackRenderResult
+from qt_dicom_viewer.model.render_models import VolumeLoadRequest, VolumeLoadResult
+from qt_dicom_viewer.core.volume_view import validate_volume_series
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,16 @@ class DicomRenderWorker(QObject):
                 self._handle_stack_request(request)
             elif isinstance(request, MprRenderRequest):
                 self._handle_plane_request(request)
+            elif isinstance(request, VolumeLoadRequest):
+                series = self.series_catalog.get_series(request.series_uid)
+                if series is None:
+                    raise LookupError("找不到该序列")
+                validate_volume_series(series)
+                volume = self._volume_manager.get_or_build(series)
+                self.render_finished.emit(VolumeLoadResult(
+                    response_id=request.request_id, viewport_id=request.viewport_id,
+                    series_uid=request.series_uid, volume=volume,
+                ))
             else:
                 raise ValueError(
                     "Unsupported render request: "

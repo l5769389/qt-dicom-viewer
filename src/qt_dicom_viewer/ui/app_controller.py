@@ -55,6 +55,7 @@ class AppController(QObject):
 
     @Slot()
     def shutdown(self) -> None:
+        self._workspace_controller.shutdown()
         self.render_service.shutdown()
 
     @Property(QObject, constant=True)

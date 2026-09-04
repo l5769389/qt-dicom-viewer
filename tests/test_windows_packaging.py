@@ -33,6 +33,11 @@ def test_onefile_build_keeps_package_resource_layout() -> None:
     )
     assert command[-1] == str(PROJECT_ROOT / "scripts/windows_entry.py")
     assert {"PySide6.QtQuick", "PySide6.QtQuickControls2", "PySide6.QtSvg"} <= set(command)
+    assert {
+        "vtkmodules.qt.QVTKRenderWindowInteractor", "vtkmodules.vtkRenderingOpenGL2",
+        "vtkmodules.vtkRenderingVolumeOpenGL2", "vtkmodules.vtkRenderingFreeType",
+        "vtkmodules.vtkInteractionStyle",
+    } <= set(command)
 
 
 def test_console_build_uses_separate_executable() -> None:

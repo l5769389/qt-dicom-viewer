@@ -193,6 +193,7 @@ def test_global_reset_remains_available_from_services() -> None:
 @pytest.mark.parametrize("tab_type", [TabType.MPR, TabType.THREE_D, TabType.FOUR_D, TabType.TAG])
 def test_services_are_hidden_and_cannot_be_selected_outside_2d(tab_type) -> None:
     controller = ToolController(tab_type=tab_type)
+    initial = (controller.activeTool, controller.activePanel, controller.activeInteraction)
     assert all(tool["toolType"] != "service" for tool in controller.tools)
     events = []
     controller.activeToolChanged.connect(lambda: events.append("tool"))
@@ -206,7 +207,6 @@ def test_services_are_hidden_and_cannot_be_selected_outside_2d(tab_type) -> None
     controller.selectService("service:mtf")
     controller.selectService("service:qa")
 
-    assert controller.activeTool == controller.activePanel == "window"
-    assert controller.activeInteraction == "window"
+    assert (controller.activeTool, controller.activePanel, controller.activeInteraction) == initial
     assert controller.activeService == ""
     assert events == []

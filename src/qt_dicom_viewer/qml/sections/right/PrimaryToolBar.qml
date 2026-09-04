@@ -9,6 +9,9 @@ Rectangle {
     id: toolBar
 
     required property var toolController
+    property var viewportController: null
+    readonly property var volumeController: viewportController && viewportController.viewportType === "volume"
+        ? viewportController : null
 
     readonly property var tools: toolBar.toolController
         ? toolBar.toolController.tools
@@ -69,6 +72,8 @@ Rectangle {
                 readonly property bool toolActive: toolBar.toolController ? primaryButton.modelData.toolType === toolBar.toolController.activeTool : false
                 readonly property bool resetAction:
                     primaryButton.modelData.toolType === "reset"
+                readonly property bool directionAction:
+                    primaryButton.modelData.toolType === "volume-direction"
 
                 width: toolFlow.buttonWidth
                 height: toolFlow.buttonHeight
@@ -84,10 +89,13 @@ Rectangle {
 
                 Basic.ToolTip.visible: primaryButton.hovered
                 Basic.ToolTip.delay: 400
-                Basic.ToolTip.text: primaryButton.modelData.label
+                Basic.ToolTip.text: primaryButton.modelData.label + (primaryButton.directionAction
+                    && toolBar.volumeController ? " · " + toolBar.volumeController.currentFace : "")
+                Accessible.name: primaryButton.modelData.label
 
                 contentItem: Item {
                     Components.AppIcon {
+                        visible: !primaryButton.directionAction
                         anchors.centerIn: parent
                         iconName: primaryButton.modelData.iconName
                         iconSize: 22
@@ -98,6 +106,22 @@ Rectangle {
                             : primaryButton.hovered
                                 ? Theme.iconHover
                                 : Theme.iconDefault
+                    }
+                    Rectangle {
+                        visible: primaryButton.directionAction
+                        anchors.centerIn: parent
+                        width: 26
+                        height: 26
+                        radius: 4
+                        color: toolBar.volumeController ? toolBar.volumeController.currentFaceColor : Theme.iconDefault
+                        Text {
+                            objectName: "currentVolumeFace"
+                            anchors.centerIn: parent
+                            text: toolBar.volumeController ? toolBar.volumeController.currentFace : "A"
+                            color: "white"
+                            font.pixelSize: 17
+                            font.bold: true
+                        }
                     }
                 }
 

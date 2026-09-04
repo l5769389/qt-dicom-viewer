@@ -37,6 +37,9 @@ from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller i
     StackViewportController,
 )
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
+from qt_dicom_viewer.ui.controller.viewport.volume_viewport_controller import VolumeViewportController
+from qt_dicom_viewer.model.dicom_models import VolumeViewType
+from qt_dicom_viewer.model.render_models import VolumeLoadResult
 
 logger = logging.getLogger(__name__)
 class TabController(QObject):
@@ -115,7 +118,7 @@ class TabController(QObject):
             self._try_start_next_mpr_render()
             return
 
-        if isinstance(viewport, StackViewportController):
+        if isinstance(viewport, (StackViewportController, VolumeViewportController)):
             viewport.reset_all_view_state()
 
     @Slot(str)
@@ -131,7 +134,7 @@ class TabController(QObject):
             return
 
         viewport = self.activeViewport
-        if isinstance(viewport, (MprViewportController, StackViewportController)):
+        if isinstance(viewport, (MprViewportController, StackViewportController, VolumeViewportController)):
             viewport.reset_tool_state(tool_type)
 
     def _reset_mpr_3d_rotation(self) -> None:
@@ -170,7 +173,7 @@ class TabController(QObject):
             and not self._active_mpr_requests
         ):
             self._request_initial_mpr()
-        if self.tab_config.tab_type == TabType.TWO_D:
+        if self.tab_config.tab_type in (TabType.TWO_D, TabType.THREE_D):
             for viewport in self._viewport_dict.values():
                 viewport.request_first_loader()
 
@@ -184,6 +187,17 @@ class TabController(QObject):
 
     def _create_viewport_dict(self) -> None:
         match self._tab_config.tab_type:
+            case TabType.THREE_D:
+                for series_meta in self._tab_config.series_metas:
+                    viewport_id = str(uuid.uuid4())
+                    self._active_viewport_id = viewport_id
+                    viewport = VolumeViewportController(
+                        ViewportConfig(viewport_id, self._tab_config.tab_id,
+                                       VolumeViewType.VOLUME, series_meta.series_uid, series_meta),
+                        self._tool_controller, parent=self,
+                    )
+                    self.connect_signal(viewport)
+                    self._viewport_dict[viewport_id] = viewport
             case TabType.TWO_D:
                 for series_meta in self._tab_config.series_metas:
                     viewport_id = str(uuid.uuid4())
@@ -352,6 +366,9 @@ class TabController(QObject):
         self.renderRequested.emit(request)
 
     def accepts_render_result(self, result: RenderResult) -> bool:
+        if isinstance(result, VolumeLoadResult):
+            viewport = self._viewport_dict.get(result.viewport_id)
+            return isinstance(viewport, VolumeViewportController) and viewport.accepts_result(result)
         if not isinstance(result, MprRenderResult):
             return result.viewport_id in self._viewport_dict
 
@@ -426,6 +443,10 @@ class TabController(QObject):
 
     @Slot(object)
     def handleRenderFailure(self, failure: RenderFailure) -> None:
+        viewport = self._viewport_dict.get(failure.viewport_id)
+        if isinstance(viewport, VolumeViewportController):
+            viewport.handleRenderFailure(failure)
+            return
         expected_viewport_id = self._active_mpr_requests.get(
             failure.request_id
         )
@@ -445,6 +466,11 @@ class TabController(QObject):
 
     def contains_viewport(self, viewport_id: str) -> bool:
         return viewport_id in self._viewport_dict
+
+    def dispose(self) -> None:
+        for viewport in self._viewport_dict.values():
+            if isinstance(viewport, VolumeViewportController):
+                viewport.dispose()
 
     @property
     def tab_config(self) -> TabConfig:

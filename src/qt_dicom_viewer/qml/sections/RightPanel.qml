@@ -29,6 +29,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: implicitHeight
             toolController: rightPanel.toolController
+            viewportController: rightPanel.viewportController
 
             onToolTriggered: toolDefinition => {
                 rightPanel.toolController?.activateTool(
@@ -39,6 +40,7 @@ Rectangle {
 
         Flickable {
             id: detailFlickable
+            objectName: "toolDetailFlickable"
 
             Layout.fillWidth: true
             Layout.fillHeight: true
