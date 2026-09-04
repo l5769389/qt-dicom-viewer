@@ -1,6 +1,7 @@
 from typing import Dict
 
-from PySide6.QtCore import QObject, Signal, QThread, Slot, Property
+from PySide6.QtCore import QObject, Signal, QThread, QTimer, Slot, Property, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFileDialog
 
 from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesRecord
@@ -9,21 +10,43 @@ from qt_dicom_viewer.ui.workers.dicom_scan_worker import (
     DicomScanWorker,
 )
 
+from qt_dicom_viewer.core.series_sidebar import build_sidebar_rows
+from qt_dicom_viewer.service.thumbnail_service import ThumbnailRequest, ThumbnailService
+
+
 class PanelController(QObject):
     statusMessageChanged = Signal()
     scanningChanged = Signal()
     seriesItemsChanged = Signal()
+    sidebarItemsChanged = Signal()
+    selectionChanged = Signal()
+    patientSearchChanged = Signal()
     # series_uid , tab_type
     tabCreateRequested = Signal(str, str)
 
     # parent=self 是 Qt 的对象所有权关系，不是业务上的“父子 Controller 调用关系”。
-    def __init__(self,parent = None, series_catalog = None) -> None:
+    def __init__(self, parent=None, series_catalog=None, *, image_provider=None) -> None:
         super().__init__(parent)
         self._scan_thread: QThread | None = None
         self._scan_worker: DicomScanWorker | None = None
         self._scanning = False
         self._scan_series_record: Dict[str, DicomSeriesRecord] = {}
+        self._removed_series_uids: set[str] = set()
         self._series_catalog:SeriesCatalog = series_catalog
+        self._active_series_uid = ""
+        self._patient_search = ""
+        self._collapsed_groups: set[str] = set()
+        self._thumbnails: dict[str, str] = {}
+        self._thumbnail_version = 0
+        self._image_provider = image_provider
+        self._closing = False
+        self._thumbnail_service = ThumbnailService(self) if image_provider is not None else None
+        self._thumbnail_timer = QTimer(self)
+        self._thumbnail_timer.setSingleShot(True)
+        self._thumbnail_timer.setInterval(150)
+        self._thumbnail_timer.timeout.connect(self._request_thumbnails)
+        if self._thumbnail_service is not None:
+            self._thumbnail_service.finished.connect(self._accept_thumbnail)
 
 
     def _start_folder_scan(self, folder: str) -> None:
@@ -83,13 +106,87 @@ class PanelController(QObject):
 
         self._scanning = scanning
         self.scanningChanged.emit()
+        if not scanning and not self._closing:
+            self._thumbnail_timer.start()
 
     def _update_series_record(self, process:DicomFolderScanSnapshot | None) -> None:
-        if process is None:
+        if process is None or self._closing:
             return
         for each_series in process.series:
+            if each_series.series_instance_uid in self._removed_series_uids:
+                continue
             self._scan_series_record[each_series.series_instance_uid] = each_series
         self.seriesItemsChanged.emit()
+        self.sidebarItemsChanged.emit()
+        if self._thumbnail_service is not None:
+            self._thumbnail_timer.start()
+
+    @Property("QVariantList", notify=sidebarItemsChanged)
+    def sidebarItems(self):
+        return build_sidebar_rows(self._scan_series_record.values(), self._patient_search,
+                                  self._collapsed_groups, self._thumbnails)
+
+    @Property(str, notify=selectionChanged)
+    def activeSeriesUid(self):
+        return self._active_series_uid
+
+    @Slot(str)
+    def selectSeries(self, series_uid):
+        if series_uid in self._scan_series_record and series_uid != self._active_series_uid:
+            self._active_series_uid = series_uid
+            self.selectionChanged.emit()
+
+    @Property(str, notify=patientSearchChanged)
+    def patientSearch(self):
+        return self._patient_search
+
+    @Slot(str)
+    def setPatientSearch(self, value):
+        if value != self._patient_search:
+            self._patient_search = value
+            self.patientSearchChanged.emit()
+            self.sidebarItemsChanged.emit()
+
+    @Slot(str)
+    def toggleGroup(self, key):
+        if key in self._collapsed_groups:
+            self._collapsed_groups.remove(key)
+        else:
+            self._collapsed_groups.add(key)
+        self.sidebarItemsChanged.emit()
+
+    @Slot()
+    def _request_thumbnails(self):
+        if self._closing or self._scanning or self._thumbnail_service is None:
+            return
+        for series in self._scan_series_record.values():
+            if series.instances:
+                instance = series.instances[len(series.instances) // 2]
+                self._thumbnail_service.submit(ThumbnailRequest(series.series_instance_uid, instance.path))
+
+    @Slot(object, object)
+    def _accept_thumbnail(self, request, image):
+        if self._closing or image.isNull():
+            return
+        series = self._scan_series_record.get(request.series_uid)
+        if not series or not series.instances or series.instances[len(series.instances) // 2].path != request.path:
+            return
+        image_id = "thumbnail-" + request.series_uid
+        self._image_provider.set_image(image_id, image)
+        self._thumbnail_version += 1
+        self._thumbnails[request.series_uid] = f"image://dicom/{image_id}/{self._thumbnail_version}"
+        self.sidebarItemsChanged.emit()
+
+    @Slot()
+    def shutdown(self):
+        self._closing = True
+        self._thumbnail_timer.stop()
+        if self._thumbnail_service is not None:
+            self._thumbnail_service.shutdown()
+        if self._scan_thread is not None:
+            self._scan_thread.requestInterruption()
+            self._scan_thread.quit()
+            self._scan_thread.wait()
 
     @Slot()
     def openFolderDialog(self) -> None:
@@ -117,6 +214,41 @@ class PanelController(QObject):
 
     @Slot(str, str)
     def openSeriesView(self, active_series_uid: str, tab_type: str):
+        if active_series_uid not in self._scan_series_record:
+            return
         series = self._series_catalog.get_series(active_series_uid)
         if series is not None:
             self.tabCreateRequested.emit(active_series_uid, tab_type)
+
+    @Slot(str, result=bool)
+    def openSeriesDirectory(self, series_uid: str) -> bool:
+        series = self._scan_series_record.get(series_uid)
+        source = series.first_file if series is not None else None
+        if source is None:
+            return False
+        directory = source.parent
+        if not directory.is_dir():
+            return False
+        return QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory)))
+
+    @Slot(str)
+    def removeSeries(self, series_uid: str) -> None:
+        series = self._scan_series_record.pop(series_uid, None)
+        if series is None:
+            return
+
+        self._removed_series_uids.add(series_uid)
+        self._thumbnail_timer.stop()
+        if self._thumbnail_service is not None:
+            self._thumbnail_service.cancel(series_uid)
+        self._thumbnails.pop(series_uid, None)
+        if self._image_provider is not None:
+            self._image_provider.remove_image("thumbnail-" + series_uid)
+
+        if self._active_series_uid == series_uid:
+            self._active_series_uid = ""
+            self.selectionChanged.emit()
+        self.seriesItemsChanged.emit()
+        self.sidebarItemsChanged.emit()
+        if self._thumbnail_service is not None and not self._scanning:
+            self._thumbnail_timer.start()

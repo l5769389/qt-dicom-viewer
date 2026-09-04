@@ -33,6 +33,9 @@ class DicomImageProvider(QQuickImageProvider):
         # 必须 copy，让 QImage 脱离 NumPy 内存生命周期
         self._images[viewport_id] = image.copy()
 
+    def set_image(self, image_id: str, image: QImage) -> None:
+        self._images[image_id] = image.copy()
+
     def remove_image(self, viewport_id: str) -> None:
         self._images.pop(viewport_id, None)
 

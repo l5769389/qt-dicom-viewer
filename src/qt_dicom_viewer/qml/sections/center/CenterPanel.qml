@@ -34,7 +34,30 @@ Rectangle {
             workspaceController: centerPanel.workspaceController
         }
 
+        Loader {
+            id: tagLoader
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: centerPanel.workspaceController.activeTabType === "tag"
+
+            function loadActiveTag() {
+                // Recreate only the presentation. State belongs to each Python tab.
+                source = ""
+                if (centerPanel.workspaceController.activeTabType === "tag") {
+                    setSource("TagPanel.qml", {
+                        "tagController": centerPanel.workspaceController.activeTab.tagController
+                    })
+                }
+            }
+            Component.onCompleted: loadActiveTag()
+            Connections {
+                target: centerPanel.workspaceController
+                function onActiveTabChanged() { tagLoader.loadActiveTag() }
+            }
+        }
+
         ViewportSection.ViewportLayout {
+            visible: centerPanel.workspaceController.activeTabType !== "tag"
             Layout.fillWidth: true
             Layout.fillHeight: true
             viewportController: centerPanel.viewportController

@@ -10,6 +10,8 @@ from qt_dicom_viewer.model import (
     TabType,
 )
 from qt_dicom_viewer.ui.controller.tab.tab_controller import TabController
+from qt_dicom_viewer.ui.controller.tab.tag_controller import TagController
+from qt_dicom_viewer.service.tag_read_service import TagReadService
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
@@ -33,11 +35,14 @@ class WorkspaceController(QObject):
         self._tab_dict:dict[str, TabController] = {}
         self._active_tab_id: str | None = None
         self._image_provider = image_provider
+        self._tag_read_service = TagReadService(self)
 
     @Slot(str)
     def closeTab(self, tab_id: str):
         if tab_id in self._tab_dict:
             tab = self._tab_dict[tab_id]
+            if tab.tagController is not None:
+                tab.tagController.dispose()
             tab.deleteLater()
             del self._tab_dict[tab_id]
         if tab_id == self._active_tab_id:
@@ -152,7 +157,13 @@ class WorkspaceController(QObject):
                 series_metas=(series_display_meta,),
             )
 
-            new_tab = TabController(tab_config ,parent= self)
+            tag_controller = None
+            if tab_type == TabType.TAG:
+                tag_controller = TagController(
+                    tab_id, self._series_catalog.get_series(series_uid),
+                    self._tag_read_service,
+                )
+            new_tab = TabController(tab_config, parent=self, tag_controller=tag_controller)
             self.connect_signal(new_tab)
             self._tab_dict[tab_id] = new_tab
 
@@ -163,8 +174,18 @@ class WorkspaceController(QObject):
 
         # QML 已能访问 active viewport 后再发起首帧请求。
         if new_tab is not None:
-            new_tab.init_render()
+            if new_tab.tagController is not None:
+                new_tab.tagController.start()
+            else:
+                new_tab.init_render()
 
+
+    @Slot()
+    def shutdown(self) -> None:
+        for tab in self._tab_dict.values():
+            if tab.tagController is not None:
+                tab.tagController.dispose()
+        self._tag_read_service.shutdown()
 
     def connect_signal(self, tab: TabController):
         tab.renderRequested.connect(

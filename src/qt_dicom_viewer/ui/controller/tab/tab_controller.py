@@ -30,6 +30,7 @@ from qt_dicom_viewer.model.dicom_core import (
 )
 from qt_dicom_viewer.model.render_models import MprRenderResult
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
+from qt_dicom_viewer.ui.controller.tab.tag_controller import TagController
 from qt_dicom_viewer.ui.controller.viewport.image_2d.mpr_viewport_controller import (
     MprViewportController,
 )
@@ -44,9 +45,12 @@ class TabController(QObject):
     activeToolChanged = Signal(object)
     activeViewportChanged = Signal()
 
-    def __init__(self, tab_config: TabConfig,parent = None):
+    def __init__(self, tab_config: TabConfig, parent=None, *, tag_controller: TagController | None = None):
         super().__init__(parent)
         self._tab_config = tab_config
+        self._tag_controller = tag_controller
+        if tag_controller is not None:
+            tag_controller.setParent(self)
         self._viewport_dict: dict[str, ViewportController] = {}
         self._create_tool_controller()
         self._series_by_uid: dict[str, SeriesDisplayMeta] = {
@@ -79,6 +83,10 @@ class TabController(QObject):
     def toolController(self) -> QObject:
         return self._tool_controller
 
+
+    @Property(QObject, constant=True)
+    def tagController(self) -> QObject | None:
+        return self._tag_controller
 
     def _create_tool_controller(self) -> None:
         self._tool_controller = ToolController(

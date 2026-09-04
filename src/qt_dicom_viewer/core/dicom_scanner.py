@@ -91,6 +91,9 @@ def _read_instance(file_path: Path) -> DicomInstanceMeta | None:
         ),
         pixel_spacing=pixel_spacing,
         slice_thickness=_as_float(getattr(dataset, "SliceThickness", None)),
+        study_date=_as_str(getattr(dataset, "StudyDate", "")),
+        study_time=_as_str(getattr(dataset, "StudyTime", "")),
+        patient_id_issuer=_as_str(getattr(dataset, "IssuerOfPatientID", "")),
     )
 
 
@@ -110,6 +113,9 @@ def _build_series_record(
         series_number=first.series_number,
         modality=first.modality,
         instances=ordered,
+        study_date=first.study_date,
+        study_time=first.study_time,
+        patient_id_issuer=first.patient_id_issuer,
     )
 
 

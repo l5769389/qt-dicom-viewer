@@ -25,6 +25,8 @@ Basic.Button {
     property color disabledTextColor: Theme.textDisabled
     property color focusBorderColor: Theme.focusBorder
     property color activeBorderColor: Theme.selectionBorder
+    property color baseBorderColor: Theme.borderDefault
+    property real baseBorderWidth: 0
 
     readonly property bool hasIcon:
         control.icon.source.toString() !== ""
@@ -64,10 +66,13 @@ Basic.Button {
             return control.normalColor
         }
 
-        border.width: control.activeFocus || control.checked ? 1 : 0
-        border.color: control.checked
-            ? control.activeBorderColor
-            : control.focusBorderColor
+        border.width: Math.max(
+            control.baseBorderWidth,
+            control.activeFocus || control.checked ? 1 : 0
+        )
+        border.color: control.checked ? control.activeBorderColor
+            : control.activeFocus ? control.focusBorderColor
+            : control.baseBorderColor
 
         Behavior on color {
             ColorAnimation { duration: 90 }

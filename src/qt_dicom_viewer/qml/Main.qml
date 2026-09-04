@@ -28,10 +28,10 @@ ApplicationWindow {
         anchors.margins: 10
         spacing: 8
 
-        Sections.LeftPanel {
-            Layout.minimumWidth: 210
-            Layout.preferredWidth: 240
-            Layout.maximumWidth: 280
+        Sections.SidebarContainer {
+            Layout.minimumWidth: implicitWidth
+            Layout.preferredWidth: implicitWidth
+            Layout.maximumWidth: implicitWidth
             Layout.fillHeight: true
             panelController: window.panelController
         }
@@ -46,14 +46,14 @@ ApplicationWindow {
         }
 
         Sections.RightPanel {
-            visible: window.hasTabs
+            visible: window.hasTabs && window.workspaceController.activeTabType !== "tag"
             Layout.minimumWidth: visible ? 220 : 0
             Layout.preferredWidth: visible ? 250 : 0
             Layout.maximumWidth: visible ? 280 : 0
             Layout.fillHeight: true
             toolController: window.toolController
             viewportController: window.viewportController
-            toolVisible: window.hasTabs
+            toolVisible: visible
             // onRotationActionTriggered: action => {
             //     if (window.viewportController) {
             //         window.viewportController.applyTransformAction(action)
