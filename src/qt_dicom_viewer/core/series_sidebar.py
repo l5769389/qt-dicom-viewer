@@ -32,7 +32,8 @@ def build_sidebar_rows(records, query: str, collapsed: set[str], thumbnails: dic
 
     def row(kind, key, label, **kwargs):
         return dict(kind=kind, key=key, label=label, subtitle="", seriesInstanceUid="",
-                    modality="", thumbnailUrl="", dicomFileCount=0, expanded=True, **kwargs)
+                    modality="", thumbnailUrl="", dicomFileCount=0,
+                    supports4D=False, expanded=True, **kwargs)
 
     for key, patient in sorted(patients.items(), key=lambda entry: (
         entry[1]["series"].patient_name.casefold(), entry[1]["series"].patient_id, entry[0])):
@@ -66,6 +67,7 @@ def build_sidebar_rows(records, query: str, collapsed: set[str], thumbnails: dic
                         f"Series {series.series_number}" if series.series_number is not None else ""])),
                     thumbnailUrl=thumbnails.get(series.series_instance_uid, ""),
                     dicomFileCount=series.dicom_file_count,
+                    supports4D=series.supports_four_d,
                 )
                 rows.append(item)
     return rows

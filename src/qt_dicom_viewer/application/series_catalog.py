@@ -23,4 +23,7 @@ class SeriesCatalog:
             modality=series.modality,
             study_description=series.study_description,
             series_description=series.series_description,
+            phase_identifiers=series.phase_identifiers,
+            supports_four_d=series.supports_four_d,
+            initial_phase_identifier=series.initial_phase_identifier,
         )

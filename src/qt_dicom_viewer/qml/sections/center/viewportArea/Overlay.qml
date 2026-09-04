@@ -80,9 +80,17 @@ Item {
             const manufacturer = overlayValue("manufacturer")
             const seriesDescription = overlayValue("seriesDescription")
             const viewType = overlayValue("viewType")
+            const viewPosition = overlayValue("viewPosition")
             const sliceLocation = overlayValue("sliceLocation")
             const sliceIndex = overlayValue("sliceIndex")
             const sliceCount = overlayValue("sliceCount")
+
+            if (viewPosition !== "") {
+                lines.push(viewPosition)
+            } else {
+                if (viewType !== "")
+                    lines.push(viewType.toUpperCase())
+            }
 
             if (manufacturer !== "")
                 lines.push(manufacturer)
@@ -90,11 +98,10 @@ Item {
             if (seriesDescription !== "")
                 lines.push(seriesDescription)
 
-            if (viewType !== "")
-                lines.push(viewType.toUpperCase())
-
-            if (sliceLocation !== "")
-                lines.push("Location: " + sliceLocation)
+            if (viewPosition === "") {
+                if (sliceLocation !== "")
+                    lines.push("Location: " + sliceLocation)
+            }
 
             if (sliceIndex !== "" && sliceCount !== "") {
                 lines.push("Slice: " + sliceIndex + " / " + sliceCount)

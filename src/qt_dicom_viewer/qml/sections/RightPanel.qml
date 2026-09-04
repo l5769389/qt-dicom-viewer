@@ -13,6 +13,7 @@ Rectangle {
     required property var toolController
     required property bool toolVisible
     required property var viewportController
+    property var tabController: null
 
     color: Theme.panelBackground
     border.color: Theme.borderDefault
@@ -30,6 +31,9 @@ Rectangle {
             Layout.preferredHeight: implicitHeight
             toolController: rightPanel.toolController
             viewportController: rightPanel.viewportController
+            playbackActive: rightPanel.tabController
+                ? rightPanel.tabController.playing
+                : false
 
             onToolTriggered: toolDefinition => {
                 rightPanel.toolController?.activateTool(
@@ -62,6 +66,7 @@ Rectangle {
                     ? rightPanel.toolController.activePanel
                     : ""
                 viewportController: rightPanel.viewportController
+                tabController: rightPanel.tabController
             }
 
             Basic.ScrollBar.vertical: Basic.ScrollBar {

@@ -49,6 +49,7 @@ class ToolController(QObject):
         self._active_interaction = InteractionType.WINDOW
         self._active_service = ""
         self._mpr_projection_settings = MprProjectionSettings()
+        self._locked_tool: ToolType | None = None
         if tab_type == TabType.THREE_D:
             self._active_tool = ToolType.VOLUME_ROTATE
             self._active_panel = None
@@ -134,6 +135,12 @@ class ToolController(QObject):
             logger.warning("Unknown tool type: %s", tool_value)
             return
 
+        if (
+            self._locked_tool is not None
+            and tool_type != self._locked_tool
+        ):
+            return
+
         definition = TOOL_DEFINITIONS.get(tool_type)
         if definition is None:
             logger.warning("Missing tool definition: %s", tool_type.value)
@@ -173,6 +180,8 @@ class ToolController(QObject):
 
     @Slot(str)
     def selectInteraction(self, interaction_value: str) -> None:
+        if self._locked_tool is not None:
+            return
         try:
             interaction = InteractionType(interaction_value)
         except ValueError:
@@ -187,6 +196,9 @@ class ToolController(QObject):
             self.selectService(interaction.value)
             return
         self._set_active_interaction(interaction)
+
+    def lock_to_tool(self, tool: ToolType | None) -> None:
+        self._locked_tool = tool
 
     @Slot(str)
     def selectService(self, action: str) -> None:
@@ -279,7 +291,7 @@ class ToolController(QObject):
         self.activeInteractionChanged.emit()
 
     def _supports_mpr_projection(self) -> bool:
-        return self._tab_type in (None, TabType.MPR)
+        return self._tab_type in (None, TabType.MPR, TabType.FOUR_D)
 
     def _set_mpr_projection_settings(
         self,

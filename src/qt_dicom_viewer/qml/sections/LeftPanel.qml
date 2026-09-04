@@ -15,7 +15,7 @@ Rectangle {
         {label: "2D", type: "2d", supported: true},
         {label: "MPR", type: "mpr", supported: true},
         {label: "3D", type: "3d", supported: true},
-        {label: "4D", type: "4d", supported: false},
+        {label: "4D", type: "4d", supported: true},
         {label: "Tag", type: "tag", supported: true}
     ]
     readonly property var contextActions: [
@@ -23,7 +23,7 @@ Rectangle {
         {code: "tile", badge: "平铺", label: "序列平铺", description: "连续显示全部二维切片", supported: false, danger: false, separatorBefore: false},
         {code: "mpr", badge: "MPR", label: "MPR", description: "多平面重建", supported: true, danger: false, separatorBefore: false},
         {code: "3d", badge: "3D", label: "3D", description: "体渲染", supported: true, danger: false, separatorBefore: false},
-        {code: "4d", badge: "4D", label: "4D", description: "呼吸相位播放", supported: false, danger: false, separatorBefore: false},
+        {code: "4d", badge: "4D", label: "4D", description: "呼吸相位播放", supported: true, danger: false, separatorBefore: false},
         {code: "tag", badge: "TAG", label: "TAG", description: "DICOM 标签", supported: true, danger: false, separatorBefore: false},
         {code: "directory", badge: "DIR", label: "在资源管理器中打开", description: "打开此序列的来源目录", supported: true, danger: false, separatorBefore: true},
         {code: "deidentify", badge: "DEID", label: "脱敏导出", description: "生成脱敏 DICOM 副本", supported: false, danger: false, separatorBefore: false},
@@ -109,11 +109,21 @@ Rectangle {
                         disabledColor: Theme.canvasBackground
                         baseBorderWidth: 1
                         baseBorderColor: Theme.borderDefault
-                        enabled: leftPanel.activeSeriesUid !== "" && modelData.supported
+                        enabled: leftPanel.activeSeriesUid !== ""
+                            && modelData.supported
+                            && (
+                                modelData.type !== "4d"
+                                || leftPanel.panelController.activeSeriesSupportsFourD
+                            )
                         onClicked: leftPanel.panelController.openSeriesView(leftPanel.activeSeriesUid, modelData.type)
                         Basic.ToolTip.visible: hovered
                         Basic.ToolTip.delay: 450
-                        Basic.ToolTip.text: modelData.supported ? "以 " + modelData.label + " 方式打开" : modelData.label + " 暂未实现"
+                        Basic.ToolTip.text: !modelData.supported
+                            ? modelData.label + " 暂未实现"
+                            : modelData.type === "4d"
+                                && !leftPanel.panelController.activeSeriesSupportsFourD
+                                ? "所选 Series 不包含可用的 4D 相位"
+                                : "以 " + modelData.label + " 方式打开"
                     }
                 }
             }
@@ -327,7 +337,7 @@ Rectangle {
         function triggerAction(action) {
             const seriesUid = contextSeriesUid
             close()
-            if (action === "2d" || action === "mpr" || action === "tag") {
+            if (["2d", "mpr", "3d", "4d", "tag"].includes(action)) {
                 leftPanel.panelController.openSeriesView(seriesUid, action)
             } else if (action === "directory") {
                 if (!leftPanel.panelController.openSeriesDirectory(seriesUid))
@@ -354,7 +364,14 @@ Rectangle {
                 delegate: Item {
                     id: menuAction
                     required property var modelData
-                    readonly property bool actionEnabled: modelData.supported
+                    readonly property bool actionEnabled:
+                        modelData.supported
+                        && (
+                            modelData.code !== "4d"
+                            || leftPanel.panelController.seriesSupportsFourD(
+                                seriesContextMenu.contextSeriesUid
+                            )
+                        )
                     objectName: "seriesContextAction-" + modelData.code
                     width: menuContent.width
                     height: modelData.separatorBefore ? 58 : 52
@@ -374,11 +391,11 @@ Rectangle {
                         anchors.bottom: parent.bottom
                         height: 52
                         radius: 6
-                        color: menuAction.modelData.supported && menuHover.hovered
+                        color: menuAction.actionEnabled && menuHover.hovered
                             ? Theme.cardBackgroundHover : Theme.cardBackground
                         border.color: menuAction.modelData.danger
                             ? Theme.dangerSurface : Theme.borderSubtle
-                        opacity: menuAction.modelData.supported ? 1 : 0.45
+                        opacity: menuAction.actionEnabled ? 1 : 0.45
 
                         RowLayout {
                             anchors.fill: parent
@@ -427,13 +444,13 @@ Rectangle {
 
                     HoverHandler {
                         id: menuHover
-                        cursorShape: menuAction.modelData.supported ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        cursorShape: menuAction.actionEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     }
                     TapHandler {
-                        enabled: menuAction.modelData.supported
+                        enabled: menuAction.actionEnabled
                         onTapped: seriesContextMenu.triggerAction(menuAction.modelData.code)
                     }
-                    Basic.ToolTip.visible: menuHover.hovered && !menuAction.modelData.supported
+                    Basic.ToolTip.visible: menuHover.hovered && !menuAction.actionEnabled
                     Basic.ToolTip.delay: 350
                     Basic.ToolTip.text: "暂未实现"
                 }

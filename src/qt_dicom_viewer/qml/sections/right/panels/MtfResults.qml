@@ -23,6 +23,7 @@ ColumnLayout {
         property bool selected: false
         Layout.fillWidth: true
         Layout.preferredWidth: 1
+        Layout.alignment: Qt.AlignVCenter
         implicitHeight: 32
         contentItem: Text {
             text: selector.label
@@ -50,9 +51,11 @@ ColumnLayout {
         Text {
             objectName: "mtfMeasurementMethodLabel"
             Layout.preferredWidth: 52
+            Layout.fillHeight: true
             text: "测量方法"
             color: Theme.textMuted
             font.pixelSize: 11
+            verticalAlignment: Text.AlignVCenter
         }
         Repeater {
             model: panel.controller ? panel.controller.measurementMethods : []
@@ -72,9 +75,11 @@ ColumnLayout {
         Text {
             objectName: "mtfAnalysisMethodLabel"
             Layout.preferredWidth: 52
+            Layout.fillHeight: true
             text: "分析方式"
             color: Theme.textMuted
             font.pixelSize: 11
+            verticalAlignment: Text.AlignVCenter
         }
         Repeater {
             model: panel.controller ? panel.controller.analysisMethods : []

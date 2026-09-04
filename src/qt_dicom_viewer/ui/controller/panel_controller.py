@@ -130,6 +130,15 @@ class PanelController(QObject):
     def activeSeriesUid(self):
         return self._active_series_uid
 
+    @Property(bool, notify=selectionChanged)
+    def activeSeriesSupportsFourD(self) -> bool:
+        return self.seriesSupportsFourD(self._active_series_uid)
+
+    @Slot(str, result=bool)
+    def seriesSupportsFourD(self, series_uid: str) -> bool:
+        series = self._scan_series_record.get(series_uid)
+        return bool(series is not None and series.supports_four_d)
+
     @Slot(str)
     def selectSeries(self, series_uid):
         if series_uid in self._scan_series_record and series_uid != self._active_series_uid:
@@ -205,6 +214,7 @@ class PanelController(QObject):
             "seriesInstanceUid": summary.series_instance_uid,
             "dicomFileCount": summary.dicom_file_count,
             "modality": summary.modality,
+            "supports4D": summary.supports_four_d,
         } for series_id,summary  in self._scan_series_record.items()]
 
     @Property(bool, notify=scanningChanged)
@@ -217,8 +227,11 @@ class PanelController(QObject):
         if active_series_uid not in self._scan_series_record:
             return
         series = self._series_catalog.get_series(active_series_uid)
-        if series is not None:
-            self.tabCreateRequested.emit(active_series_uid, tab_type)
+        if series is None:
+            return
+        if tab_type == "4d" and not series.supports_four_d:
+            return
+        self.tabCreateRequested.emit(active_series_uid, tab_type)
 
     @Slot(str, result=bool)
     def openSeriesDirectory(self, series_uid: str) -> bool:

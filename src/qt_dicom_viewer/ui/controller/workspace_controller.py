@@ -51,11 +51,6 @@ class WorkspaceController(QObject):
         self.activeTabChanged.emit()
         self.activeViewportChanged.emit()
 
-    def shutdown(self):
-        for tab in self._tab_dict.values():
-            for viewport in tab.viewports_by_id.values():
-                viewport.shutdown()
-
     @Slot(str)
     def submit(self, render_request: RenderRequest):
         pass
@@ -106,6 +101,9 @@ class WorkspaceController(QObject):
         if tab_id == self._active_tab_id:
             return
 
+        current_tab = self._tab_dict.get(self._active_tab_id)
+        if current_tab is not None:
+            current_tab.pausePlayback()
         self._active_tab_id = tab_id
         self.activeTabChanged.emit()
         self.activeViewportChanged.emit()
@@ -147,6 +145,20 @@ class WorkspaceController(QObject):
             return
         new_tab = None
         if tab_id not in self._tab_dict:
+            series = self._series_catalog.get_series(series_uid)
+            if series is None:
+                logger.warning(
+                    "Cannot create tab for unknown series: series_uid=%s",
+                    series_uid,
+                )
+                return
+            if tab_type == TabType.FOUR_D and not series.supports_four_d:
+                logger.warning(
+                    "Cannot create 4D tab for unsupported series: "
+                    "series_uid=%s",
+                    series_uid,
+                )
+                return
             series_display_meta = self._series_catalog.get_series_display_meta(series_uid)
             if series_display_meta is None:
                 logger.warning(
@@ -172,6 +184,9 @@ class WorkspaceController(QObject):
             self.connect_signal(new_tab)
             self._tab_dict[tab_id] = new_tab
 
+        current_tab = self._tab_dict.get(self._active_tab_id)
+        if current_tab is not None and current_tab is not new_tab:
+            current_tab.pausePlayback()
         self._active_tab_id = tab_id
         self.tabsChanged.emit()
         self.activeTabChanged.emit()

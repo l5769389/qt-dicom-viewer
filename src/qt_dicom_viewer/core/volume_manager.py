@@ -26,34 +26,58 @@ class VolumeBuildError(RuntimeError):
 
 class VolumeManager:
     def __init__(self) -> None:
-        self._volumes_by_series_uid: dict[str, DicomVolume] = {}
+        self._volumes_by_series_uid: dict[
+            tuple[str, int | None], DicomVolume
+        ] = {}
 
     def get_volume(
         self,
         series_uid: str,
+        phase_identifier: int | None = None,
     ) -> DicomVolume | None:
-        return self._volumes_by_series_uid.get(series_uid)
+        return self._volumes_by_series_uid.get(
+            (series_uid, phase_identifier)
+        )
 
     def get_or_build(
         self,
         series: DicomSeriesRecord,
+        phase_identifier: int | None = None,
     ) -> DicomVolume:
-        cached = self.get_volume(series.series_instance_uid)
+        cached = self.get_volume(
+            series.series_instance_uid,
+            phase_identifier,
+        )
         if cached is not None:
             logger.debug(
-                "Using cached volume: series_uid=%s",
+                "Using cached volume: series_uid=%s phase=%s",
                 series.series_instance_uid,
+                phase_identifier,
             )
             return cached
 
+        instances = series.instances
+        if phase_identifier is not None:
+            phase = series.phase_by_identifier(phase_identifier)
+            if phase is None:
+                raise VolumeBuildError(
+                    "Unknown temporal phase: "
+                    f"series_uid={series.series_instance_uid} "
+                    f"phase={phase_identifier}"
+                )
+            instances = phase.instances
+
         logger.info(
-            "Building volume: series_uid=%s instances=%d",
+            "Building volume: series_uid=%s phase=%s instances=%d",
             series.series_instance_uid,
-            len(series.instances),
+            phase_identifier,
+            len(instances),
         )
 
-        volume = self._build_volume(series)
-        self._volumes_by_series_uid[series.series_instance_uid] = volume
+        volume = self._build_volume(series, instances=instances)
+        self._volumes_by_series_uid[
+            (series.series_instance_uid, phase_identifier)
+        ] = volume
         return volume
 
     # DICOM instances
@@ -93,8 +117,10 @@ class VolumeManager:
     def _build_volume(
         self,
         series: DicomSeriesRecord,
+        *,
+        instances: tuple[DicomInstanceMeta, ...] | None = None,
     ) -> DicomVolume:
-        instances = series.instances
+        instances = series.instances if instances is None else instances
         self._validate_instances(instances=instances)
         first = instances[0]
 

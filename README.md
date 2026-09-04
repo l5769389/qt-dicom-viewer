@@ -74,6 +74,24 @@ QML 工具按钮、六面方向同步、六类模板、拖动调窗及重置、�
 完成后自动退出。可附加 PNG 路径导出 VTK 视口，例如 `scripts/smoke_3d.py /tmp/volume.png`。
 普通 pytest 验证视角数学、斜向坐标映射、输入校验、异步结果隔离和现有功能回归，
 不能替代目标系统的显卡、窗口合成及高 DPI 验证。
+## 4D MPR
+
+选择包含多个时间相位的 series 后，可通过左侧「4D」打开三视图 MPR。
+右侧「播放」工具的二级面板支持 1～15 FPS 循环播放、phase 滑块和编号选择；默认显示
+第一个 phase，播放速度为 2 FPS。
+切换 phase 会保留十字线、当前空间位置、调窗、平移、缩放、旋转和测量状态，滚轮仍用于
+当前 phase 内的 MPR 空间翻页。
+
+4D 数据按“一个经典单帧 Series 对应一个 phase、多个 Series 组成一个 4D 组”进行关联。
+当前支持常见的时间/心动/呼吸 phase 信息，包括
+`TemporalPositionIdentifier`、`TemporalPositionIndex`、`PhaseNumber`、phase 百分比、
+trigger/delay、`FrameReferenceTime`、`AcquisitionNumber` 以及采集/内容时间等字段。
+检测按明确 phase 标签优先；采集编号和时间只作为后备，并且必须在每个值下形成至少两层、
+层数与空间位置完全对应的体数据。`NumberOfTemporalPositions` / `NumberOfPhases` 存在时还会
+校验总数，以避免把普通逐层采集误判为 4D。对于缺少标准时间标签的派生数据，也支持从
+`SeriesDescription` 末尾的 `phN` / `phaseN` 提取 phase；此方式仍要求 Study、Frame of
+Reference、模态和整套空间几何一致。Enhanced Multi-frame DICOM 仍不支持；不符合条件的
+series 不会启用「4D」入口。
 
 ## 测量
 

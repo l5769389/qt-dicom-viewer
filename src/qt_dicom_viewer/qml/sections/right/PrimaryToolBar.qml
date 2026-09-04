@@ -12,6 +12,7 @@ Rectangle {
     property var viewportController: null
     readonly property var volumeController: viewportController && viewportController.viewportType === "volume"
         ? viewportController : null
+    property bool playbackActive: false
 
     readonly property var tools: toolBar.toolController
         ? toolBar.toolController.tools
@@ -77,6 +78,9 @@ Rectangle {
 
                 width: toolFlow.buttonWidth
                 height: toolFlow.buttonHeight
+                enabled: !toolBar.playbackActive
+                    || primaryButton.modelData.toolType === "play"
+                opacity: enabled ? 1 : 0.38
                 checked: primaryButton.toolActive || primaryButton.feedbackActive
 
                 onClicked: {
@@ -99,7 +103,9 @@ Rectangle {
                         anchors.centerIn: parent
                         iconName: primaryButton.modelData.iconName
                         iconSize: 22
-                        iconColor: primaryButton.resetAction
+                        iconColor: !primaryButton.enabled
+                            ? Theme.textDisabled
+                            : primaryButton.resetAction
                             ? Theme.resetActionColor
                             : primaryButton.checked
                             ? Theme.iconActive

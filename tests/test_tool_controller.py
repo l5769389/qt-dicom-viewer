@@ -190,6 +190,28 @@ def test_non_mpr_controller_rejects_mip_settings() -> None:
     assert controller.mprThicknesses["axial"] == 0
 
 
+def test_play_panel_is_available_only_in_four_d_tabs() -> None:
+    four_d_controller = ToolController(tab_type=TabType.FOUR_D)
+
+    assert any(
+        tool["toolType"] == "play" and tool["iconName"] == "cine-play"
+        for tool in four_d_controller.tools
+    )
+    four_d_controller.activateTool("play")
+    assert four_d_controller.activeTool == "play"
+    assert four_d_controller.activePanel == "play"
+    assert four_d_controller.activeInteraction == ""
+
+    for tab_type in (TabType.TWO_D, TabType.MPR, TabType.THREE_D, TabType.TAG):
+        controller = ToolController(tab_type=tab_type)
+        initial_tool = controller.activeTool
+        initial_panel = controller.activePanel
+        assert all(tool["toolType"] != "play" for tool in controller.tools)
+        controller.activateTool("play")
+        assert controller.activeTool == initial_tool
+        assert controller.activePanel == initial_panel
+
+
 def test_services_are_available_as_a_primary_panel_only_tool_in_2d() -> None:
     controller = ToolController(tab_type=TabType.TWO_D)
     assert any(tool["toolType"] == "service" and tool["iconName"] == "service"
