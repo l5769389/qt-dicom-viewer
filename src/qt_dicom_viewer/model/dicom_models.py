@@ -20,6 +20,13 @@ class MprPlane(StrEnum):
     CORONAL = "coronal"
 
 
+class MprProjectionMode(StrEnum):
+    MIN_IP = "minip"
+    MIP = "mip"
+    MEAN = "mean"
+    SUM = "sum"
+
+
 ViewportType: TypeAlias = MprPlane | TwoDViewType
 
 
@@ -31,6 +38,7 @@ class ToolType(StrEnum):
     MEASURE = "measure"
     ANNOTATE = "annotate"
     ROTATE = "rotate"
+    MIP = "mip"
     MPR_ROTATE_3D = "mpr-rotate-3d"
     SERVICE = "service"
     RESET = "reset"

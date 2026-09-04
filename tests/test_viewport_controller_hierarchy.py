@@ -12,13 +12,17 @@ from qt_dicom_viewer.model import (
     InstanceDisplayMeta,
     InteractionType,
     MprFrame,
+    MprGridAnchor,
     MprGridSpec,
     MprImageGeometry,
     Mpr3DRotationChange,
     Mpr3DRotationContext,
     MprPlane,
+    MprProjectionSettings,
     MprRenderRequest,
     MprRenderResult,
+    MprState,
+    MprViewAnchors,
     MprViewGrids,
     PixelSpacing,
     Point,
@@ -109,6 +113,42 @@ def _mpr_geometry(frame: MprFrame) -> MprImageGeometry:
         row_direction_mpr=(0.0, 1.0, 0.0),
         column_direction_mpr=(1.0, 0.0, 0.0),
         navigation_direction_mpr=(0.0, 0.0, 1.0),
+    )
+
+
+def _mpr_geometry_for_plane(
+    frame: MprFrame,
+    plane: MprPlane,
+) -> MprImageGeometry:
+    axes = {
+        MprPlane.AXIAL: (
+            (0.0, 1.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0),
+        ),
+        MprPlane.CORONAL: (
+            (0.0, 0.0, -1.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+        ),
+        MprPlane.SAGITTAL: (
+            (0.0, 0.0, -1.0),
+            (0.0, 1.0, 0.0),
+            (1.0, 0.0, 0.0),
+        ),
+    }
+    row, column, navigation = axes[plane]
+    return MprImageGeometry(
+        rows=101,
+        columns=101,
+        row_spacing=2.0,
+        column_spacing=3.0,
+        navigation_spacing=1.0,
+        frame=frame,
+        image_origin_mpr=(0.0, 0.0, 0.0),
+        row_direction_mpr=row,
+        column_direction_mpr=column,
+        navigation_direction_mpr=navigation,
     )
 
 
@@ -398,6 +438,55 @@ def test_mpr_crosshair_uses_the_viewports_geometry() -> None:
     assert centers == [(16.0, 22.0, 30.0)]
 
 
+def test_mpr_slab_guides_skip_own_view_and_use_physical_half_thickness() -> None:
+    tools = ToolController(tab_type=TabType.MPR)
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    state = MprState(frame)
+    coronal = MprViewportController(
+        _viewport_config(MprPlane.CORONAL),
+        tools,
+    )
+    axial = MprViewportController(
+        _viewport_config(MprPlane.AXIAL),
+        tools,
+    )
+
+    for controller in (coronal, axial):
+        result = _mpr_result(controller, frame)
+        controller.handleRenderResult(
+            MprRenderResult(
+                response_id=result.response_id,
+                viewport_id=result.viewport_id,
+                series_uid=result.series_uid,
+                view_type=result.view_type,
+                image=result.image,
+                modality_pixel=result.modality_pixel,
+                frame_meta=result.frame_meta,
+                mpr_frame=frame,
+                plane_geometry=_mpr_geometry_for_plane(
+                    frame,
+                    controller.viewport_config.viewport_type,
+                ),
+            )
+        )
+        controller.apply_mpr_state(state)
+
+    tools.setMprThickness("axial", 10)
+    tools.setMprProjectionEnabled(True)
+
+    assert axial.mprSlabGuides == []
+    assert len(coronal.mprSlabGuides) == 2
+    assert {guide["color"] for guide in coronal.mprSlabGuides} == {"red"}
+    assert sorted(
+        guide["anchorRow"] for guide in coronal.mprSlabGuides
+    ) == pytest.approx([-2.5, 2.5])
+    assert all(
+        abs(guide["directionColumn"]) > 0
+        and abs(guide["directionRow"]) < 1e-10
+        for guide in coronal.mprSlabGuides
+    )
+
+
 def test_axial_3d_rotation_inverts_screen_angle_for_sampling_axes() -> None:
     mpr = MprViewportController(
         _viewport_config(MprPlane.AXIAL),
@@ -446,7 +535,73 @@ def test_mpr_crosshair_hover_distinguishes_center_and_lines() -> None:
     assert hover(2.0, 0.1) == "horizontalLine"
     assert hover(0.1, 2.0) == "verticalLine"
     assert hover(2.0, 2.0) == ""
-    assert hover(0.0, 0.0, valid=False) == ""
+    # 图像矩形外仍使用连续图像坐标，十字线移出影像后依然可命中。
+    assert hover(0.0, 0.0, valid=False) == "center"
+
+
+def test_mpr_crosshair_drag_continues_outside_image_bounds() -> None:
+    mpr = MprViewportController(
+        _viewport_config(MprPlane.AXIAL),
+        ToolController(),
+    )
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    mpr.handleRenderResult(_mpr_result(mpr, frame))
+    centers = []
+    mpr.crosshairCenterChangeRequested.connect(centers.append)
+
+    mpr.beginInteraction(
+        10.0, 10.0, 1,
+        True, 0.0, 0.0,
+        0.5, 0.5,
+    )
+    mpr.updateInteraction(
+        QPointF(10.0, 10.0),
+        QPointF(-20.0, 200.0),
+        QPointF(-30.0, 190.0),
+        QPointF(-30.0, 190.0),
+        False, -5.0, 110.0,
+    )
+
+    assert centers == [(-5.0, 240.0, 30.0)]
+
+
+def test_stale_mip_render_result_does_not_rewind_crosshair_anchor() -> None:
+    tools = ToolController(tab_type=TabType.MPR)
+    tools.setMprThickness("axial", 30)
+    tools.setMprProjectionEnabled(True)
+    mpr = MprViewportController(
+        _viewport_config(MprPlane.AXIAL),
+        tools,
+    )
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    grid = MprGridSpec(101, 101, 2.0, 3.0)
+    grids = MprViewGrids(grid, grid, grid)
+    centered = MprViewAnchors.centered(grids)
+    initial_state = MprState(
+        frame,
+        view_grids=grids,
+        view_anchors=centered,
+    )
+    mpr.apply_mpr_state(initial_state)
+    mpr.handleRenderResult(_mpr_result(mpr, frame))
+    assert mpr.crosshairImagePosition == QPointF(50.0, 50.0)
+
+    latest_anchors = MprViewAnchors(
+        axial=MprGridAnchor(57.0, 46.0),
+        coronal=centered.coronal,
+        sagittal=centered.sagittal,
+    )
+    latest_state = MprState(
+        MprFrame.standard_lps((31.0, 12.0, 30.0)),
+        view_grids=grids,
+        view_anchors=latest_anchors,
+    )
+    mpr.apply_mpr_state(latest_state)
+    assert mpr.crosshairImagePosition == QPointF(57.0, 46.0)
+
+    # 模拟拖动期间较慢的旧 MIP 请求返回。
+    mpr.handleRenderResult(_mpr_result(mpr, frame, "stale-mip"))
+    assert mpr.crosshairImagePosition == QPointF(57.0, 46.0)
 
 
 def test_crosshair_interactions_take_priority_over_3d_rotation() -> None:
@@ -678,6 +833,111 @@ def test_mpr_single_view_invalidation_starts_one_request() -> None:
 
     assert len(requests) == 1
     assert requests[0].viewport_id == axial.viewport_config.viewport_id
+
+
+def test_mip_setting_changes_render_only_effective_planes_and_coalesce() -> None:
+    tab = TabController(
+        TabConfig("mpr-tab", "MPR", TabType.MPR, (_series_meta(),))
+    )
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    tab._set_target_mpr_state(MprState(frame))
+    requests = []
+    tab.renderRequested.connect(requests.append)
+
+    tab.toolController.setMprThickness("axial", 20)
+    assert requests == []
+
+    tab.toolController.setMprProjectionEnabled(True)
+    assert len(requests) == 1
+    first = requests[0]
+    assert first.plane == MprPlane.AXIAL
+    assert first.projection_mode.value == "mip"
+    assert first.slab_thickness_mm == 20.0
+
+    tab.toolController.setMprThickness("axial", 21)
+    tab.toolController.setMprThickness("axial", 22)
+    assert len(requests) == 1
+
+    viewport = tab.viewports_by_id[first.viewport_id]
+    assert isinstance(viewport, MprViewportController)
+    tab.handleRenderResult(
+        _mpr_result(viewport, frame, first.request_id)
+    )
+
+    assert len(requests) == 2
+    assert requests[1].plane == MprPlane.AXIAL
+    assert requests[1].slab_thickness_mm == 22.0
+
+
+def test_mip_mode_change_renders_each_enabled_plane() -> None:
+    tab = TabController(
+        TabConfig("mpr-tab", "MPR", TabType.MPR, (_series_meta(),))
+    )
+    tab._set_target_mpr_state(
+        MprState(MprFrame.standard_lps((10.0, 20.0, 30.0)))
+    )
+    tab.toolController.setMprThickness("axial", 10)
+    tab.toolController.setMprThickness("sagittal", 12)
+    tab.toolController.setMprProjectionEnabled(True)
+    active = list(tab._active_mpr_requests)
+    for request_id in active:
+        viewport_id = tab._active_mpr_requests[request_id]
+        tab.handleRenderFailure(
+            RenderFailure(
+                request_id=request_id,
+                viewport_id=viewport_id,
+                error=RuntimeError("done"),
+            )
+        )
+
+    requests = []
+    tab.renderRequested.connect(requests.append)
+    tab.toolController.setMprProjectionMode("mean")
+
+    assert {request.plane for request in requests} == {
+        MprPlane.AXIAL,
+        MprPlane.SAGITTAL,
+    }
+    assert all(request.projection_mode.value == "mean" for request in requests)
+
+
+def test_mip_scoped_and_global_reset_restore_defaults() -> None:
+    tab = TabController(
+        TabConfig("mpr-tab", "MPR", TabType.MPR, (_series_meta(),))
+    )
+    frame = MprFrame.standard_lps((10.0, 20.0, 30.0))
+    state = MprState(frame)
+    tab._initial_mpr_state = state
+    tab._set_target_mpr_state(state)
+    requests = []
+    tab.renderRequested.connect(requests.append)
+
+    def finish_active_requests() -> None:
+        for request_id, viewport_id in list(tab._active_mpr_requests.items()):
+            viewport = tab.viewports_by_id[viewport_id]
+            assert isinstance(viewport, MprViewportController)
+            tab.handleRenderResult(
+                _mpr_result(viewport, frame, request_id)
+            )
+
+    tab.toolController.setMprThickness("coronal", 18)
+    tab.toolController.setMprProjectionMode("sum")
+    tab.toolController.setMprProjectionEnabled(True)
+    finish_active_requests()
+    tab.toolController.activateTool("mip")
+    tab.toolController.resetActiveTool()
+
+    assert tab.toolController.mpr_projection_settings == MprProjectionSettings()
+    finish_active_requests()
+
+    tab.toolController.setMprThickness("axial", 12)
+    tab.toolController.setMprProjectionEnabled(True)
+    finish_active_requests()
+    tab.toolController.activateTool("reset")
+
+    assert tab.toolController.mprProjectionEnabled is False
+    assert tab.toolController.mprProjectionMode == "mip"
+    assert set(tab.toolController.mprThicknesses.values()) == {0}
 
 
 def test_tab_schedules_crosshair_and_3d_rotation_differently() -> None:

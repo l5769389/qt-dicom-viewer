@@ -120,11 +120,25 @@ Item {
                 : ({})
     }
 
+    MprSlabGuideLayer {
+        anchors.fill: parent
+        z: 9
+        visible: viewportRoot.isMprViewport && guides.length > 0
+        coordinateMapper: imageCanvas
+        transformState: imageCanvas.measurementTransformState
+        guides: viewportRoot.isMprViewport
+            && viewportRoot.viewportController
+            ? viewportRoot.viewportController.mprSlabGuides
+            : []
+    }
+
     CrosshairLayer {
         anchors.fill: parent
         visible:
-            imageCanvas.crosshairViewportPosition.x >= 0
-            && imageCanvas.crosshairViewportPosition.y >= 0
+            viewportRoot.viewportController
+            && viewportRoot.viewportController.hasCrosshair
+            && Number.isFinite(imageCanvas.crosshairViewportPosition.x)
+            && Number.isFinite(imageCanvas.crosshairViewportPosition.y)
 
         crosshairPosition:
             imageCanvas.crosshairViewportPosition

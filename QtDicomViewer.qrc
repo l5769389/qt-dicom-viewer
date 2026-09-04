@@ -7,6 +7,7 @@
         <file>src/qt_dicom_viewer/qml/assets/icons/service.png</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/mtf.png</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/qa.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/mip.png</file>
         <file>src/qt_dicom_viewer/qml/components/AppButton.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/LeftPanel.qml</file>
@@ -15,6 +16,7 @@
         <file>src/qt_dicom_viewer/qml/sections/center/TabBarSection.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/WorkspaceEmptyState.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ImageCanvas.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MprSlabGuideLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/InteractionLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/Overlay.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/SliceSlider.qml</file>
@@ -32,6 +34,7 @@
         <file>src/qt_dicom_viewer/qml/sections/right/components/ToolActionButton.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/AnnotatePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/MeasurePanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/MipPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/ServicePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/RotateToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/WindowLevelToolPanel.qml</file>

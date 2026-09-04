@@ -165,6 +165,8 @@ class DicomRenderWorker(QObject):
             view_roll_radians=request.view_roll_radians,
             grid_spec=grid_spec,
             grid_anchor=request.mpr_grid_anchor,
+            projection_mode=request.projection_mode,
+            slab_thickness_mm=request.slab_thickness_mm,
         )
         plane_pixels = mpr_slice.modality_pixels
         plane_geometry = mpr_slice.geometry

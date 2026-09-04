@@ -21,6 +21,7 @@ from .dicom_core import (
 )
 from .dicom_models import (
     MprPlane,
+    MprProjectionMode,
     TabType,
     ToolType,
     TwoDViewType,
@@ -108,6 +109,7 @@ from .ui_models import (
     DicomSeriesRecord,
     DisplayStyle,
     InteractionType,
+    MprProjectionSettings,
     SeriesDisplayMeta,
     TabConfig,
     ToolBehavior,
@@ -165,6 +167,8 @@ __all__ = [
     "Mpr3DRotationContext",
     "MprImageGeometry",
     "MprPlane",
+    "MprProjectionMode",
+    "MprProjectionSettings",
     "MprRenderRequest",
     "MprRenderResult",
     "MprSamplingBasis",

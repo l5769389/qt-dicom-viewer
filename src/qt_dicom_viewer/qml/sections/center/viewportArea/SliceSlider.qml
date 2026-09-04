@@ -17,14 +17,6 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.panelBackgroundSoft
-
-        Rectangle {
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            width: 1
-            color: Theme.dividerColor
-        }
     }
 
     Basic.Slider {
@@ -37,10 +29,12 @@ Item {
         anchors.rightMargin: 7
 
         orientation: Qt.Vertical
-        from: 0
-        to: root.viewportController
+        // Qt 的垂直 Slider 默认把较大值放在上方。交换范围端点，
+        // 让小索引位于顶部、大索引位于底部，同时 value 仍是实际索引。
+        from: root.viewportController
             ? Math.max(0, root.viewportController.sliceCount - 1)
             : 0
+        to: 0
         stepSize: 1
         snapMode: Basic.Slider.SnapAlways
         live: true
@@ -77,8 +71,8 @@ Item {
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: (1.0 - sliceControl.visualPosition)
+                anchors.top: parent.top
+                height: sliceControl.visualPosition
                     * parent.height
                 radius: parent.radius
                 color: Theme.primaryStrong

@@ -1,9 +1,14 @@
 import logging
+from dataclasses import replace
+from math import isfinite
 
 from PySide6.QtCore import Slot, Property, Signal, QObject
 
 from qt_dicom_viewer.model import (
     InteractionType,
+    MprPlane,
+    MprProjectionMode,
+    MprProjectionSettings,
     TabType,
     ToolBehavior,
     ToolType,
@@ -27,6 +32,7 @@ class ToolController(QObject):
     activeServiceChanged = Signal()
     commandRequested = Signal(str)
     resetRequested = Signal(str)
+    mprProjectionChanged = Signal()
 
     def __init__(
             self,
@@ -41,6 +47,7 @@ class ToolController(QObject):
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
         self._active_service = ""
+        self._mpr_projection_settings = MprProjectionSettings()
 
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
@@ -67,6 +74,27 @@ class ToolController(QObject):
     @Property(str, notify=activeServiceChanged)
     def activeService(self) -> str:
         return self._active_service
+
+    @Property(bool, notify=mprProjectionChanged)
+    def mprProjectionEnabled(self) -> bool:
+        return self._mpr_projection_settings.enabled
+
+    @Property(str, notify=mprProjectionChanged)
+    def mprProjectionMode(self) -> str:
+        return self._mpr_projection_settings.mode.value
+
+    @Property("QVariantMap", notify=mprProjectionChanged)
+    def mprThicknesses(self) -> dict:
+        settings = self._mpr_projection_settings
+        return {
+            MprPlane.AXIAL.value: settings.axial_thickness_mm,
+            MprPlane.CORONAL.value: settings.coronal_thickness_mm,
+            MprPlane.SAGITTAL.value: settings.sagittal_thickness_mm,
+        }
+
+    @property
+    def mpr_projection_settings(self) -> MprProjectionSettings:
+        return self._mpr_projection_settings
 
     @property
     def active_interaction(self) -> InteractionType:
@@ -157,6 +185,52 @@ class ToolController(QObject):
         self._active_service = action
         self.activeServiceChanged.emit()
 
+    @Slot(bool)
+    def setMprProjectionEnabled(self, enabled: bool) -> None:
+        if not self._supports_mpr_projection():
+            return
+        self._set_mpr_projection_settings(
+            replace(self._mpr_projection_settings, enabled=bool(enabled))
+        )
+
+    @Slot(str)
+    def setMprProjectionMode(self, mode_value: str) -> None:
+        if not self._supports_mpr_projection():
+            return
+        try:
+            mode = MprProjectionMode(mode_value)
+        except ValueError:
+            logger.warning("Unknown MPR projection mode: %s", mode_value)
+            return
+        self._set_mpr_projection_settings(
+            replace(self._mpr_projection_settings, mode=mode)
+        )
+
+    @Slot(str, float)
+    def setMprThickness(self, plane_value: str, thickness: float) -> None:
+        if not self._supports_mpr_projection() or not isfinite(thickness):
+            return
+        try:
+            plane = MprPlane(plane_value)
+        except ValueError:
+            logger.warning("Unknown MPR projection plane: %s", plane_value)
+            return
+
+        value = min(100, max(0, int(round(thickness))))
+        field_name = f"{plane.value}_thickness_mm"
+        self._set_mpr_projection_settings(
+            replace(
+                self._mpr_projection_settings,
+                **{field_name: value},
+            )
+        )
+
+    @Slot()
+    def resetMprProjection(self) -> None:
+        if not self._supports_mpr_projection():
+            return
+        self._set_mpr_projection_settings(MprProjectionSettings())
+
     @Slot()
     def resetActiveTool(self) -> None:
         if not self.canResetActiveTool:
@@ -183,6 +257,18 @@ class ToolController(QObject):
 
         self._active_interaction = interaction
         self.activeInteractionChanged.emit()
+
+    def _supports_mpr_projection(self) -> bool:
+        return self._tab_type in (None, TabType.MPR)
+
+    def _set_mpr_projection_settings(
+        self,
+        settings: MprProjectionSettings,
+    ) -> None:
+        if settings == self._mpr_projection_settings:
+            return
+        self._mpr_projection_settings = settings
+        self.mprProjectionChanged.emit()
 
     @Property(list, constant=True)
     def windowPresets(self) -> list[dict]:

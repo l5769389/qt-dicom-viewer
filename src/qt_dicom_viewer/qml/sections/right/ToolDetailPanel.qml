@@ -45,6 +45,7 @@ Rectangle {
             sourceComponent: {
                 const map = {
                     'rotate': rotatePanelComponent,
+                    'mip': mipPanelComponent,
                     'window': windowLevelComponent,
                     'measure': measureComponent,
                     "annotate": annotateComponent,
@@ -64,6 +65,13 @@ Rectangle {
                     detailPanel.viewportController.applyTransformAction(action)
                 }
             }
+        }
+    }
+
+    Component {
+        id: mipPanelComponent
+        Panels.MipPanel {
+            toolController: detailPanel.toolController
         }
     }
 

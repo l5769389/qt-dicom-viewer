@@ -141,6 +141,21 @@ dist/DICOMVision.exe
 图标位于 `src/qt_dicom_viewer/qml/assets/icons/`；MTF 当前采用深色底图片，服务与 QA 图片带透明通道。
 生成方式与提示词记录在该目录的 `README.md` 中。
 
+## MPR 厚层投影
+
+MPR 标签页的右侧一级工具栏提供 “MIP” 入口。二级面板可启用厚层投影，
+选择 MinIP、MIP、Mean 或 Sum，并分别设置 Axial、Coronal、Sagittal 的
+0～100 mm 厚度。厚度为 0 表示该轴保持普通单层 MPR；总开关关闭时可预先
+调整参数，但不会执行投影。
+
+厚度表示以十字线为中心的总厚度。启用某轴后，另外两个相交视图会在十字线
+两侧 `±厚度/2` 处显示同轴颜色的虚线边界。辅助线会随十字线、缩放、平移、
+旋转和镜像更新，但不参与鼠标命中。
+
+投影在原始模态像素上计算，体数据外的无效样本不参与统计；全部样本无效的
+像素仍保持为无数据。Mean 使用有效样本的算术平均，Sum 使用有效样本原值之和。
+“重置 MIP”和全部重置都会关闭投影、切回 MIP 模式并将三轴厚度归零。
+
 ## Suggested Drills
 
 1. Change text, colors, and spacing in `Main.qml`.

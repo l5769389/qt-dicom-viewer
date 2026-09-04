@@ -141,32 +141,53 @@ Item {
                     anchors.rightMargin: sliceSlider.visible ? 2 : 0
 
                     color: Theme.canvasBackground
-                    border.width: 1
-                    border.color: viewportCell.isActive
-                        ? Theme.borderStrong
-                        : Theme.borderSubtle
-
-                    Behavior on border.color {
-                        ColorAnimation { duration: 100 }
-                    }
 
                     Viewport {
                         anchors.fill: parent
-                        anchors.margins: 2
+                        anchors.margins: 1
 
                         viewportController: viewportCell.modelData
                         hasTabs: true
                     }
 
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-
+                    // Active viewport 使用两个局部对角角标，不绘制完整边框，
+                    // 因而不会在 Tab 下方形成贯穿内容区的横线。
+                    Item {
+                        anchors.fill: parent
                         visible: viewportCell.isActive
-                        height: 2
-                        color: Theme.activeIndicator
                         z: 30
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            width: 18
+                            height: 2
+                            color: Theme.activeIndicator
+                        }
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            width: 2
+                            height: 18
+                            color: Theme.activeIndicator
+                        }
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            width: 18
+                            height: 2
+                            color: Theme.activeIndicator
+                        }
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            width: 2
+                            height: 18
+                            color: Theme.activeIndicator
+                        }
                     }
 
                     TapHandler {

@@ -8,6 +8,8 @@ from qt_dicom_viewer.model import (
     MprGridSpec,
     MprGridAnchor,
     MprPlane,
+    MprProjectionMode,
+    MprProjectionSettings,
     MprSamplingBasis,
     MprState,
     MprViewRolls,
@@ -103,6 +105,31 @@ def test_mpr_sampling_basis_accepts_orthonormal_patient_directions() -> None:
         basis.row_direction_patient,
         (0.0, 1.0, 0.0),
     )
+
+
+def test_mpr_projection_settings_resolve_each_effective_plane() -> None:
+    settings = MprProjectionSettings(
+        enabled=True,
+        mode=MprProjectionMode.MEAN,
+        axial_thickness_mm=12,
+        sagittal_thickness_mm=8,
+    )
+
+    assert settings.effective_projection_for_plane(MprPlane.AXIAL) == (
+        MprProjectionMode.MEAN,
+        12,
+    )
+    assert settings.effective_projection_for_plane(MprPlane.CORONAL) == (
+        None,
+        0,
+    )
+    assert settings.thickness_for_plane(MprPlane.SAGITTAL) == 8
+
+
+@pytest.mark.parametrize("thickness", [-1, 101, 1.5, True])
+def test_mpr_projection_settings_reject_invalid_thickness(thickness) -> None:
+    with pytest.raises(ValueError, match="thickness"):
+        MprProjectionSettings(axial_thickness_mm=thickness)
 
 
 @pytest.mark.parametrize(

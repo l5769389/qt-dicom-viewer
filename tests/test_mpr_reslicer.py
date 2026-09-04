@@ -12,6 +12,7 @@ from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import (
     InstanceDisplayMeta,
     MprPlane,
+    MprProjectionMode,
     MprRenderRequest,
     RenderResult,
     WindowLevel,
@@ -264,6 +265,96 @@ def test_standard_planes_follow_lps_display_directions() -> None:
             sagittal.geometry.navigation_direction_patient,
         ),
     )
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    (
+        (MprProjectionMode.MIN_IP, 1.0),
+        (MprProjectionMode.MIP, 7.0),
+        (MprProjectionMode.MEAN, 3.6),
+        (MprProjectionMode.SUM, 18.0),
+    ),
+)
+def test_mpr_slab_projection_aggregates_symmetric_samples(
+    mode: MprProjectionMode,
+    expected: float,
+) -> None:
+    pixels = np.asarray([1.0, 5.0, 3.0, 7.0, 2.0])[:, None, None]
+    volume = _volume(pixels)
+
+    result = MprReslicer().reslice(
+        volume,
+        MprPlane.AXIAL,
+        projection_mode=mode,
+        slab_thickness_mm=4.0,
+    )
+
+    np.testing.assert_allclose(result.modality_pixels, [[expected]])
+
+
+def test_mpr_slab_ignores_samples_outside_volume() -> None:
+    pixels = np.asarray([1.0, 5.0, 3.0, 7.0, 2.0])[:, None, None]
+    volume = _volume(pixels)
+    frame = MprFrame.standard_lps((0.0, 0.0, 0.0))
+
+    result = MprReslicer().reslice(
+        volume,
+        MprPlane.AXIAL,
+        frame=frame,
+        projection_mode=MprProjectionMode.MEAN,
+        slab_thickness_mm=4.0,
+    )
+
+    np.testing.assert_allclose(result.modality_pixels, [[3.0]])
+
+
+def test_mpr_slab_preserves_nan_when_every_sample_is_outside_volume() -> None:
+    volume = _volume(np.ones((3, 2, 2), dtype=np.float32))
+    frame = MprFrame.standard_lps((0.0, 0.0, 100.0))
+
+    result = MprReslicer().reslice(
+        volume,
+        MprPlane.AXIAL,
+        frame=frame,
+        projection_mode=MprProjectionMode.MIP,
+        slab_thickness_mm=2.0,
+    )
+
+    assert np.isnan(result.modality_pixels).all()
+
+
+def test_zero_thickness_projection_matches_single_plane_path() -> None:
+    volume = _volume(
+        np.arange(3 * 4 * 5, dtype=np.float32).reshape(3, 4, 5)
+    )
+    reslicer = MprReslicer()
+
+    single = reslicer.reslice(volume, MprPlane.CORONAL)
+    zero_slab = reslicer.reslice(
+        volume,
+        MprPlane.CORONAL,
+        projection_mode=MprProjectionMode.MIP,
+        slab_thickness_mm=0.0,
+    )
+
+    np.testing.assert_array_equal(
+        zero_slab.modality_pixels,
+        single.modality_pixels,
+    )
+
+
+@pytest.mark.parametrize("thickness", [-1.0, 100.1, float("nan")])
+def test_mpr_slab_rejects_invalid_thickness(thickness: float) -> None:
+    volume = _volume(np.ones((3, 2, 2), dtype=np.float32))
+
+    with pytest.raises(RuntimeError, match="Slab thickness"):
+        MprReslicer().reslice(
+            volume,
+            MprPlane.AXIAL,
+            projection_mode=MprProjectionMode.MIP,
+            slab_thickness_mm=thickness,
+        )
 
 
 def test_reslice_uses_the_supplied_mpr_frame_axes() -> None:

@@ -17,8 +17,6 @@ Rectangle {
         workspaceController.tabs.length > 0
 
     color: Theme.workspaceBackground
-    border.color: Theme.borderDefault
-    border.width: 1
     radius: 8
     clip: true
 
@@ -30,7 +28,9 @@ Rectangle {
         TabBarSection {
             Layout.fillWidth: true
             Layout.preferredHeight: 36
-            Layout.bottomMargin: 4
+            // 标签栏与诊断视口属于不同层级，保留明确的背景间隔，
+            // 避免两个 active 状态在交界处拼成同一条边框。
+            Layout.bottomMargin: 10
             workspaceController: centerPanel.workspaceController
         }
 

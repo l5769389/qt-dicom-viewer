@@ -91,6 +91,12 @@ class TabController(QObject):
         self._tool_controller.resetRequested.connect(
             self._handle_tool_reset_requested
         )
+        self._last_mpr_projection_settings = (
+            self._tool_controller.mpr_projection_settings
+        )
+        self._tool_controller.mprProjectionChanged.connect(
+            self._handle_mpr_projection_changed
+        )
 
     @Slot(str)
     def _handle_tool_command(self, command: str) -> None:
@@ -111,6 +117,9 @@ class TabController(QObject):
             self._dirty_mpr_viewport_ids.update(
                 self._mpr_viewport_ids()
             )
+            # 先恢复几何状态并标脏，再重置投影；投影变更信号只会
+            # 启动一次使用最终状态的渲染轮次。
+            self._tool_controller.resetMprProjection()
             viewport.reset_all_view_state(reset_slice=False)
             self._try_start_next_mpr_render()
             return
@@ -130,6 +139,10 @@ class TabController(QObject):
             self._reset_mpr_3d_rotation()
             return
 
+        if tool_type == ToolType.MIP:
+            self._tool_controller.resetMprProjection()
+            return
+
         viewport = self.activeViewport
         if isinstance(viewport, (MprViewportController, StackViewportController)):
             viewport.reset_tool_state(tool_type)
@@ -145,6 +158,33 @@ class TabController(QObject):
         self._set_target_mpr_state(reset_state)
         self._dirty_mpr_viewport_ids.update(
             self._mpr_viewport_ids()
+        )
+        self._try_start_next_mpr_render()
+
+    @Slot()
+    def _handle_mpr_projection_changed(self) -> None:
+        previous = self._last_mpr_projection_settings
+        current = self._tool_controller.mpr_projection_settings
+        self._last_mpr_projection_settings = current
+
+        affected_planes = {
+            plane
+            for plane in MprPlane
+            if (
+                previous.effective_projection_for_plane(plane)
+                != current.effective_projection_for_plane(plane)
+            )
+        }
+        if not affected_planes:
+            return
+
+        self._dirty_mpr_viewport_ids.update(
+            viewport_id
+            for viewport_id, viewport in self._viewport_dict.items()
+            if (
+                isinstance(viewport, MprViewportController)
+                and viewport.viewport_config.viewport_type in affected_planes
+            )
         )
         self._try_start_next_mpr_render()
 

@@ -36,12 +36,13 @@ Rectangle {
     readonly property point crosshairViewportPosition: {
     const controller = imageCanvasRoot.viewportController
 
-    if (!controller)
+    if (!controller || !controller.hasCrosshair)
         return Qt.point(-1, -1)
 
     const imagePosition = controller.crosshairImagePosition
 
-    if (imagePosition.x < 0 || imagePosition.y < 0)
+    if (!Number.isFinite(imagePosition.x)
+            || !Number.isFinite(imagePosition.y))
         return Qt.point(-1, -1)
 
     // 显式读取变换属性，让绑定在变换后重新计算

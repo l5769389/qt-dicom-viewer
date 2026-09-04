@@ -11,11 +11,13 @@ Item {
     property color iconColor: "#b8c3cf"
 
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
-    // 服务图标直接使用生成的 PNG，不再通过矢量路径重绘。
+    readonly property bool isTintableRasterIcon: appIcon.iconName === "mip"
+    // 复杂图标直接使用生成的 PNG，不再通过矢量路径重绘。
     readonly property var rasterSourceMap: ({
         "service": "../assets/icons/service.png",
         "mtf": "../assets/icons/mtf.png",
-        "qa": "../assets/icons/qa.png"
+        "qa": "../assets/icons/qa.png",
+        "mip": "../assets/icons/mip.png"
     })
     readonly property string rasterSource: appIcon.rasterSourceMap[appIcon.iconName] ?? ""
     readonly property var mdiPathMap: ({
@@ -76,11 +78,73 @@ Item {
         objectName: "rasterToolIcon"
         anchors.fill: parent
         visible: appIcon.rasterSource !== ""
+            && !appIcon.isTintableRasterIcon
         source: appIcon.rasterSource
         // 保留原图高分辨率供高 DPI 缩放使用，由 Qt 缓存解码结果。
         fillMode: Image.PreserveAspectFit
         smooth: true
         mipmap: true
+    }
+
+    Canvas {
+        id: tintedRasterIcon
+        objectName: "tintedRasterToolIcon"
+
+        anchors.fill: parent
+        visible: appIcon.rasterSource !== ""
+            && appIcon.isTintableRasterIcon
+        readonly property color tintColor: appIcon.iconColor
+        // 原始 PNG 留有透明安全边距，轻微放大后可与 24x24
+        // MDI 图标在同一个 22px 容器内保持一致的视觉尺寸。
+        readonly property real rasterScale: 1.14
+
+        function ensureImageLoaded() {
+            if (visible && appIcon.rasterSource !== "")
+                loadImage(appIcon.rasterSource)
+        }
+
+        Component.onCompleted: ensureImageLoaded()
+        onVisibleChanged: ensureImageLoaded()
+        onImageLoaded: requestPaint()
+
+        onPaint: {
+            const context = getContext("2d")
+            context.reset()
+            if (!isImageLoaded(appIcon.rasterSource)) {
+                ensureImageLoaded()
+                return
+            }
+
+            const drawWidth = width * rasterScale
+            const drawHeight = height * rasterScale
+            context.drawImage(
+                appIcon.rasterSource,
+                (width - drawWidth) / 2,
+                (height - drawHeight) / 2,
+                drawWidth,
+                drawHeight
+            )
+            context.globalCompositeOperation = "source-in"
+            context.fillStyle = appIcon.iconColor
+            context.fillRect(0, 0, width, height)
+            context.globalCompositeOperation = "source-over"
+        }
+
+        Connections {
+            target: appIcon
+
+            function onIconColorChanged() {
+                tintedRasterIcon.requestPaint()
+            }
+
+            function onWidthChanged() {
+                tintedRasterIcon.requestPaint()
+            }
+
+            function onHeightChanged() {
+                tintedRasterIcon.requestPaint()
+            }
+        }
     }
 
     Canvas {
