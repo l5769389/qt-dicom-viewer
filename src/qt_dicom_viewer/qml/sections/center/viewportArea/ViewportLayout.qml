@@ -73,7 +73,10 @@ Item {
             }
         }
 
-        const placement = viewportLayout.tabType === "mpr"
+        const placement = (
+            viewportLayout.tabType === "mpr"
+            || viewportLayout.tabType === "4d"
+        )
             ? viewportLayout.mprPlacements[viewportType]
             : null
         return {
@@ -93,8 +96,14 @@ Item {
 
         anchors.fill: parent
 
-        columns: viewportLayout.tabType === "mpr" ? 2 : 1
-        rows: viewportLayout.tabType === "mpr" ? 2 : 1
+        columns: (
+            viewportLayout.tabType === "mpr"
+            || viewportLayout.tabType === "4d"
+        ) ? 2 : 1
+        rows: (
+            viewportLayout.tabType === "mpr"
+            || viewportLayout.tabType === "4d"
+        ) ? 2 : 1
         uniformCellWidths: true
         uniformCellHeights: true
 

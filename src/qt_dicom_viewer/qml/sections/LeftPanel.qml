@@ -35,7 +35,7 @@ Rectangle {
         ListElement {
             label: "4D"
             tabType: "4d"
-            supported: false
+            supported: true
         }
         ListElement {
             label: "Tag"
@@ -152,12 +152,19 @@ Rectangle {
                         activeColor: Theme.selectionBackground
                         disabledColor: "transparent"
                         enabled: seriesList.currentIndex >= 0 && supported
+                            && (
+                                tabType !== "4d"
+                                || seriesList.currentItem?.modelData.supports4D
+                            )
 
                         ToolTip.visible: hovered
                         ToolTip.delay: 450
-                        ToolTip.text: supported
-                            ? "以 " + label + " 方式打开"
-                            : label + " 暂未实现"
+                        ToolTip.text: !supported
+                            ? label + " 暂未实现"
+                            : tabType === "4d"
+                                && !seriesList.currentItem?.modelData.supports4D
+                                ? "所选 Series 不包含可用的 4D 相位"
+                                : "以 " + label + " 方式打开"
 
                         onClicked: {
                             if (leftPanel.activeSeriesUid === "") {

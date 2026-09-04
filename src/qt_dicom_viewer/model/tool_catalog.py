@@ -71,7 +71,7 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         icon_name="rotate-3d",
         behavior=ToolBehavior.INTERACTION,
         default_interaction=InteractionType.MPR_ROTATE_3D,
-        supported_tab_types=frozenset((TabType.MPR,)),
+        supported_tab_types=frozenset((TabType.MPR, TabType.FOUR_D)),
         reset_label="重置 3D 旋转",
     ),
     ToolDefinition(
@@ -79,6 +79,13 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         label="标注",
         icon_name="annotate",
         behavior=ToolBehavior.INTERACTION_PANEL,
+    ),
+    ToolDefinition(
+        tool_type=ToolType.PLAY,
+        label="播放",
+        icon_name="cine-play",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.FOUR_D,)),
     ),
     ToolDefinition(
         tool_type=ToolType.SERVICE,

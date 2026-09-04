@@ -44,6 +44,31 @@ class DicomInstanceMeta:
         | None
     )
     slice_thickness: float | None
+    frame_of_reference_uid: str = ""
+    phase_values: tuple[tuple[str, int | float | str], ...] = ()
+    number_of_temporal_positions: int | None = None
+    number_of_phases: int | None = None
+    number_of_frames: int = 1
+
+    def phase_value(self, keyword: str) -> int | float | str | None:
+        return next(
+            (
+                value
+                for candidate_keyword, value in self.phase_values
+                if candidate_keyword == keyword
+            ),
+            None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DicomPhaseRecord:
+    phase_identifier: int
+    instances: tuple[DicomInstanceMeta, ...]
+
+    @property
+    def dicom_file_count(self) -> int:
+        return len(self.instances)
 
 @dataclass(frozen=True, slots=True)
 class DicomSeriesRecord:
@@ -56,6 +81,9 @@ class DicomSeriesRecord:
     series_number: int | None
     modality: str
     instances: tuple[DicomInstanceMeta, ...]
+    phases: tuple[DicomPhaseRecord, ...] = ()
+    phase_source_keyword: str | None = None
+    frame_of_reference_uid: str = ""
 
     @property
     def dicom_file_count(self) -> int:
@@ -72,6 +100,63 @@ class DicomSeriesRecord:
     @property
     def columns(self) -> int | None:
         return self.instances[0].columns if self.instances else None
+
+    @property
+    def phase_identifiers(self) -> tuple[int, ...]:
+        return tuple(
+            phase.phase_identifier
+            for phase in self.phases
+        )
+
+    @property
+    def phase_count(self) -> int:
+        return len(self.phases)
+
+    @property
+    def initial_phase_identifier(self) -> int | None:
+        return next(
+            (
+                phase.phase_identifier
+                for phase in self.phases
+                if phase.instances
+                and phase.instances[0].series_instance_uid
+                    == self.series_instance_uid
+            ),
+            None,
+        )
+
+    @property
+    def supports_four_d(self) -> bool:
+        if len(self.phases) < 2:
+            return False
+        if any(
+            instance.number_of_frames != 1
+            for phase in self.phases
+            for instance in phase.instances
+        ):
+            return False
+
+        phase_lengths = {len(phase.instances) for phase in self.phases}
+        if len(phase_lengths) != 1 or next(iter(phase_lengths)) < 2:
+            return False
+
+        return (
+            self.phase_source_keyword is not None
+            and self.initial_phase_identifier is not None
+        )
+
+    def phase_by_identifier(
+        self,
+        phase_identifier: int,
+    ) -> DicomPhaseRecord | None:
+        return next(
+            (
+                phase
+                for phase in self.phases
+                if phase.phase_identifier == phase_identifier
+            ),
+            None,
+        )
 
     @property
     def display_name(self) -> str:
@@ -114,6 +199,9 @@ class SeriesDisplayMeta:
     series_description: str
     modality: str
     series_uid: str
+    phase_identifiers: tuple[int, ...] = ()
+    supports_four_d: bool = False
+    initial_phase_identifier: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

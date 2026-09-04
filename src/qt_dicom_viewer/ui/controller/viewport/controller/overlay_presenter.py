@@ -1,5 +1,82 @@
-from qt_dicom_viewer.model import SeriesDisplayMeta, FrameDisplayMeta, ViewportState, ViewportConfig
+from math import isfinite, sqrt
+from typing import Sequence
+
+from qt_dicom_viewer.model import (
+    FrameDisplayMeta,
+    MprPlane,
+    SeriesDisplayMeta,
+    ViewportConfig,
+    ViewportState,
+)
 from qt_dicom_viewer.utils.utils import _display_text, _display_number
+
+
+_MPR_PLANE_NAMES = {
+    MprPlane.AXIAL: "Axial",
+    MprPlane.CORONAL: "Coronal",
+    MprPlane.SAGITTAL: "Sagittal",
+}
+_PLANE_NAMES_BY_AXIS = ("Sagittal", "Coronal", "Axial")
+_POSITION_LABELS_BY_AXIS = (
+    ("L", "R"),
+    ("P", "A"),
+    ("S", "I"),
+)
+
+
+def _format_view_position(
+    viewport_type,
+    image_position_patient: Sequence[float] | None,
+    image_orientation_patient: Sequence[float] | None,
+) -> str:
+    """Format the plane's signed LPS distance like ``Axial, I: 12.34mm``."""
+    if (
+        image_position_patient is None
+        or image_orientation_patient is None
+        or len(image_position_patient) != 3
+        or len(image_orientation_patient) != 6
+    ):
+        return ""
+
+    position = tuple(float(value) for value in image_position_patient)
+    orientation = tuple(
+        float(value) for value in image_orientation_patient
+    )
+    if not all(isfinite(value) for value in (*position, *orientation)):
+        return ""
+
+    column = orientation[:3]
+    row = orientation[3:]
+    normal = (
+        column[1] * row[2] - column[2] * row[1],
+        column[2] * row[0] - column[0] * row[2],
+        column[0] * row[1] - column[1] * row[0],
+    )
+    normal_length = sqrt(sum(value * value for value in normal))
+    if normal_length <= 1e-12:
+        return ""
+
+    normal = tuple(value / normal_length for value in normal)
+    dominant_axis = max(range(3), key=lambda index: abs(normal[index]))
+    if normal[dominant_axis] < 0.0:
+        normal = tuple(-value for value in normal)
+
+    signed_distance = sum(
+        position[index] * normal[index]
+        for index in range(3)
+    )
+    positive_label, negative_label = _POSITION_LABELS_BY_AXIS[
+        dominant_axis
+    ]
+    direction_label = (
+        positive_label if signed_distance >= 0.0 else negative_label
+    )
+    plane_name = _MPR_PLANE_NAMES.get(
+        viewport_type,
+        _PLANE_NAMES_BY_AXIS[dominant_axis],
+    )
+    distance = 0.0 if abs(signed_distance) < 0.005 else abs(signed_distance)
+    return f"{plane_name}, {direction_label}: {distance:.2f}mm"
 
 
 class OverlayPresenter:
@@ -14,6 +91,7 @@ class OverlayPresenter:
         instance = frame.instance_meta if frame else None
         position = instance.image_position if instance else None
         spacing = instance.pixel_spacing if instance else None
+        geometry = frame.geometry if frame else None
         return {
             "patientName": _display_text(series.patient_name),
             "patientId": _display_text(series.patient_id),
@@ -24,6 +102,11 @@ class OverlayPresenter:
                 instance.manufacturer if instance else None
             ),
             "viewType": _display_text(viewport_config.viewport_type),
+            "viewPosition": _format_view_position(
+                viewport_config.viewport_type,
+                geometry.image_position_patient if geometry else None,
+                geometry.image_orientation_patient if geometry else None,
+            ),
             "kvp": _display_number(instance.kvp if instance else None),
             "tubeCurrentMa": _display_number(
                 instance.tube_current_ma if instance else None

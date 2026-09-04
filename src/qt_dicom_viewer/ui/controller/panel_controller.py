@@ -108,6 +108,7 @@ class PanelController(QObject):
             "seriesInstanceUid": summary.series_instance_uid,
             "dicomFileCount": summary.dicom_file_count,
             "modality": summary.modality,
+            "supports4D": summary.supports_four_d,
         } for series_id,summary  in self._scan_series_record.items()]
 
     @Property(bool, notify=scanningChanged)
@@ -118,5 +119,8 @@ class PanelController(QObject):
     @Slot(str, str)
     def openSeriesView(self, active_series_uid: str, tab_type: str):
         series = self._series_catalog.get_series(active_series_uid)
-        if series is not None:
-            self.tabCreateRequested.emit(active_series_uid, tab_type)
+        if series is None:
+            return
+        if tab_type == "4d" and not series.supports_four_d:
+            return
+        self.tabCreateRequested.emit(active_series_uid, tab_type)

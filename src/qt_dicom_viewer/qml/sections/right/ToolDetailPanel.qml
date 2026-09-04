@@ -12,6 +12,7 @@ Rectangle {
     required property string activePanel
     required property var viewportController
     required property var toolController
+    property var tabController: null
     readonly property Item loadedPanel: contentLoader.item as Item
     readonly property string activeToolLabel:
         detailPanel.toolController
@@ -48,7 +49,8 @@ Rectangle {
                     'window': windowLevelComponent,
                     'measure': measureComponent,
                     "annotate": annotateComponent,
-                    "service": serviceComponent
+                    "service": serviceComponent,
+                    "play": playbackComponent
                 }
                 return map[detailPanel.activePanel] ?? null
             }
@@ -111,6 +113,13 @@ Rectangle {
         id: annotateComponent
         Panels.AnnotatePanel {
 
+        }
+    }
+
+    Component {
+        id: playbackComponent
+        Panels.PlaybackPanel {
+            tabController: detailPanel.tabController
         }
     }
 

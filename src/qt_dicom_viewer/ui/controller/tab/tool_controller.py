@@ -41,6 +41,7 @@ class ToolController(QObject):
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
         self._active_service = ""
+        self._locked_tool: ToolType | None = None
 
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
@@ -95,6 +96,12 @@ class ToolController(QObject):
             logger.warning("Unknown tool type: %s", tool_value)
             return
 
+        if (
+            self._locked_tool is not None
+            and tool_type != self._locked_tool
+        ):
+            return
+
         definition = TOOL_DEFINITIONS.get(tool_type)
         if definition is None:
             logger.warning("Missing tool definition: %s", tool_type.value)
@@ -133,6 +140,8 @@ class ToolController(QObject):
 
     @Slot(str)
     def selectInteraction(self, interaction_value: str) -> None:
+        if self._locked_tool is not None:
+            return
         try:
             interaction = InteractionType(interaction_value)
         except ValueError:
@@ -140,6 +149,9 @@ class ToolController(QObject):
             return
 
         self._set_active_interaction(interaction)
+
+    def lock_to_tool(self, tool: ToolType | None) -> None:
+        self._locked_tool = tool
 
     @Slot(str)
     def selectService(self, action: str) -> None:

@@ -53,6 +53,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             toolController: window.toolController
             viewportController: window.viewportController
+            tabController: window.workspaceController.activeTab
             toolVisible: window.hasTabs
             // onRotationActionTriggered: action => {
             //     if (window.viewportController) {

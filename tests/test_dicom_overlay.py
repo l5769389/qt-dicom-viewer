@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
@@ -12,6 +13,7 @@ from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
     InstanceDisplayMeta,
+    MprPlane,
     PixelSpacing,
     StackRenderResult,
     SeriesDisplayMeta,
@@ -28,6 +30,41 @@ from qt_dicom_viewer.ui.workers.dicom_render_worker import (
     DicomRenderWorker,
 )
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
+from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import (
+    _format_view_position,
+)
+
+
+@pytest.mark.parametrize(
+    ("view_type", "position", "orientation", "expected"),
+    (
+        (
+            TwoDViewType.STACK,
+            (0.0, 0.0, -554.48),
+            (1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+            "Axial, I: 554.48mm",
+        ),
+        (
+            MprPlane.CORONAL,
+            (0.0, 93.76, 0.0),
+            (1.0, 0.0, 0.0, 0.0, 0.0, -1.0),
+            "Coronal, P: 93.76mm",
+        ),
+        (
+            MprPlane.SAGITTAL,
+            (-12.3, 0.0, 0.0),
+            (0.0, 1.0, 0.0, 0.0, 0.0, -1.0),
+            "Sagittal, R: 12.30mm",
+        ),
+    ),
+)
+def test_view_position_matches_anatomical_distance_format(
+    view_type,
+    position,
+    orientation,
+    expected,
+) -> None:
+    assert _format_view_position(view_type, position, orientation) == expected
 
 
 def _ct_dataset() -> FileDataset:
@@ -189,7 +226,10 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
                     columns=512,
                     pixel_spacing=PixelSpacing(row=0.7, column=0.8),
                     image_position_patient=(-120.5, -90.25, 42.0),
-                    image_orientation_patient=None,
+                    image_orientation_patient=(
+                        1.0, 0.0, 0.0,
+                        0.0, 1.0, 0.0,
+                    ),
                 ),
             ),
         )
@@ -202,6 +242,7 @@ def test_viewport_overlay_formats_series_and_frame_values() -> None:
     assert overlay["pixelSpacingX"] == "0.8"
     assert overlay["pixelSpacingY"] == "0.7"
     assert overlay["positionZ"] == "42"
+    assert overlay["viewPosition"] == "Axial, S: 42.00mm"
     assert overlay["windowCenter"] == "40"
     assert overlay["windowWidth"] == "400"
 

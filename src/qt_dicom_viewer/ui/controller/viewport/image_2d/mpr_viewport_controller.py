@@ -85,6 +85,7 @@ class MprViewportController(Image2DViewportController):
             mpr_frame: MprFrame | None = None,
             view_roll_radians: float = 0.0,
             mpr_state: MprState | None = None,
+            phase_identifier: int | None = None,
             initial: bool = False,
     ) -> MprRenderRequest:
         state = self.viewport_state
@@ -102,6 +103,7 @@ class MprViewportController(Image2DViewportController):
                 inverted=False if initial else state.inverted,
                 plane=self.viewport_config.viewport_type,
                 mpr_frame=mpr_frame,
+                phase_identifier=phase_identifier,
                 view_roll_radians=view_roll_radians,
                 mpr_grid=(
                     mpr_state.view_grids.for_plane(

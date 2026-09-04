@@ -32,5 +32,6 @@ class ToolType(StrEnum):
     ANNOTATE = "annotate"
     ROTATE = "rotate"
     MPR_ROTATE_3D = "mpr-rotate-3d"
+    PLAY = "play"
     SERVICE = "service"
     RESET = "reset"

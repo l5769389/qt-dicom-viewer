@@ -16,6 +16,25 @@ uv run --group dev watchfiles "uv run qt-dicom-viewer" src
 
 When a Python file under `src` changes, the Qt app restarts automatically.
 
+## 4D MPR
+
+选择包含多个时间相位的 series 后，可通过左侧「4D」打开三视图 MPR。右侧控制区支持
+右侧「播放」工具的二级面板支持 1～15 FPS 循环播放、phase 滑块和编号选择；默认显示
+第一个 phase，播放速度为 2 FPS。
+切换 phase 会保留十字线、当前空间位置、调窗、平移、缩放、旋转和测量状态，滚轮仍用于
+当前 phase 内的 MPR 空间翻页。
+
+4D 数据按“一个经典单帧 Series 对应一个 phase、多个 Series 组成一个 4D 组”进行关联。
+当前支持常见的时间/心动/呼吸 phase 信息，包括
+`TemporalPositionIdentifier`、`TemporalPositionIndex`、`PhaseNumber`、phase 百分比、
+trigger/delay、`FrameReferenceTime`、`AcquisitionNumber` 以及采集/内容时间等字段。
+检测按明确 phase 标签优先；采集编号和时间只作为后备，并且必须在每个值下形成至少两层、
+层数与空间位置完全对应的体数据。`NumberOfTemporalPositions` / `NumberOfPhases` 存在时还会
+校验总数，以避免把普通逐层采集误判为 4D。对于缺少标准时间标签的派生数据，也支持从
+`SeriesDescription` 末尾的 `phN` / `phaseN` 提取 phase；此方式仍要求 Study、Frame of
+Reference、模态和整套空间几何一致。Enhanced Multi-frame DICOM 仍不支持；不符合条件的
+series 不会启用「4D」入口。
+
 ## 测量
 
 在右侧「测量」中选择长度、角度、矩形或椭圆，测量可绘制到整个视口画布，

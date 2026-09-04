@@ -52,6 +52,7 @@ class StackRenderRequest(_RenderRequestBase):
 class MprRenderRequest(_RenderRequestBase):
     plane: MprPlane
     mpr_frame: MprFrame | None
+    phase_identifier: int | None = None
     view_roll_radians: float = 0.0
     mpr_grid: MprGridSpec | None = None
     mpr_grid_anchor: MprGridAnchor | None = None
@@ -86,6 +87,7 @@ class _RenderResultBase:
 class MprRenderResult(_RenderResultBase):
     mpr_frame: MprFrame | None
     plane_geometry: MprImageGeometry | None
+    phase_identifier: int | None = None
     mpr_view_grids: MprViewGrids | None = None
 
 

@@ -2,7 +2,7 @@ import logging
 import uuid
 from types import MappingProxyType
 
-from PySide6.QtCore import QObject, Signal, Slot, Property
+from PySide6.QtCore import QObject, QTimer, Signal, Slot, Property
 
 from qt_dicom_viewer.model import (
     MprPlane,
@@ -10,7 +10,6 @@ from qt_dicom_viewer.model import (
     RenderFailure,
     RenderRequest,
     RenderResult,
-    SeriesDisplayMeta,
     TabConfig,
     TabType,
     ToolType,
@@ -43,16 +42,46 @@ class TabController(QObject):
     renderRequested = Signal(object)
     activeToolChanged = Signal(object)
     activeViewportChanged = Signal()
+    phaseChanged = Signal()
+    fpsChanged = Signal()
+    playingChanged = Signal()
 
     def __init__(self, tab_config: TabConfig,parent = None):
         super().__init__(parent)
         self._tab_config = tab_config
         self._viewport_dict: dict[str, ViewportController] = {}
         self._create_tool_controller()
-        self._series_by_uid: dict[str, SeriesDisplayMeta] = {
-            meta.series_uid: meta
-            for meta in tab_config.series_metas
-        }
+        self._phase_identifiers: tuple[int, ...] = ()
+        if tab_config.tab_type == TabType.FOUR_D:
+            if (
+                len(tab_config.series_metas) != 1
+                or not tab_config.series_metas[0].supports_four_d
+                or len(tab_config.series_metas[0].phase_identifiers) < 2
+            ):
+                raise ValueError(
+                    "A 4D tab requires one supported temporal series"
+                )
+            self._phase_identifiers = (
+                tab_config.series_metas[0].phase_identifiers
+            )
+        self._current_phase_index = 0
+        if self._phase_identifiers:
+            initial_phase_identifier = (
+                tab_config.series_metas[0].initial_phase_identifier
+            )
+            if initial_phase_identifier in self._phase_identifiers:
+                self._current_phase_index = self._phase_identifiers.index(
+                    initial_phase_identifier
+                )
+        self._rendering_phase_index: int | None = None
+        self._pending_phase_index: int | None = None
+        self._fps = 2
+        self._playing = False
+        self._phase_timer = QTimer(self)
+        self._phase_timer.setInterval(self._playback_interval_ms())
+        self._phase_timer.timeout.connect(
+            self._handle_playback_timeout
+        )
         self._active_viewport_id: str = ''
         self._target_mpr_state: MprState | None = None
         self._initial_mpr_state: MprState | None = None
@@ -61,7 +90,9 @@ class TabController(QObject):
         self._mpr_3d_reset_state: MprState | None = None
         self._dirty_mpr_viewport_ids: set[str] = set()
         # request_id: viewport_id
-        self._active_mpr_requests: dict[str, str] = {}
+        self._active_mpr_requests: dict[
+            str, tuple[str, int | None]
+        ] = {}
         self._create_viewport_dict()
 
     @Property(str, notify=activeToolChanged)
@@ -78,6 +109,118 @@ class TabController(QObject):
     @Property(QObject,constant= True)
     def toolController(self) -> QObject:
         return self._tool_controller
+
+    @Property(int, constant=True)
+    def phaseCount(self) -> int:
+        return len(self._phase_identifiers)
+
+    @Property("QVariantList", constant=True)
+    def phaseItems(self) -> list[dict]:
+        label_width = max(2, len(str(self.phaseCount)))
+        return [
+            {
+                "index": index,
+                "label": str(index + 1).zfill(label_width),
+            }
+            for index in range(self.phaseCount)
+        ]
+
+    @Property(int, notify=phaseChanged)
+    def currentPhaseIndex(self) -> int:
+        return self._current_phase_index
+
+    @Property(int, notify=fpsChanged)
+    def fps(self) -> int:
+        return self._fps
+
+    @Property(bool, notify=playingChanged)
+    def playing(self) -> bool:
+        return self._playing
+
+    @Slot(int)
+    def setPhaseIndex(self, index: int) -> None:
+        if not 0 <= index < self.phaseCount:
+            return
+        if (
+            self._active_mpr_requests
+            or self._dirty_mpr_viewport_ids
+            or self._rendering_phase_index is not None
+            or self._target_mpr_state is None
+        ):
+            self._pending_phase_index = index
+            return
+        if index == self._current_phase_index:
+            return
+        self._start_phase_render(index)
+
+    @Slot(int)
+    def setFps(self, fps: int) -> None:
+        resolved_fps = max(1, min(15, int(fps)))
+        if resolved_fps == self._fps:
+            return
+        self._fps = resolved_fps
+        self._phase_timer.setInterval(self._playback_interval_ms())
+        if self._playing:
+            self._phase_timer.start()
+        self.fpsChanged.emit()
+
+    @Slot()
+    def togglePlayback(self) -> None:
+        self.setPlaying(not self._playing)
+
+    @Slot(bool)
+    def setPlaying(self, playing: bool) -> None:
+        resolved_playing = bool(playing) and self.phaseCount > 1
+        if resolved_playing == self._playing:
+            return
+        self._playing = resolved_playing
+        if self._playing:
+            self._tool_controller.activateTool(ToolType.PLAY.value)
+            self._tool_controller.lock_to_tool(ToolType.PLAY)
+            self._phase_timer.start()
+        else:
+            self._tool_controller.lock_to_tool(None)
+            self._phase_timer.stop()
+        self.playingChanged.emit()
+
+    @Slot()
+    def pausePlayback(self) -> None:
+        self.setPlaying(False)
+
+    def _playback_interval_ms(self) -> int:
+        return max(1, round(1000 / self._fps))
+
+    def _handle_playback_timeout(self) -> None:
+        if (
+            not self._playing
+            or self.phaseCount < 2
+            or self._active_mpr_requests
+            or self._dirty_mpr_viewport_ids
+            or self._rendering_phase_index is not None
+            or self._pending_phase_index is not None
+            or self._target_mpr_state is None
+        ):
+            return
+        self._start_phase_render(
+            (self._current_phase_index + 1) % self.phaseCount
+        )
+
+    def _start_phase_render(self, index: int) -> None:
+        self._rendering_phase_index = index
+        self._dirty_mpr_viewport_ids.update(
+            self._mpr_viewport_ids()
+        )
+        self._try_start_next_mpr_render()
+
+    def _phase_identifier_for_render(self) -> int | None:
+        if not self._phase_identifiers:
+            return None
+        index = (
+            self._rendering_phase_index
+            if self._rendering_phase_index is not None
+            else self._current_phase_index
+        )
+        return self._phase_identifiers[index]
 
 
     def _create_tool_controller(self) -> None:
@@ -157,6 +300,7 @@ class TabController(QObject):
             ):
                 request = viewport.build_mpr_render_request(
                     mpr_frame=None,
+                    phase_identifier=self._phase_identifier_for_render(),
                     initial=True,
                 )
                 self._start_mpr_requests([request])
@@ -165,7 +309,7 @@ class TabController(QObject):
 
     def init_render(self):
         if (
-            self.tab_config.tab_type == TabType.MPR
+            self.tab_config.tab_type in (TabType.MPR, TabType.FOUR_D)
             and self._target_mpr_state is None
             and not self._active_mpr_requests
         ):
@@ -201,7 +345,7 @@ class TabController(QObject):
                     )
                     self.connect_signal(viewport)
                     self._viewport_dict[viewport_id] = viewport
-            case TabType.MPR:
+            case TabType.MPR | TabType.FOUR_D:
                     for series_meta in self._tab_config.series_metas:
                         for view_type in [MprPlane.AXIAL, MprPlane.SAGITTAL, MprPlane.CORONAL]:
                             viewport_id = str(uuid.uuid4())
@@ -355,9 +499,10 @@ class TabController(QObject):
         if not isinstance(result, MprRenderResult):
             return result.viewport_id in self._viewport_dict
 
-        return (
-            self._active_mpr_requests.get(result.response_id)
-            == result.viewport_id
+        expected = self._active_mpr_requests.get(result.response_id)
+        return expected == (
+            result.viewport_id,
+            result.phase_identifier,
         )
 
     @Slot(object)
@@ -373,10 +518,13 @@ class TabController(QObject):
             return
 
         if isinstance(result, MprRenderResult):
-            expected_viewport_id = self._active_mpr_requests.get(
+            expected_request = self._active_mpr_requests.get(
                 result.response_id
             )
-            if expected_viewport_id != result.viewport_id:
+            if expected_request != (
+                result.viewport_id,
+                result.phase_identifier,
+            ):
                 logger.debug(
                     "Discard stale MPR result: request_id=%s "
                     "viewport_id=%s",
@@ -408,8 +556,7 @@ class TabController(QObject):
                 self._set_target_mpr_state(initial_state)
                 self._mark_other_mpr_viewports_dirty(result.viewport_id)
 
-            if not self._active_mpr_requests:
-                self._try_start_next_mpr_render()
+            self._continue_after_mpr_activity()
             return
 
         viewport.handleRenderResult(result)
@@ -426,10 +573,13 @@ class TabController(QObject):
 
     @Slot(object)
     def handleRenderFailure(self, failure: RenderFailure) -> None:
-        expected_viewport_id = self._active_mpr_requests.get(
+        expected_request = self._active_mpr_requests.get(
             failure.request_id
         )
-        if expected_viewport_id != failure.viewport_id:
+        if (
+            expected_request is None
+            or expected_request[0] != failure.viewport_id
+        ):
             return
 
         self._active_mpr_requests.pop(failure.request_id)
@@ -439,8 +589,15 @@ class TabController(QObject):
             failure.viewport_id,
             failure.error,
         )
-        if not self._active_mpr_requests:
-            self._try_start_next_mpr_render()
+        if self._rendering_phase_index is not None:
+            self.pausePlayback()
+            self._rendering_phase_index = None
+            self._pending_phase_index = None
+            if self._target_mpr_state is not None:
+                self._dirty_mpr_viewport_ids.update(
+                    self._mpr_viewport_ids()
+                )
+        self._continue_after_mpr_activity()
 
 
     def contains_viewport(self, viewport_id: str) -> bool:
@@ -485,7 +642,10 @@ class TabController(QObject):
             )
 
         self._active_mpr_requests = {
-            request.request_id: request.viewport_id
+            request.request_id: (
+                request.viewport_id,
+                request.phase_identifier,
+            )
             for request in requests
         }
         for request in requests:
@@ -517,11 +677,36 @@ class TabController(QObject):
             requests.append(
                 viewport.build_mpr_render_request(
                     mpr_state=self._target_mpr_state,
+                    phase_identifier=self._phase_identifier_for_render(),
                     initial=False,
                 )
             )
 
         self._start_mpr_requests(requests)
+
+    def _continue_after_mpr_activity(self) -> None:
+        if self._active_mpr_requests:
+            return
+        if self._dirty_mpr_viewport_ids:
+            self._try_start_next_mpr_render()
+            if self._active_mpr_requests:
+                return
+
+        if self._rendering_phase_index is not None:
+            rendered_phase_index = self._rendering_phase_index
+            self._rendering_phase_index = None
+            if rendered_phase_index != self._current_phase_index:
+                self._current_phase_index = rendered_phase_index
+                self.phaseChanged.emit()
+
+        pending_phase_index = self._pending_phase_index
+        self._pending_phase_index = None
+        if (
+            pending_phase_index is not None
+            and pending_phase_index != self._current_phase_index
+            and self._target_mpr_state is not None
+        ):
+            self._start_phase_render(pending_phase_index)
 
     def _set_target_mpr_state(self, state: MprState) -> None:
         self._target_mpr_state = state

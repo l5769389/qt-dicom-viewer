@@ -144,7 +144,14 @@ class DicomRenderWorker(QObject):
                 f"series_uid={request.series_uid}"
             )
 
-        volume = self._volume_manager.get_or_build(series)
+        volume = (
+            self._volume_manager.get_or_build(series)
+            if request.phase_identifier is None
+            else self._volume_manager.get_or_build(
+                series,
+                phase_identifier=request.phase_identifier,
+            )
+        )
         resolved_frame = request.mpr_frame or MprFrame.standard_lps(
             volume.geometry.center_patient
         )
@@ -229,6 +236,7 @@ class DicomRenderWorker(QObject):
                 ),
                 mpr_frame=plane_geometry.frame,
                 plane_geometry=plane_geometry,
+                phase_identifier=request.phase_identifier,
                 mpr_view_grids=view_grids,
             )
         )
