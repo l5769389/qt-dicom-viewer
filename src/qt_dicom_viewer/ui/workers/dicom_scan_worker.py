@@ -1,6 +1,6 @@
 import time
 
-from PySide6.QtCore import QObject, Slot, Signal
+from PySide6.QtCore import QObject, Slot, Signal, QThread
 
 from qt_dicom_viewer.core.dicom_scanner import DicomFolderScanner
 
@@ -25,6 +25,9 @@ class DicomScanWorker(QObject):
             lastest_result = None
 
             for result in DicomFolderScanner().scan(self.folder):
+                if QThread.currentThread().isInterruptionRequested():
+                    self.finished.emit(lastest_result)
+                    return
                 now = time.monotonic()
                 lastest_result = result
                 if  now - latest_emit_time >= self.process_report_interval:

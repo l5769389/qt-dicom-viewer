@@ -44,6 +44,9 @@ class DicomInstanceMeta:
         | None
     )
     slice_thickness: float | None
+    study_date: str = ""
+    study_time: str = ""
+    patient_id_issuer: str = ""
 
 @dataclass(frozen=True, slots=True)
 class DicomSeriesRecord:
@@ -56,6 +59,9 @@ class DicomSeriesRecord:
     series_number: int | None
     modality: str
     instances: tuple[DicomInstanceMeta, ...]
+    study_date: str = ""
+    study_time: str = ""
+    patient_id_issuer: str = ""
 
     @property
     def dicom_file_count(self) -> int:

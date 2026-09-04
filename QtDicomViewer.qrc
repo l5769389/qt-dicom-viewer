@@ -10,8 +10,10 @@
         <file>src/qt_dicom_viewer/qml/components/AppButton.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/LeftPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/SidebarContainer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/RightPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/CenterPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/TagPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/TabBarSection.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/WorkspaceEmptyState.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ImageCanvas.qml</file>

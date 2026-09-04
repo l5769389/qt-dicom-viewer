@@ -38,8 +38,19 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             active: centerPanel.hasTabs
-            sourceComponent: centerPanel.workspaceController.activeTabType === "3d"
-                ? volumeComponent : imageComponent
+            sourceComponent: centerPanel.workspaceController.activeTabType === "tag"
+                ? tagComponent
+                : centerPanel.workspaceController.activeTabType === "3d"
+                    ? volumeComponent : imageComponent
+        }
+    }
+
+    Component {
+        id: tagComponent
+        TagPanel {
+            tagController: centerPanel.workspaceController.activeTab
+                ? centerPanel.workspaceController.activeTab.tagController
+                : null
         }
     }
 
