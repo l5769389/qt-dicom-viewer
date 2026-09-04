@@ -49,6 +49,8 @@ Rectangle {
                     'window': windowLevelComponent,
                     'measure': measureComponent,
                     "annotate": annotateComponent,
+                    "pseudocolor": pseudoColorComponent,
+                    "viewport-settings": viewportSettingsComponent,
                     "service": serviceComponent,
                     "volume-direction": volumeDirectionComponent,
                     "volume-preset": volumePresetComponent,
@@ -136,7 +138,21 @@ Rectangle {
     Component {
         id: annotateComponent
         Panels.AnnotatePanel {
+            viewportController: detailPanel.viewportController
+        }
+    }
 
+    Component {
+        id: pseudoColorComponent
+        Panels.PseudoColorPanel {
+            viewportController: detailPanel.viewportController
+        }
+    }
+
+    Component {
+        id: viewportSettingsComponent
+        Panels.ViewportSettingsPanel {
+            viewportController: detailPanel.viewportController
         }
     }
 

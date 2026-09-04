@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
 from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
+from qt_dicom_viewer.core.pseudocolor import apply_color_map
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
@@ -111,7 +112,10 @@ class DicomRenderWorker(QObject):
                     series_uid=request.series_uid,
                     viewport_id=request.viewport_id,
                     view_type=request.view_type,
-                    image=dicom_load_result.image,
+                    image=apply_color_map(
+                        dicom_load_result.image,
+                        request.color_map,
+                    ),
                     modality_pixel=dicom_load_result.modality_pixel,
                     frame_meta=FrameDisplayMeta(
                         slice_index=actual_slice_index,
@@ -225,7 +229,7 @@ class DicomRenderWorker(QObject):
                 series_uid=request.series_uid,
                 viewport_id=request.viewport_id,
                 view_type=request.view_type,
-                image=image,
+                image=apply_color_map(image, request.color_map),
                 modality_pixel=np.ascontiguousarray(
                     plane_pixels,
                     dtype=np.float32,

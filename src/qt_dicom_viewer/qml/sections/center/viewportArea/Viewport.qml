@@ -107,12 +107,18 @@ Item {
         z: 10
         anchors.margins: 8
         viewportController: viewportRoot.viewportController
+        visible: viewportRoot.viewportController
+            ? viewportRoot.viewportController.showWindowAnnotations : false
+        hideSensitiveInfo: viewportRoot.viewportController
+            ? viewportRoot.viewportController.hideSensitiveInfo : false
 
     }
 
     DirectionOverlay {
         anchors.fill: parent
         z: 11
+        visible: viewportRoot.viewportController
+            ? viewportRoot.viewportController.showDicomOverlay : false
 
         directionLabels:
             viewportRoot.viewportController
@@ -123,7 +129,9 @@ Item {
     MprSlabGuideLayer {
         anchors.fill: parent
         z: 9
-        visible: viewportRoot.isMprViewport && guides.length > 0
+        visible: viewportRoot.isMprViewport
+            && viewportRoot.viewportController.showLocalizer
+            && guides.length > 0
         coordinateMapper: imageCanvas
         transformState: imageCanvas.measurementTransformState
         guides: viewportRoot.isMprViewport
@@ -136,18 +144,54 @@ Item {
         anchors.fill: parent
         visible:
             viewportRoot.viewportController
+            && viewportRoot.viewportController.showLocalizer
             && viewportRoot.viewportController.hasCrosshair
             && Number.isFinite(imageCanvas.crosshairViewportPosition.x)
             && Number.isFinite(imageCanvas.crosshairViewportPosition.y)
 
         crosshairPosition:
             imageCanvas.crosshairViewportPosition
-        crosshairStyle: viewportRoot.viewportController.crosshairStyle
+        crosshairStyle: viewportRoot.viewportController
+            ? viewportRoot.viewportController.crosshairStyle : ({})
         rotationDegrees:
             viewportRoot.viewportController
                 ? viewportRoot.viewportController.crosshairRotationDegrees
                 : 0
         z: 10
+    }
+
+    TextAnnotationLayer {
+        anchors.fill: parent
+        z: 14
+        annotationController: viewportRoot.viewportController
+            ? viewportRoot.viewportController.textAnnotationController : null
+        coordinateMapper: imageCanvas
+        transformState: imageCanvas.measurementTransformState
+    }
+
+    ScaleBar {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 12
+        z: 15
+        visible: viewportRoot.viewportController
+            ? viewportRoot.viewportController.showScaleBar : false
+        pixelsPerMillimeter: imageCanvas.pixelsPerMillimeter
+    }
+
+    ColorBar {
+        anchors.left: parent.left
+        anchors.leftMargin: 14
+        anchors.verticalCenter: parent.verticalCenter
+        z: 15
+        visible: viewportRoot.viewportController
+            ? viewportRoot.viewportController.showColorBar : false
+        stops: viewportRoot.viewportController
+            ? viewportRoot.viewportController.activeColorMapStops : []
+        minimumValue: viewportRoot.viewportController
+            ? viewportRoot.viewportController.displayRangeMinimum : 0
+        maximumValue: viewportRoot.viewportController
+            ? viewportRoot.viewportController.displayRangeMaximum : 255
     }
 
     InteractionLayer {

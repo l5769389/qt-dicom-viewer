@@ -17,6 +17,17 @@ class DisplayStyle:
     no_data_color: str = "#000000"
 
 
+@dataclass(frozen=True, slots=True)
+class ViewportDisplaySettings:
+    show_window_annotations: bool = True
+    hide_sensitive_info: bool = False
+    show_scale_bar: bool = False
+    show_color_bar: bool = False
+    show_dicom_overlay: bool = True
+    show_localizer: bool = True
+    fit_to_window: bool = True
+
+
 class ViewportTransformAction(StrEnum):
     ROTATE_CLOCKWISE_90 = "rotate:cw90"
     ROTATE_COUNTERCLOCKWISE_90 = "rotate:ccw90"
@@ -240,6 +251,9 @@ class ViewportState:
     display_style: DisplayStyle = field(
         default_factory=DisplayStyle
     )
+    display_settings: ViewportDisplaySettings = field(
+        default_factory=ViewportDisplaySettings
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,6 +282,7 @@ class InteractionType(StrEnum):
     MEASURE_ANGLE = "measure:angle"
     MEASURE_RECT = "measure:rect"
     MEASURE_ELLIPSE = "measure:ellipse"
+    ANNOTATE_TEXT = "annotate:text"
     MPR_ROTATE_3D = "mpr:rotate3d"
     VOLUME_ROTATE = "volume:rotate"
 

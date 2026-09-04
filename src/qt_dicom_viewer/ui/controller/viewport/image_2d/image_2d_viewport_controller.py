@@ -10,7 +10,7 @@ from qt_dicom_viewer.core.patient_orientation import (
 )
 from qt_dicom_viewer.model import ViewportState, ViewportConfig, RenderRequest, RenderResult, \
     WindowLevel, FrameDisplayMeta, InteractionType, Point, Offset, DragUpdateEvent, \
-    DisplayStyle, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, OperationStartContext, ToolType, \
+    DisplayStyle, ViewportDisplaySettings, ViewportTransformAction, PointerPosition, ImagePoint, MeasurementKind, OperationStartContext, ToolType, \
     PointerHoverContext
 from qt_dicom_viewer.model.interaction import InteractionResult, SliceIndexChange, WindowLevelChange, PanChange, \
     ZoomChange, WindowLevelContext, ScrollContext, PanContext, ZoomContext, MeasureContext
@@ -18,6 +18,13 @@ from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.cursor_controller import CursorController
 from qt_dicom_viewer.ui.controller.viewport.controller.measure.measure_controller import MeasurementController
 from qt_dicom_viewer.ui.controller.viewport.controller.overlay_presenter import OverlayPresenter
+from qt_dicom_viewer.ui.controller.viewport.controller.text_annotation_controller import (
+    TextAnnotationController,
+)
+from qt_dicom_viewer.core.pseudocolor import (
+    COLOR_MAP_SPECS,
+    color_map_options,
+)
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.pan_operation import PanOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
@@ -35,18 +42,23 @@ MEASUREMENT_KINDS = {
 }
 
 DISPLAY_STYLES = {
-    "grayscale": DisplayStyle(
-        color_map="grayscale",
-        no_data_color="#000000",
-    ),
-    "hotIron": DisplayStyle(
-        color_map="hotIron",
-        no_data_color="#090000",
-    ),
-    "rainbow": DisplayStyle(
-        color_map="rainbow",
-        no_data_color="#000020",
-    ),
+    color_map: DisplayStyle(
+        color_map=color_map,
+        no_data_color="#{:02x}{:02x}{:02x}".format(*stops[0][1]),
+    )
+    for color_map, (_, stops) in COLOR_MAP_SPECS.items()
+}
+
+COLOR_MAP_OPTIONS = color_map_options()
+
+VIEWPORT_SETTING_FIELDS = {
+    "window-annotations": "show_window_annotations",
+    "hide-sensitive-info": "hide_sensitive_info",
+    "scale-bar": "show_scale_bar",
+    "color-bar": "show_color_bar",
+    "dicom-overlay": "show_dicom_overlay",
+    "localizer": "show_localizer",
+    "fit-to-window": "fit_to_window",
 }
 
 
@@ -87,6 +99,7 @@ class Image2DViewportController(ViewportController):
     sliceChanged = Signal()
     transformChanged = Signal()
     displayStyleChanged = Signal()
+    viewportSettingsChanged = Signal()
     crosshairImagePositionChanged = Signal()
     crosshairHoverTargetChanged = Signal()
     activeInteractionChanged = Signal()
@@ -106,6 +119,7 @@ class Image2DViewportController(ViewportController):
         self._baseline_window: WindowLevel | None = None
         self._baseline_slice_index: int | None = None
         self._measure_controller = MeasurementController(self)
+        self._text_annotation_controller = TextAnnotationController(self)
         self._mtf_controller = None
         self._tool_controller = tool_controller
         self._tool_controller.activeInteractionChanged.connect(
@@ -148,6 +162,7 @@ class Image2DViewportController(ViewportController):
             self._state,
             slice_index=index,
         )
+        self._text_annotation_controller.set_current_slice(index)
         self.sliceChanged.emit()
         return True
 
@@ -183,6 +198,8 @@ class Image2DViewportController(ViewportController):
 
     def _handle_active_interaction_changed(self) -> None:
         self.cancelMeasurement()
+        if self._tool_controller.active_interaction != InteractionType.ANNOTATE_TEXT:
+            self._text_annotation_controller.clearSelection()
         self._measure_controller.clear_selection()
         self._measure_controller.clearHover()
         if self._mtf_controller is not None:
@@ -255,10 +272,17 @@ class Image2DViewportController(ViewportController):
             window=result.frame_meta.window,
             inverted=result.frame_meta.inverted,
         )
+        self._text_annotation_controller.set_current_slice(
+            result.frame_meta.slice_index
+        )
         if slice_changed:
             self.sliceChanged.emit()
         self._modality_pixel = result.modality_pixel
         self._measure_controller.set_frame(result.series_uid, result.frame_meta)
+        self._text_annotation_controller.set_frame(
+            result.series_uid,
+            result.frame_meta,
+        )
         self._apply_specific_render_result(result)
 
         self.overlayChanged.emit()
@@ -280,6 +304,29 @@ class Image2DViewportController(ViewportController):
     @property
     def viewport_state(self) -> ViewportState:
         return self._state
+
+    @Property(QObject, constant=True)
+    def textAnnotationController(self) -> QObject:
+        return self._text_annotation_controller
+
+    @Property("QVariantList", constant=True)
+    def colorMapOptions(self) -> list[dict]:
+        return COLOR_MAP_OPTIONS
+
+    @Property(str, notify=displayStyleChanged)
+    def activeColorMap(self) -> str:
+        return self._state.display_style.color_map
+
+    @Property("QVariantList", notify=displayStyleChanged)
+    def activeColorMapStops(self) -> list[dict]:
+        return next(
+            (
+                option["stops"]
+                for option in COLOR_MAP_OPTIONS
+                if option["colorMap"] == self.activeColorMap
+            ),
+            [],
+        )
 
     @Property(str, notify=imageSourceChanged)
     def imageSource(self) -> str:
@@ -799,6 +846,16 @@ class Image2DViewportController(ViewportController):
 
             case ToolType.MEASURE:
                 self._measure_controller.clear_all()
+            case ToolType.ANNOTATE:
+                self._text_annotation_controller.clearAll()
+            case ToolType.PSEUDOCOLOR:
+                self.applyColorMap("grayscale")
+            case ToolType.VIEWPORT_SETTINGS:
+                settings = ViewportDisplaySettings()
+                if state.display_settings == settings:
+                    return
+                self._state = replace(state, display_settings=settings)
+                self.viewportSettingsChanged.emit()
             case ToolType.SERVICE:
                 if self._mtf_controller is not None and self._tool_controller.activeService == "service:mtf":
                     self._mtf_controller.reset()
@@ -826,6 +883,10 @@ class Image2DViewportController(ViewportController):
             or state.horizontal_flip
             or state.vertical_flip
         )
+        display_style_changed = state.display_style != DisplayStyle()
+        display_settings_changed = (
+            state.display_settings != ViewportDisplaySettings()
+        )
 
         self._state = replace(
             state,
@@ -836,8 +897,11 @@ class Image2DViewportController(ViewportController):
             rotation_degrees=0.0,
             horizontal_flip=False,
             vertical_flip=False,
+            display_style=DisplayStyle(),
+            display_settings=ViewportDisplaySettings(),
         )
         self._measure_controller.clear_all()
+        self._text_annotation_controller.clearAll()
         if self._mtf_controller is not None:
             self._mtf_controller.reset()
 
@@ -846,6 +910,10 @@ class Image2DViewportController(ViewportController):
             self.overlayChanged.emit()
         if direction_changed:
             self.directionLabelsChanged.emit()
+        if display_style_changed:
+            self.displayStyleChanged.emit()
+        if display_settings_changed:
+            self.viewportSettingsChanged.emit()
 
         slice_changed = (
             reset_slice
@@ -854,7 +922,7 @@ class Image2DViewportController(ViewportController):
         )
         if slice_changed and self._baseline_slice_index is not None:
             self.apply_slice_index(self._baseline_slice_index)
-        elif window_changed:
+        elif window_changed or display_style_changed:
             self.request_render()
 
     @Slot(str)
@@ -910,6 +978,72 @@ class Image2DViewportController(ViewportController):
     def canvasBackgroundColor(self) -> str:
         return self._state.display_style.no_data_color
 
+    @Property(bool, notify=viewportSettingsChanged)
+    def showWindowAnnotations(self) -> bool:
+        return self._state.display_settings.show_window_annotations
+
+    @Property(bool, notify=viewportSettingsChanged)
+    def hideSensitiveInfo(self) -> bool:
+        return self._state.display_settings.hide_sensitive_info
+
+    @Property(bool, notify=viewportSettingsChanged)
+    def showScaleBar(self) -> bool:
+        return self._state.display_settings.show_scale_bar
+
+    @Property(bool, notify=viewportSettingsChanged)
+    def showColorBar(self) -> bool:
+        return self._state.display_settings.show_color_bar
+
+    @Property(bool, notify=viewportSettingsChanged)
+    def showDicomOverlay(self) -> bool:
+        return self._state.display_settings.show_dicom_overlay
+
+    @Property(bool, notify=viewportSettingsChanged)
+    def showLocalizer(self) -> bool:
+        return self._state.display_settings.show_localizer
+
+    @Property(bool, notify=viewportSettingsChanged)
+    def fitToWindow(self) -> bool:
+        return self._state.display_settings.fit_to_window
+
+    @Property(float, notify=overlayChanged)
+    def displayRangeMinimum(self) -> float:
+        window = self._state.window
+        return 0.0 if window is None else window.center - window.width / 2.0
+
+    @Property(float, notify=overlayChanged)
+    def displayRangeMaximum(self) -> float:
+        window = self._state.window
+        return 255.0 if window is None else window.center + window.width / 2.0
+
+    @Slot(str)
+    def applyColorMap(self, color_map: str) -> None:
+        style = DISPLAY_STYLES.get(color_map)
+        if style is None:
+            logger.warning("Unknown color map: %s", color_map)
+            return
+        if style == self._state.display_style:
+            return
+        self._state = replace(self._state, display_style=style)
+        self.displayStyleChanged.emit()
+        if self._frame_meta is not None:
+            self.request_render()
+
+    @Slot(str, bool)
+    def setViewportSetting(self, setting: str, enabled: bool) -> None:
+        field_name = VIEWPORT_SETTING_FIELDS.get(setting)
+        if field_name is None:
+            logger.warning("Unknown viewport setting: %s", setting)
+            return
+        settings = replace(
+            self._state.display_settings,
+            **{field_name: bool(enabled)},
+        )
+        if settings == self._state.display_settings:
+            return
+        self._state = replace(self._state, display_settings=settings)
+        self.viewportSettingsChanged.emit()
+
     @Slot(float, float)
     def applyWindowPreset(
             self,
@@ -940,6 +1074,10 @@ class Image2DViewportController(ViewportController):
             viewport_x: float | None = None,
             viewport_y: float | None = None,
     ) -> None:
+        if self._tool_controller.active_interaction == InteractionType.ANNOTATE_TEXT:
+            if image_valid:
+                self._text_annotation_controller.addAnnotation(column, row)
+            return
         context = self._measurement_context(endpoint_tolerance, line_tolerance)
         if context is None:
             return
@@ -994,6 +1132,9 @@ class Image2DViewportController(ViewportController):
     @Slot()
     def deleteSelectedMeasurement(self) -> None:
         self.cancelMeasurement()
+        if self._tool_controller.active_interaction == InteractionType.ANNOTATE_TEXT:
+            self._text_annotation_controller.deleteSelected()
+            return
         if self._measurement_context(0, 0) is not None:
             self.activeAnnotationController.delete_selected()
 

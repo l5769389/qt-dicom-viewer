@@ -10,6 +10,7 @@ Rectangle {
         ? viewportController.canvasBackgroundColor
         : Theme.canvasBackground
     clip: true
+    readonly property real pixelsPerMillimeter: imageScene.scale
 
     function updateMeasurementHitRegions(interactionLayer) {
         if (imageCanvasRoot.viewportController?.activeInteraction === "service:mtf") {
@@ -152,10 +153,11 @@ Rectangle {
         if (physicalWidth <= 0 || physicalHeight <= 0)
             return 1
 
-        return Math.min(
+        const fitted = Math.min(
             imageCanvasRoot.width / physicalWidth,
             imageCanvasRoot.height / physicalHeight
         )
+        return imageCanvasRoot.viewportController.fitToWindow ? fitted : 1
     }
 
     // 将测量轮廓映射到屏幕层，文字、线宽和控制点不随缩放/翻转变形。

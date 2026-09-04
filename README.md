@@ -147,6 +147,17 @@ series 不会启用「4D」入口。
 `measurementController.hoverHit` 提供悬停命中的 `measurementId` / `kind` / `index`；
 `hoverCursorKind` 只在已选中图形的可移动部位返回 `pan`。离开、开始编辑、切换工具或切面时清除悬停状态。
 
+## 标注、伪彩与视口设置
+
+- **标注**：输入最多 200 个字符，选择颜色和 10～48 px 字号后，在影像上单击放置。
+  文本按切片保存并跟随影像平移、缩放、旋转和镜像；可从右侧列表重新选中编辑，或用
+  `Delete` / `Backspace` 删除。当前仅保存在本次会话内。
+- **伪彩**：支持 BW、BWInverse、BlackBody、Cardiac、Flow、French、GrayRainbow、
+  HotGreen、HotIron 和 Rainbow。LUT 应用于调窗后的 8 位显示像素，不改变 ROI、光标取值
+  或 MTF 使用的原始模态像素。
+- **视口设置**：可独立控制窗口角标、患者姓名/ID 隐藏、物理比例尺、伪彩条、
+  DICOM 方向标记、MPR 定位线以及窗口自适应。设置作用于当前活动视口，工具栏底部可恢复默认值。
+
 ## Windows 单文件 EXE
 
 在 **Windows x64** 上安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)，
