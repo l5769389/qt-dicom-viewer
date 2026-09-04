@@ -27,6 +27,7 @@ class ToolController(QObject):
     activeServiceChanged = Signal()
     commandRequested = Signal(str)
     resetRequested = Signal(str)
+    resetStateChanged = Signal()
 
     def __init__(
             self,
@@ -41,6 +42,8 @@ class ToolController(QObject):
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
         self._active_service = ""
+        self.activeToolChanged.connect(self.resetStateChanged.emit)
+        self.activeServiceChanged.connect(self.resetStateChanged.emit)
 
     @Property(str, notify=activeToolChanged)
     def activeTool(self) -> str:
@@ -72,15 +75,19 @@ class ToolController(QObject):
     def active_interaction(self) -> InteractionType:
         return self._active_interaction
 
-    @Property(str, notify=activeToolChanged)
+    @Property(str, notify=resetStateChanged)
     def resetLabel(self) -> str:
+        if self._active_tool == ToolType.SERVICE and self._active_service == "service:mtf":
+            return "重置 MTF"
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         if definition is None or definition.reset_label is None:
             return "暂无可重置内容"
         return definition.reset_label
 
-    @Property(bool, notify=activeToolChanged)
+    @Property(bool, notify=resetStateChanged)
     def canResetActiveTool(self) -> bool:
+        if self._active_tool == ToolType.SERVICE:
+            return self._active_service == "service:mtf"
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         return (
             definition is not None
@@ -124,7 +131,10 @@ class ToolController(QObject):
 
             case ToolBehavior.PANEL:
                 self._set_active_tool(definition.tool_type)
-                self._set_active_interaction(definition.default_interaction)
+                self._set_active_interaction(
+                    InteractionType.SERVICE_MTF
+                    if tool_type == ToolType.SERVICE and self._active_service == "service:mtf"
+                    else definition.default_interaction)
                 self._set_active_panel(definition.tool_type)
 
             case ToolBehavior.COMMAND:
@@ -139,11 +149,14 @@ class ToolController(QObject):
             logger.warning("Unknown interaction type: %s", interaction_value)
             return
 
+        if interaction == InteractionType.SERVICE_MTF:
+            self.selectService(interaction.value)
+            return
         self._set_active_interaction(interaction)
 
     @Slot(str)
     def selectService(self, action: str) -> None:
-        """选择服务入口，但不启动绘制、计算或其他视口操作。"""
+        """MTF 启用独立矩形交互，QA 只保留菜单入口。"""
         if action not in {item.action for item in SERVICE_ACTIONS}:
             logger.warning("Unknown service entry: %s", action)
             return
@@ -152,10 +165,11 @@ class ToolController(QObject):
         # 不能通过二级入口绕过一级工具的视图类型限制。
         if self._active_tool != ToolType.SERVICE:
             return
-        if action == self._active_service:
-            return
-        self._active_service = action
-        self.activeServiceChanged.emit()
+        if action != self._active_service:
+            self._active_service = action
+            self.activeServiceChanged.emit()
+        self._set_active_interaction(InteractionType.SERVICE_MTF if action == "service:mtf"
+                                     else InteractionType.NONE)
 
     @Slot()
     def resetActiveTool(self) -> None:

@@ -143,7 +143,7 @@ def test_services_are_available_as_a_primary_panel_only_tool_in_2d() -> None:
 
 
 @pytest.mark.parametrize("action", ["service:mtf", "service:qa"])
-def test_service_selection_does_not_start_drawing_or_emit_commands(action) -> None:
+def test_service_selection_restores_corresponding_interaction_without_commands(action) -> None:
     controller = ToolController(tab_type=TabType.TWO_D)
     commands, resets, selections = [], [], []
     controller.commandRequested.connect(commands.append)
@@ -158,16 +158,18 @@ def test_service_selection_does_not_start_drawing_or_emit_commands(action) -> No
 
     assert controller.activeTool == controller.activePanel == "service"
     assert controller.activeService == action
-    assert controller.active_interaction is InteractionType.NONE
+    expected = InteractionType.SERVICE_MTF if action == "service:mtf" else InteractionType.NONE
+    assert controller.active_interaction is expected
     assert selections == [action]
-    assert commands == resets == []
+    assert commands == []
+    assert resets == (["service"] if action == "service:mtf" else [])
 
     # 离开后重新打开面板保留入口选择，但不改变其他工具的行为。
     controller.activateTool("pan")
     assert controller.activeInteraction == "pan"
     controller.activateTool("service")
     assert controller.activeService == action
-    assert controller.activeInteraction == ""
+    assert controller.activeInteraction == expected.value
 
 
 def test_unknown_service_entry_is_ignored() -> None:
@@ -187,7 +189,7 @@ def test_global_reset_remains_available_from_services() -> None:
     assert commands == ["viewport:reset"]
     assert controller.activePanel == "service"
     assert controller.activeService == "service:mtf"
-    assert controller.activeInteraction == ""
+    assert controller.activeInteraction == "service:mtf"
 
 
 @pytest.mark.parametrize("tab_type", [TabType.MPR, TabType.THREE_D, TabType.FOUR_D, TabType.TAG])

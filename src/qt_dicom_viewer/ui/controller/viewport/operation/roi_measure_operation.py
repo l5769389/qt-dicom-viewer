@@ -1,5 +1,6 @@
 """矩形和椭圆共用包围盒编辑，只在掩膜及面积计算时区分形状。"""
 
+import math
 from dataclasses import replace
 from uuid import uuid4
 
@@ -12,6 +13,29 @@ from qt_dicom_viewer.model.measure import (
 
 
 class RoiMeasureOperation:
+    def __init__(self, *, physical_square: bool = False):
+        self._physical_square = physical_square
+
+    @staticmethod
+    def _square_corner(anchor: ImagePoint, point: ImagePoint,
+                       row_spacing: float, column_spacing: float) -> ImagePoint:
+        """以 anchor 为固定角，将拖动点约束为物理尺寸正方形的对角。"""
+        if not all(math.isfinite(value) and value > 0
+                   for value in (row_spacing, column_spacing)):
+            return point
+        delta_column = point.column - anchor.column
+        delta_row = point.row - anchor.row
+        # 取较短的物理方向，使约束后的方框始终位于用户拖出的范围内，
+        # 不会因为各向异性像素间距而越过指针或图像边界。
+        side_mm = min(abs(delta_column) * column_spacing,
+                      abs(delta_row) * row_spacing)
+        column_sign = -1 if delta_column < 0 else 1
+        row_sign = -1 if delta_row < 0 else 1
+        return ImagePoint(
+            column=anchor.column + column_sign * side_mm / column_spacing,
+            row=anchor.row + row_sign * side_mm / row_spacing,
+        )
+
     def create_draft(self, *, point: ImagePoint, context: MeasureContext) -> RoiMeasurementDraft:
         return RoiMeasurementDraft(
             measurement_id=str(uuid4()), series_uid=context.series_uid,
@@ -33,6 +57,11 @@ class RoiMeasureOperation:
             return draft
         if target.kind == EditTargetKind.CONTROL_POINT and target.index in range(4):
             opposite = roi_corners(draft.points)[(target.index + 2) % 4]
+            if self._physical_square:
+                spacing = context.geometry.pixel_spacing
+                point = self._square_corner(
+                    opposite, point, spacing.row, spacing.column
+                )
             points = [opposite, point]
         else:
             points = edited_points(draft.points, target, drag_event)

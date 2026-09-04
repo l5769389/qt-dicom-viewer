@@ -9,6 +9,8 @@ Item {
     required property bool isSelected
     required property var coordinateMapper
     required property var transformState
+    property bool showRoiMetrics: true
+    property string roiLabel: ""
     z: isSelected ? 2 : 1
 
     readonly property Item labelItem: root.measurement.type === "length"
@@ -65,6 +67,8 @@ Item {
     }
     RoiMeasurementItem {
         id: roiItem
+        showMetrics: root.showRoiMetrics
+        shortLabel: root.roiLabel
         anchors.fill: parent
         visible: root.measurement.type === "rect" || root.measurement.type === "ellipse"
         measurement: root.measurement

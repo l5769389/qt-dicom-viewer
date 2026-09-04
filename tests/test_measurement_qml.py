@@ -55,6 +55,7 @@ def viewport(qt_app):
     try:
         yield view, controller, pixel_layer, warnings
     finally:
+        controller.shutdown()
         view.hide()
         delete(view)  # 保持控制器活到 QML 销毁之后，避免退出时空绑定。
 
@@ -269,6 +270,34 @@ def test_selected_roi_interior_drag_reports_interior_not_outline(viewport, kind)
     assert moved[0]["measurementId"] == original["measurementId"]
     assert moved[0]["metrics"]["area_mm2"] == pytest.approx(original["metrics"]["area_mm2"])
     assert {target["kind"] for target in targets if target} == {"interior"}
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["rect", "ellipse"])
+def test_roi_edit_updates_after_first_pixel_of_drag(viewport, kind):
+    view, controller, pixel_layer, warnings = viewport
+    controller._tool_controller.selectInteraction(f"measure:{kind}")
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    measurement = controller.measurementController
+    original = measurement.measurementItems[0]
+    start = _scene(pixel_layer, 60, 65)
+
+    QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, start)
+    QTest.mouseMove(view, start + QPoint(1, 0), 20)
+    QTest.qWait(30)
+
+    # 1 屏幕像素小于常见平台 startDragDistance；ROI 仍应立即进入编辑并刷新草稿。
+    draft = measurement.activeTransaction
+    assert draft["measurementId"] == original["measurementId"]
+    assert draft["editTarget"]["kind"] == "interior"
+    assert draft["points"] != original["points"]
+
+    QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, start + QPoint(1, 0))
+    QTest.qWait(30)
+    assert not measurement.has_active_transaction
+    assert measurement.measurementItems[0]["points"] != original["points"]
+    interaction = view.rootObject().findChild(QQuickItem, "viewportInteractionLayer")
+    assert interaction.property("immediateRoiDrag") is True
     assert not warnings, warnings
 
 

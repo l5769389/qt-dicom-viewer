@@ -11,6 +11,7 @@ from qt_dicom_viewer.model import (
     ViewportConfig,
 )
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
+from qt_dicom_viewer.ui.controller.viewport.controller.mtf_controller import MtfController
 from .image_2d_viewport_controller import (
     Image2DViewportController,
 )
@@ -28,6 +29,8 @@ class StackViewportController(Image2DViewportController):
                 "StackViewportController requires a stack viewport config"
             )
         super().__init__(viewport_config, tool_controller, parent)
+        self._mtf_controller = MtfController(self)
+        self.transformChanged.connect(self._mtf_controller.roiController.clearHover)
 
     def _initial_slice_index(self) -> int:
         return 0
@@ -66,4 +69,4 @@ class StackViewportController(Image2DViewportController):
             raise ValueError("Stack render result has an invalid view type")
 
     def _apply_specific_render_result(self, result: RenderResult) -> None:
-        return None
+        self._mtf_controller.set_frame(result.series_uid, result.frame_meta, result.modality_pixel)

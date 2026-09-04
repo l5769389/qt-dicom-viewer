@@ -65,7 +65,7 @@ Item {
     onViewportControllerChanged: syncViewportSize()
     onVisibleChanged: {
         if (!visible && viewportRoot.viewportController)
-            viewportRoot.viewportController.measurementController.clearHover()
+            viewportRoot.viewportController.activeAnnotationController.clearHover()
     }
 
     Component.onCompleted: syncViewportSize()
@@ -151,12 +151,12 @@ Item {
                 : ""
         measurementCursorKind:
             viewportRoot.viewportController
-                ? viewportRoot.viewportController.measurementController.hoverCursorKind
+                ? viewportRoot.viewportController.activeAnnotationController.hoverCursorKind
                 : ""
 
         onPointerExited: {
             if (viewportRoot.viewportController)
-                viewportRoot.viewportController.measurementController.clearHover()
+                viewportRoot.viewportController.activeAnnotationController.clearHover()
         }
 
         onTapped: position => {

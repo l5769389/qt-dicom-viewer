@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import "components" as Components
 import "panels" as Panels
 import "../../theme"
 
@@ -101,6 +100,7 @@ Rectangle {
         id: serviceComponent
         Panels.ServicePanel {
             toolController: detailPanel.toolController
+            viewportController: detailPanel.viewportController
             onActionTriggered: action => {
                 detailPanel.toolController?.selectService(action)
             }

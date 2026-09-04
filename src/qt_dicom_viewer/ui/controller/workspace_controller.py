@@ -38,6 +38,8 @@ class WorkspaceController(QObject):
     def closeTab(self, tab_id: str):
         if tab_id in self._tab_dict:
             tab = self._tab_dict[tab_id]
+            for viewport in tab.viewports_by_id.values():
+                viewport.shutdown()
             tab.deleteLater()
             del self._tab_dict[tab_id]
         if tab_id == self._active_tab_id:
@@ -45,6 +47,11 @@ class WorkspaceController(QObject):
         self.tabsChanged.emit()
         self.activeTabChanged.emit()
         self.activeViewportChanged.emit()
+
+    def shutdown(self):
+        for tab in self._tab_dict.values():
+            for viewport in tab.viewports_by_id.values():
+                viewport.shutdown()
 
     @Slot(str)
     def submit(self, render_request: RenderRequest):
