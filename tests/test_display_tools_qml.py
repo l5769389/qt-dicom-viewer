@@ -9,7 +9,6 @@ from PySide6.QtTest import QTest
 from shiboken6 import delete
 
 from test_measurement_qml import (
-    _mouse_drag,
     _scene,
     _visual_children,
     qt_app,
@@ -71,6 +70,13 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
     view, viewport_controller, warnings = display_panel
     root = view.rootObject()
 
+    primary_buttons = [
+        item for item in _visual_children(root)
+        if item.objectName().startswith("primaryTool-") and item.isVisible()
+    ]
+    assert primary_buttons
+    assert {button.height() for button in primary_buttons} == {36.0}
+
     _click(view, _find(root, "primaryTool-annotate"))
     _find(root, "annotatePanel")
     _find(root, "annotationTextEditor")
@@ -102,12 +108,24 @@ def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
     controller.textAnnotationController.setAnnotationColor("#66d0ff")
     controller.textAnnotationController.setAnnotationFontSize(22)
 
-    _mouse_drag(
-        view,
-        _scene(pixel_layer, 60, 70),
-        _scene(pixel_layer, 135, 35),
+    start = _scene(pixel_layer, 60, 70)
+    end = _scene(pixel_layer, 135, 35)
+    QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, start)
+    QTest.mouseMove(view, (start + end) / 2, 20)
+    QTest.qWait(20)
+    draft_item = controller.textAnnotationController.annotationItems[0]
+    assert draft_item["draft"]
+    draft_arrow = _find(
+        view.rootObject(),
+        "annotationArrow-" + draft_item["annotationId"],
     )
+    assert draft_arrow.property("draftStyle")
+
+    QTest.mouseMove(view, end, 20)
+    QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, end)
+    QTest.qWait(40)
     item = controller.textAnnotationController.annotationItems[0]
+    assert not item["draft"]
     assert item["tailColumn"] == pytest.approx(60, abs=1)
     assert item["tailRow"] == pytest.approx(70, abs=1)
     assert item["headColumn"] == pytest.approx(135, abs=1)
@@ -117,6 +135,7 @@ def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
     label = _find(view.rootObject(), "annotationLabel-" + item["annotationId"])
     assert rendered.property("arrowLength") > 20
     assert arrow.isVisible()
+    assert not arrow.property("draftStyle")
     assert label.width() > 0
 
     controller.textAnnotationController.clearSelection()

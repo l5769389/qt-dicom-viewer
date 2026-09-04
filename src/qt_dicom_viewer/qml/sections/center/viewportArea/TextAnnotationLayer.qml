@@ -71,15 +71,18 @@ Item {
 
             Shape {
                 objectName: "annotationArrow-" + annotationItem.modelData.annotationId
+                readonly property bool draftStyle: annotationItem.modelData.draft
                 anchors.fill: parent
                 visible: annotationItem.arrowLength > 1
                 antialiasing: true
+                opacity: draftStyle ? 0.78 : 1
 
                 ShapePath {
                     strokeColor: annotationItem.arrowColor
                     strokeWidth: annotationItem.modelData.selected ? 2.5 : 2
                     fillColor: "transparent"
-                    strokeStyle: ShapePath.DashLine
+                    strokeStyle: annotationItem.modelData.draft
+                        ? ShapePath.DashLine : ShapePath.SolidLine
                     dashPattern: [4, 2.5]
                     capStyle: ShapePath.RoundCap
                     startX: annotationItem.tailPoint.x
@@ -94,7 +97,8 @@ Item {
                 ShapePath {
                     strokeColor: annotationItem.arrowColor
                     strokeWidth: 1
-                    fillColor: annotationItem.arrowColor
+                    fillColor: annotationItem.modelData.draft
+                        ? "transparent" : annotationItem.arrowColor
                     joinStyle: ShapePath.RoundJoin
                     startX: annotationItem.headPoint.x
                     startY: annotationItem.headPoint.y
@@ -155,7 +159,9 @@ Item {
                 height: annotationText.implicitHeight + 8
                 radius: 4
                 visible: annotationItem.modelData.text.length > 0
-                color: annotationItem.modelData.selected
+                color: annotationItem.modelData.draft
+                    ? "#6602070e"
+                    : annotationItem.modelData.selected
                     ? "#b30b1b27" : "#8a02070e"
                 border.color: annotationItem.modelData.selected
                     ? annotationItem.arrowColor : "#552f3b48"
@@ -168,6 +174,7 @@ Item {
                     color: annotationItem.arrowColor
                     font.pixelSize: annotationItem.modelData.fontSize
                     font.weight: Font.DemiBold
+                    font.italic: annotationItem.modelData.draft
                     style: Text.Outline
                     styleColor: Theme.overlayOutline
                 }

@@ -114,6 +114,28 @@ def test_arrow_annotations_are_slice_scoped_selectable_and_editable() -> None:
     assert controller.annotationItems == []
 
 
+def test_arrow_annotation_draft_becomes_completed_on_finish() -> None:
+    controller = TextAnnotationController()
+    viewport = _controller()
+    frame = _render_result(viewport).frame_meta
+    controller.set_frame("series-1", frame)
+
+    assert controller.beginAnnotation(10, 20)
+    assert controller.annotationItems[0]["draft"]
+    assert controller.annotationItems[0]["headColumn"] == 10
+    assert controller.annotationItems[0]["headRow"] == 20
+
+    controller.updateAnnotation(45, 55)
+    assert controller.annotationItems[0]["draft"]
+    assert controller.annotationItems[0]["headColumn"] == 45
+    assert controller.annotationItems[0]["headRow"] == 55
+
+    controller.finishAnnotation(50, 60)
+    assert not controller.annotationItems[0]["draft"]
+    assert controller.annotationItems[0]["headColumn"] == 50
+    assert controller.annotationItems[0]["headRow"] == 60
+
+
 def test_viewport_applies_color_map_settings_and_annotation_reset() -> None:
     viewport = _controller()
     viewport.handleRenderResult(_render_result(viewport))
