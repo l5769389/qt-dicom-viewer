@@ -11,7 +11,8 @@ Item {
     property color iconColor: "#b8c3cf"
 
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
-    readonly property bool isTintableRasterIcon: appIcon.iconName === "mip"
+    readonly property bool isTintableRasterIcon:
+        appIcon.iconName === "mip" || appIcon.iconName === "service"
     // 复杂图标直接使用生成的 PNG，不再通过矢量路径重绘。
     readonly property var rasterSourceMap: ({
         "service": "../assets/icons/service.png",

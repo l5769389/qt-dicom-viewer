@@ -36,6 +36,7 @@ Basic.TabBar {
             required property var modelData
 
             id: tabButton
+            objectName: "workspaceTab-" + tabButton.modelData.tabId
             width: workspaceTabs.tabWidth
             implicitWidth: workspaceTabs.tabWidth
             leftPadding: 10
@@ -136,16 +137,17 @@ Basic.TabBar {
             }
 
             background: Rectangle {
+                objectName: "workspaceTabBackground-" + tabButton.modelData.tabId
+                readonly property color visualBorderColor: tabButton.checked
+                    ? Theme.controlHoverBorder : Theme.borderSubtle
                 radius: 6
                 color: tabButton.checked
                     ? Theme.selectionBackground
                     : tabButton.hovered
                         ? Theme.controlHover
-                        : "transparent"
-                border.color: tabButton.checked
-                    ? Theme.controlHoverBorder
-                    : "transparent"
-                border.width: tabButton.checked ? 1 : 0
+                        : Theme.panelBackgroundSoft
+                border.color: visualBorderColor
+                border.width: 1
             }
         }
     }

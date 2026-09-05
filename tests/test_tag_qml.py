@@ -272,6 +272,19 @@ def test_tag_tab_restores_scroll_query_and_image_toolbar(scene):
     assert workspace.activeTab.tagController is controller
     assert find(window, "tagList").property("contentY") == pytest.approx(500)
     assert len(workspace.tabs) == 2
+    tab_backgrounds = {
+        tab["tabId"]: find(window, "workspaceTabBackground-" + tab["tabId"])
+        for tab in workspace.tabs
+    }
+    active_background = tab_backgrounds[workspace.activeTabId]
+    inactive_background = next(
+        background for tab_id, background in tab_backgrounds.items()
+        if tab_id != workspace.activeTabId
+    )
+    assert active_background.property("color").name() == "#173449"
+    assert active_background.property("visualBorderColor").name() == "#3b5b70"
+    assert inactive_background.property("color").name() == "#081019"
+    assert inactive_background.property("visualBorderColor").name() == "#1c2935"
     type_text(window, find(window, "tagSearch"), "PatientName")
     click(window, find(window, "openView-mpr"))
     assert workspace.activeTabType == "mpr" and find(window, "rightPanel").isVisible()
