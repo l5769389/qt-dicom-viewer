@@ -13,20 +13,20 @@ Rectangle {
     color: Theme.panelBackgroundStrong
     readonly property string selectedCategory: settingsController.activeCategory
     readonly property var categories: [
-        {key: "sources", title: "数据源", subtitle: "本地与 PACS"},
-        {key: "colormap", title: "伪彩", subtitle: "灰阶与 PET"},
+        {key: "sources", title: "数据源", subtitle: "本地与 PACS", group: "连接"},
+        {key: "colormap", title: "伪彩", subtitle: "灰阶与 PET", group: "影像显示"},
         {key: "window", title: "窗模板", subtitle: "窗宽 / 窗位预设"},
         {key: "crosshair", title: "十字线", subtitle: "MPR 颜色与线宽"},
         {key: "corners", title: "四角信息", subtitle: "显示内容与样式"},
         {key: "scale", title: "比例尺", subtitle: "显示与颜色"},
-        {key: "measurement", title: "测量与标注", subtitle: "线条、文字与箭头"},
+        {key: "measurement", title: "测量与标注", subtitle: "线条、文字与箭头", group: "测量"},
         {key: "roi", title: "ROI 指标", subtitle: "选择显示统计项"}
     ]
     RowLayout {
         anchors.fill: parent
         spacing: 0
         Rectangle {
-            Layout.preferredWidth: 152
+            Layout.preferredWidth: 156
             Layout.fillHeight: true
             color: Theme.panelBackground
             ColumnLayout {
@@ -50,25 +50,37 @@ Rectangle {
                         spacing: 4
                         Repeater {
                             model: page.categories
-                            delegate: Components.AppButton {
-                                id: category
+                            delegate: ColumnLayout {
+                                id: entry
                                 required property var modelData
-                                objectName: "settingsCategory-" + modelData.key
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 44
-                                topPadding: 5
-                                bottomPadding: 5
-                                visible: !search.text || (modelData.title + modelData.subtitle).toLowerCase().indexOf(search.text.toLowerCase()) >= 0
-                                checkable: true
-                                autoExclusive: true
-                                checked: page.selectedCategory === modelData.key
-                                onClicked: page.settingsController.selectCategory(modelData.key)
-                                normalColor: "transparent"
-                                baseBorderWidth: 0
-                                contentItem: Column {
-                                    spacing: 2
-                                    Text { text: category.modelData.title; color: Theme.textPrimary; font.pixelSize: 13; font.bold: category.checked }
-                                    Text { text: category.modelData.subtitle; color: Theme.textMuted; font.pixelSize: 11 }
+                                spacing: 4
+                                visible: !search.text || (modelData.title + modelData.subtitle).toLowerCase().includes(search.text.toLowerCase())
+                                Text {
+                                    visible: !!entry.modelData.group && !search.text
+                                    Layout.topMargin: 8
+                                    text: entry.modelData.group ?? ""
+                                    color: Theme.textSubtle; font.pixelSize: 10
+                                }
+                                Components.AppButton {
+                                    id: category
+                                    objectName: "settingsCategory-" + entry.modelData.key
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 34
+                                    checked: page.selectedCategory === entry.modelData.key
+                                    onClicked: page.settingsController.selectCategory(entry.modelData.key)
+                                    Accessible.name: entry.modelData.title
+                                    contentItem: Text {
+                                        text: entry.modelData.title; color: category.checked ? Theme.textPrimary : Theme.textSecondary
+                                        font.pixelSize: 13; font.weight: category.checked ? Font.DemiBold : Font.Normal
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        radius: 4
+                                        color: category.checked ? Theme.selectionBackground : category.hovered ? Theme.controlHover : "transparent"
+                                        border.width: category.visualFocus ? 1 : 0; border.color: Theme.focusBorder
+                                        Rectangle { width: 3; height: 16; radius: 1; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: Theme.primaryColor; visible: category.checked }
+                                    }
                                 }
                             }
                         }

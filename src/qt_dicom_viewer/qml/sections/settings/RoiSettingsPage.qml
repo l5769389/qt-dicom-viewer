@@ -4,17 +4,16 @@ import QtQuick.Layouts
 import "../../components" as Components
 import "../center/viewportArea/measurementLayer" as Measurement
 import "../../theme"
-ColumnLayout {
+SettingsSplit {
     id: root
     required property var settingsController
-    spacing: 12
-    SettingsCard {
+    SettingsSection {
         Layout.fillWidth: true
-        Text { text: "ROI 显示指标"; color: Theme.textPrimary; font.pixelSize: 14; font.bold: true }
-        Text { Layout.fillWidth: true; text: "用于矩形与椭圆 ROI。修改只影响信息卡的显示，不改变计算结果。"; color: Theme.textMuted; font.pixelSize: 12; wrapMode: Text.Wrap }
+        title: "显示指标"
+        description: "用于矩形与椭圆 ROI 的信息卡。"
         GridLayout {
             Layout.fillWidth: true
-            columns: root.width > 380 ? 2 : 1
+            columns: width > 340 ? 2 : 1
             columnSpacing: 16; rowSpacing: 2
             Repeater {
                 model: root.settingsController.roiFields
@@ -29,12 +28,17 @@ ColumnLayout {
             }
         }
     }
-    Text { text: "信息卡预览"; color: Theme.textMuted; font.pixelSize: 12 }
-    Measurement.RoiMetricCard {
-        Layout.preferredWidth: 260
-        accentColor: root.settingsController.values.measurement.completedColor
-        visibleMetrics: root.settingsController.values.roi
-        metricFontSize: root.settingsController.values.measurement.fontSize
-        measurement: ({type: "rect", label: "矩形 ROI", metrics: {area_mm2: 400, width_mm: 20, height_mm: 20, mean: 40, std: 8.5, minimum: 12, maximum: 65, pixel_count: 400, unit: "HU"}})
+    preview: Component {
+        ColumnLayout {
+            spacing: 10
+            Text { text: "信息卡预览"; color: Theme.textMuted; font.pixelSize: 12 }
+            Measurement.RoiMetricCard {
+                Layout.fillWidth: true
+                accentColor: root.settingsController.values.measurement.completedColor
+                visibleMetrics: root.settingsController.values.roi
+                metricFontSize: root.settingsController.values.measurement.fontSize
+                measurement: ({type: "rect", label: "矩形 ROI", metrics: {area_mm2: 400, width_mm: 20, height_mm: 20, mean: 40, std: 8.5, minimum: 12, maximum: 65, pixel_count: 400, unit: "HU"}})
+            }
+        }
     }
 }

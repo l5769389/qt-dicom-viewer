@@ -101,5 +101,9 @@
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/TextAnnotationLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/PseudoColorPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/ViewportSettingsPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/MprIcon.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/ColorMapIcon.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/SettingsSection.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/SettingsSplit.qml</file>
     </qresource>
 </RCC>

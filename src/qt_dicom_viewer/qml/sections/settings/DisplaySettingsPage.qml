@@ -17,15 +17,10 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text { Layout.fillWidth: true; text: page.title; color: Theme.textPrimary; font.pixelSize: 18; font.bold: true }
+            Text { text: "自动保存"; color: Theme.textSubtle; font.pixelSize: 11 }
             Components.AppButton { objectName: "resetDisplaySettings"; text: "恢复默认"; compact: true; normalColor: "transparent"; baseBorderWidth: 1; onClicked: page.settingsController.resetSection(page.category) }
         }
-        Text {
-            Layout.fillWidth: true
-            text: page.category === "window" ? "保存后同步到调窗面板；选择模板即可应用。" : "修改即时生效，并自动保存到本机。"
-            color: Theme.textMuted
-            font.pixelSize: 12
-            wrapMode: Text.Wrap
-        }
+        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.dividerColor }
         Text {
             objectName: "settingsError"
             Layout.fillWidth: true
@@ -45,7 +40,7 @@ Item {
             Basic.ScrollBar.vertical: Components.AppScrollBar {}
             Loader {
                 id: content
-                width: scroll.availableWidth
+                width: Math.min(scroll.availableWidth, page.category === "window" ? 760 : 1000)
                 sourceComponent: ({colormap: colorsPage, window: windowsPage, crosshair: crosshairPage,
                     corners: cornersPage, scale: scalePage, measurement: measurementPage, roi: roiPage})[page.category]
             }

@@ -14,7 +14,7 @@ Basic.ScrollView {
     clip: true
     Basic.ScrollBar.vertical: Components.AppScrollBar {}
     ColumnLayout {
-        width: parent.width
+        width: Math.min(page.availableWidth, 1000)
         spacing: 12
         Text {
             Layout.fillWidth: true

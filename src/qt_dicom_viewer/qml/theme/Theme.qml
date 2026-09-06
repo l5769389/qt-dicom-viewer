@@ -75,8 +75,8 @@ QtObject {
     readonly property int controlRadius: 6
     readonly property int bodyFontSize: 13
 
-    readonly property color folderAccent: "#e6bd70"
-    readonly property color folderSurface: "#332d23"
+    readonly property color folderAccent: "#85c6ec"
+    readonly property color folderSurface: "#203847"
     readonly property color fusionAccent: "#77c8bb"
     readonly property int controlHeight: 32
     readonly property int compactControlHeight: 32

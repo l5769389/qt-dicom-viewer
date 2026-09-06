@@ -16,9 +16,9 @@ Item {
 
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
     readonly property bool isTintableRasterIcon: appIcon.rasterSource !== ""
-    // 独立透明 PNG，统一跟随工具栏的默认、选中、悬停与禁用颜色。
+    // 伪彩保留灰阶到色带的映射含义，轮廓跟随工具栏状态。
     readonly property bool isPseudocolorIcon:
-        appIcon.iconName === "pseudocolor-gray"
+        ["pseudocolor", "pseudocolor-gray"].includes(appIcon.iconName)
     // 服务图标直接使用生成的 PNG，不再通过矢量路径重绘。
     readonly property var rasterSourceMap: ({
         "service": "../assets/icons/tool-service.png",
@@ -26,15 +26,12 @@ Item {
         "qa": "../assets/icons/tool-qa.png",
         "mip": "../assets/icons/tool-mip.png",
         "measure": "../assets/icons/tool-measure.png",
-        "pseudocolor": "../assets/icons/tool-pseudocolor.png",
-        "pseudocolor-gray": "../assets/icons/tool-pseudocolor.png",
         "fusion": "../assets/icons/tool-fusion.png",
         "remove-bed": "../assets/icons/tool-remove-bed.png",
         "segmentation": "../assets/icons/tool-segmentation.png",
         "voi": "../assets/icons/tool-voi.png",
         "nav-load-file": "../assets/icons/nav-load-file.png",
         "nav-view-2d": "../assets/icons/nav-view-2d.png",
-        "nav-view-mpr": "../assets/icons/nav-view-mpr.png",
         "nav-view-3d": "../assets/icons/nav-view-3d.png",
         "nav-view-tile": "../assets/icons/nav-view-tile.png",
         "nav-view-4d": "../assets/icons/nav-view-4d.png",
@@ -91,6 +88,7 @@ Item {
         visible: !appIcon.isWindowLevelIcon
             && !appIcon.isPseudocolorIcon
             && appIcon.rasterSource === ""
+            && appIcon.iconName !== "nav-view-mpr"
         width: 24
         height: 24
 
@@ -109,69 +107,17 @@ Item {
         }
     }
 
-    Canvas {
-        id: pseudocolorCanvas
+    MprIcon {
+        objectName: "mprPlaneIcon"
+        anchors.fill: parent
+        visible: appIcon.iconName === "nav-view-mpr"
+        tint: appIcon.iconColor
+    }
+    ColorMapIcon {
         objectName: "pseudocolorIcon"
-
         anchors.fill: parent
         visible: appIcon.isPseudocolorIcon
-
-        onPaint: {
-            const context = getContext("2d")
-            context.reset()
-
-            const centerX = width / 2
-            const centerY = height / 2
-            const radius = Math.min(width, height) * 0.38
-            const colors = [
-                "#4054d6",
-                "#23a8e0",
-                "#22c99a",
-                "#f1dc4c",
-                "#f08a35",
-                "#dc3e54"
-            ]
-
-            for (let index = 0; index < colors.length; ++index) {
-                const start = -Math.PI / 2
-                    + index * Math.PI * 2 / colors.length
-                const end = -Math.PI / 2
-                    + (index + 1) * Math.PI * 2 / colors.length
-                context.beginPath()
-                context.moveTo(centerX, centerY)
-                context.arc(centerX, centerY, radius, start, end)
-                context.closePath()
-                context.fillStyle = colors[index]
-                context.fill()
-            }
-
-            context.beginPath()
-            context.arc(centerX, centerY, radius, 0, Math.PI * 2)
-            context.lineWidth = Math.max(1, radius * 0.13)
-            context.strokeStyle = appIcon.iconColor
-            context.stroke()
-
-            context.beginPath()
-            context.arc(centerX, centerY, radius * 0.22, 0, Math.PI * 2)
-            context.fillStyle = appIcon.iconColor
-            context.fill()
-        }
-
-        Connections {
-            target: appIcon
-
-            function onIconColorChanged() {
-                pseudocolorCanvas.requestPaint()
-            }
-
-            function onWidthChanged() {
-                pseudocolorCanvas.requestPaint()
-            }
-
-            function onHeightChanged() {
-                pseudocolorCanvas.requestPaint()
-            }
-        }
+        tint: appIcon.iconColor
     }
 
     Image {
@@ -203,7 +149,7 @@ Item {
         readonly property string imageSource: appIcon.rasterSource
         // 原始 PNG 留有透明安全边距，轻微放大后可与 24x24
         // MDI 图标在同一个 22px 容器内保持一致的视觉尺寸。
-        readonly property real rasterScale: appIcon.iconName === "nav-view-mpr" ? 1.0 : 1.14
+        readonly property real rasterScale: 1.14
 
         function ensureImageLoaded() {
             if (visible && appIcon.rasterSource !== "")

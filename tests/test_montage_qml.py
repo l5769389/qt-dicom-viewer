@@ -44,16 +44,13 @@ def test_montage_qml_exposes_grid_controls_and_navigation() -> None:
         assert tag_label in qml
 
 
-def test_montage_tab_badge_and_pseudocolor_icon_are_responsive() -> None:
+def test_montage_tab_badge_is_responsive() -> None:
     tab_bar = _read(
         "src/qt_dicom_viewer/qml/sections/center/TabBarSection.qml"
     )
-    icon = _read("src/qt_dicom_viewer/qml/components/AppIcon.qml")
 
     assert "tabTypeLabel.implicitWidth + 12" in tab_bar
-    assert 'objectName: "pseudocolorIcon"' in icon
-    assert '"#4054d6"' in icon
-    assert '"#dc3e54"' in icon
+    # Pseudocolor is checked with rendered pixels in test_settings_redesign.py.
 
 
 def test_montage_qml_is_in_the_compiled_resource_manifest() -> None:

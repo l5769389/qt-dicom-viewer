@@ -15,26 +15,31 @@ RowLayout {
     property string settingName: ""
     signal edited(real value)
     spacing: 8
-    Text {
-        Layout.preferredWidth: 76
-        text: root.title
-        color: Theme.textSecondary
-        font.pixelSize: 12
-        wrapMode: Text.Wrap
-    }
+    Text { Layout.fillWidth: true; text: root.title; color: Theme.textSecondary; font.pixelSize: 12; wrapMode: Text.Wrap }
     Components.AppSlider {
         objectName: "setting-" + root.settingName
-        Layout.fillWidth: true
+        Layout.preferredWidth: Math.min(140, root.width * 0.32)
+        visible: root.width >= 320
         from: root.from; to: root.to; stepSize: root.stepSize
-        value: root.value
-        Accessible.name: root.title
+        value: root.value; Accessible.name: root.title
         onMoved: root.edited(value)
     }
-    Text {
-        Layout.preferredWidth: 44
+    Components.AppTextField {
+        objectName: "settingInput-" + root.settingName
+        Layout.preferredWidth: 60
         horizontalAlignment: Text.AlignRight
-        text: Number(root.value.toFixed(2)) + root.suffix
-        color: Theme.textPrimary
-        font.pixelSize: 12
+        text: Number(root.value.toFixed(2))
+        Accessible.name: root.title
+        validator: DoubleValidator { locale: "C"; bottom: root.from; top: root.to; decimals: 2 }
+        onActiveFocusChanged: {
+            if (!activeFocus && !acceptableInput) text = Qt.binding(() => Number(root.value.toFixed(2)))
+        }
+        onEditingFinished: {
+            const number = Number(text)
+            if (text.trim() && Number.isFinite(number) && number >= root.from && number <= root.to)
+                root.edited(number)
+            text = Qt.binding(() => Number(root.value.toFixed(2)))
+        }
     }
+    Text { Layout.preferredWidth: 20; text: root.suffix.trim(); color: Theme.textMuted; font.pixelSize: 11 }
 }

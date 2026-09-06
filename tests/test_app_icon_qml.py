@@ -13,7 +13,7 @@ from test_measurement_qml import qt_app
 
 def test_tool_pngs_render_and_recolor_when_icon_name_changes(qt_app):
     qml = Path(__file__).resolve().parents[1] / "src/qt_dicom_viewer/qml"
-    names = ["fusion", "pseudocolor", "measure", "service", "mtf",
+    names = ["fusion", "measure", "service", "mtf",
              "remove-bed", "segmentation", "voi", "qa", "mip"]
     view = QQuickView()
     warnings = []
