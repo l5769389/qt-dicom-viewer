@@ -414,6 +414,7 @@ def test_pixel_sampling_remains_available_while_window_tool_is_idle() -> None:
         "y": "1",
         "value": "0",
         "unit": "HU",
+        "label": "CT",
     }
 
 

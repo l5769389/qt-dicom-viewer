@@ -11,6 +11,36 @@ class WindowLevel:
 
 
 @dataclass(frozen=True, slots=True)
+class PixelUnitOption:
+    """One truthful display/measurement unit derived from source pixels."""
+
+    unit_id: str
+    label: str
+    unit: str
+    scale_from_source: float
+    available: bool = True
+    warning: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PixelValueMeta:
+    """Describe the real-world values exposed by one rendered frame."""
+
+    unit: str = ""
+    suv_type: str | None = None
+    source_unit: str | None = None
+    quantification: str = "native"
+    warning: str | None = None
+    unit_id: str = "native"
+    scale_from_source: float = 1.0
+    unit_options: tuple[PixelUnitOption, ...] = ()
+
+    @property
+    def is_suv(self) -> bool:
+        return self.unit.casefold().startswith("suv")
+
+
+@dataclass(frozen=True, slots=True)
 class PixelSpacing:
     row: float
     column: float
@@ -41,6 +71,11 @@ class InstanceDisplayMeta:
     pixel_spacing: tuple[float, float] | None
     image_position: tuple[float, float, float] | None
     slice_location: float | None
+    radiopharmaceutical: str | None = None
+    pet_units: str | None = None
+    suv_type: str | None = None
+    decay_correction: str | None = None
+    corrected_image: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,13 +86,14 @@ class FrameDisplayMeta:
     inverted: bool
     instance_meta: InstanceDisplayMeta
     geometry: ImageGeometryMeta
+    pixel_value_meta: PixelValueMeta = PixelValueMeta()
 
 
 @dataclass(frozen=True, slots=True)
 class PointerDisplayMeta:
     pointer_x: float | None
     pointer_y: float | None
-    pointer_ct_value: float | None
+    pointer_value: float | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,3 +103,4 @@ class DicomLoadResult:
     image: np.ndarray | None
     modality_pixel: np.ndarray | None
     instance_meta: InstanceDisplayMeta
+    pixel_value_meta: PixelValueMeta = PixelValueMeta()

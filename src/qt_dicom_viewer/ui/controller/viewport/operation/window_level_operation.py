@@ -24,6 +24,7 @@ class WindowLevelInteractionConfig:
     minimum_center_control_range: float = 100.0
     max_center_control_range: float = 1000.0
     allow_inversion: bool = True
+    fixed_lower_bound: float | None = None
 
 
 DEFAULT_WINDOW_LEVEL_CONFIG = WindowLevelInteractionConfig()
@@ -86,6 +87,31 @@ class WindowLevelOperation(DragOperation):
             max(start.width, config.minimum_center_control_range),
             config.max_center_control_range,
         )
+
+        if config.fixed_lower_bound is not None:
+            lower = config.fixed_lower_bound
+            start_upper = start.center + start.width / 2.0
+            horizontal_change = (
+                width_delta / width_axis_size * width_control_range
+            )
+            vertical_change = (
+                -center_delta / center_axis_size * center_control_range
+            )
+            upper = round(
+                max(
+                    lower + config.minimum_width,
+                    start_upper + horizontal_change + vertical_change,
+                ),
+                3,
+            )
+            return WindowLevelChange(
+                window=WindowLevel(
+                    center=(lower + upper) / 2.0,
+                    width=upper - lower,
+                ),
+                inverted=False,
+            )
+
         # 100 / 视口的宽度 * 灵敏度
         width_step = (
                 width_control_range

@@ -8,6 +8,8 @@ Item {
     required property var viewportController
     required property bool hasTabs
     Keys.onEscapePressed: event => {
+        if (viewportRoot.viewportController && viewportRoot.viewportController.reconstructionController)
+            viewportRoot.viewportController.reconstructionController.setRegistrationActive(false)
         if (viewportRoot.viewportController)
             viewportRoot.viewportController.cancelMeasurement()
         event.accepted = true
@@ -293,6 +295,9 @@ Item {
                 interactionLayer,
                 currentPosition
             )
+            if (viewportRoot.viewportController.updateRegistrationDrag !== undefined
+                    && viewportRoot.viewportController.updateRegistrationDrag(hit.column, hit.row))
+                return
             viewportRoot.viewportController.updateInteraction(
                 startPosition,
                 currentPosition,
@@ -368,6 +373,73 @@ Item {
                 imageCanvas.pointHitToleranceInImagePixels,
                 imageCanvas.lineHitToleranceInImagePixels
             )
+        }
+    }
+
+    Rectangle {
+        id: quantificationWarning
+        readonly property string message: !viewportRoot.viewportController ? ""
+            : viewportRoot.viewportController.errorMessage !== ""
+            ? "显示更新失败，保留上一帧：" + viewportRoot.viewportController.errorMessage
+            : viewportRoot.viewportController.quantificationWarning !== ""
+            ? "PET 提示：" + viewportRoot.viewportController.quantificationWarning
+            : viewportRoot.viewportController.reconstructionController
+            ? viewportRoot.viewportController.reconstructionController.warning : ""
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 18
+        z: 29
+        visible: viewportRoot.viewportController
+            && viewportRoot.viewportController.loadState === "ready"
+            && message !== ""
+        width: Math.min(parent.width - 48, warningText.implicitWidth + 28)
+        height: warningText.implicitHeight + 18
+        radius: 6
+        color: Theme.panelBackgroundStrong
+        border.color: Theme.warningColor
+
+        Text {
+            id: warningText
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, quantificationWarning.width - 28)
+            text: quantificationWarning.message
+            color: Theme.warningColor
+            font.pixelSize: 12
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        z: 30
+        visible: viewportRoot.viewportController
+            && viewportRoot.viewportController.loadState === "error"
+        color: Theme.canvasBackground
+
+        Column {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 520)
+            spacing: 10
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "无法显示 2D 影像"
+                color: Theme.warningColor
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+            }
+
+            Text {
+                width: parent.width
+                text: viewportRoot.viewportController
+                    ? viewportRoot.viewportController.errorMessage
+                    : ""
+                color: Theme.textMuted
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+            }
         }
     }
 

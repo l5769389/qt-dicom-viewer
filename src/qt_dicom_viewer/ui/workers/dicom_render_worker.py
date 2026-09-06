@@ -11,6 +11,7 @@ from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
 from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
 from qt_dicom_viewer.core.pseudocolor import apply_color_map
+from qt_dicom_viewer.core.pet import validate_pet_2d_series
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
@@ -19,6 +20,7 @@ from qt_dicom_viewer.model import (
     MontageRenderRequest,
     MontageRenderResult,
     PixelSpacing,
+    PixelValueMeta,
     MprRenderRequest,
     RenderFailure,
     RenderRequest,
@@ -30,6 +32,8 @@ from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.model.render_models import MprRenderResult, StackRenderResult
 from qt_dicom_viewer.model.render_models import VolumeLoadRequest, VolumeLoadResult
 from qt_dicom_viewer.core.volume_view import validate_volume_series
+from qt_dicom_viewer.core.pet_reconstruction import PetReconstructor
+from qt_dicom_viewer.model.render_models import PetBatchRenderRequest
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +101,17 @@ class DicomRenderWorker(QObject):
         self._volume_manager = volume_manager
         self._mpr_reslicer = MprReslicer()
         self._montage_cache = _MontageFrameCache()
+        self._stack_loader = DicomLoader()
+        self._pet_reconstructor = PetReconstructor(series_catalog, volume_manager)
 
     @Slot(object)
     def handleRenderRequest(self, request: RenderRequest):
         logger.debug(f"worker received:{request.request_id}")
 
         try:
-            if isinstance(request, StackRenderRequest):
+            if isinstance(request, PetBatchRenderRequest):
+                self.render_finished.emit(self._pet_reconstructor.render(request))
+            elif isinstance(request, StackRenderRequest):
                 self._handle_stack_request(request)
             elif isinstance(request, MontageRenderRequest):
                 self._handle_montage_request(request)
@@ -113,6 +121,10 @@ class DicomRenderWorker(QObject):
                 series = self.series_catalog.get_series(request.series_uid)
                 if series is None:
                     raise LookupError("找不到该序列")
+                if getattr(series, "modality", "").upper() == "PT":
+                    raise ValueError(
+                        "暂不支持 PET 体绘制，请使用 PET 2D 或 MPR"
+                    )
                 validate_volume_series(series)
                 volume = self._volume_manager.get_or_build(series)
                 self.render_finished.emit(VolumeLoadResult(
@@ -230,6 +242,7 @@ class DicomRenderWorker(QObject):
                     "Series not found: "
                     f"series_uid={request.series_uid}"
                 )
+            validate_pet_2d_series(series)
 
             instances = series.instances
             slice_count = len(instances)
@@ -244,37 +257,38 @@ class DicomRenderWorker(QObject):
             )
 
             instance = instances[actual_slice_index]
-            dicom_load_result = DicomLoader().load_a_dicom(
+            dicom_load_result = self._stack_loader.load_a_dicom(
                 instance_path=instance.path,
                 render_request=request,
             )
-            if dicom_load_result is not None:
-                result = StackRenderResult(
-                    response_id=request.request_id,
-                    series_uid=request.series_uid,
-                    viewport_id=request.viewport_id,
-                    view_type=request.view_type,
-                    image=apply_color_map(
-                        dicom_load_result.image,
-                        request.color_map,
-                    ),
-                    modality_pixel=dicom_load_result.modality_pixel,
-                    frame_meta=FrameDisplayMeta(
-                        slice_index=actual_slice_index,
-                        slice_count=slice_count,
-                        window=dicom_load_result.window,
-                        instance_meta=dicom_load_result.instance_meta,
-                        inverted=dicom_load_result.inverted,
-                        geometry=ImageGeometryMeta(
-                            rows=instance.rows or 0,
-                            columns=instance.columns or 0,
-                            pixel_spacing=instance.pixel_spacing,
-                            image_position_patient=instance.image_position_patient,
-                            image_orientation_patient=instance.image_orientation_patient,
-                        ),
-                    ),
+            if dicom_load_result is None:
+                raise ValueError(
+                    f"DICOM 文件读取失败：{instance.path.name}"
                 )
-                self.render_finished.emit(result)
+            result = StackRenderResult(
+                response_id=request.request_id,
+                series_uid=request.series_uid,
+                viewport_id=request.viewport_id,
+                view_type=request.view_type,
+                image=apply_color_map(dicom_load_result.image, request.color_map),
+                modality_pixel=dicom_load_result.modality_pixel,
+                frame_meta=FrameDisplayMeta(
+                    slice_index=actual_slice_index,
+                    slice_count=slice_count,
+                    window=dicom_load_result.window,
+                    instance_meta=dicom_load_result.instance_meta,
+                    inverted=dicom_load_result.inverted,
+                    geometry=ImageGeometryMeta(
+                        rows=instance.rows or 0,
+                        columns=instance.columns or 0,
+                        pixel_spacing=instance.pixel_spacing,
+                        image_position_patient=instance.image_position_patient,
+                        image_orientation_patient=instance.image_orientation_patient,
+                    ),
+                    pixel_value_meta=dicom_load_result.pixel_value_meta,
+                ),
+            )
+            self.render_finished.emit(result)
         except Exception as error:
             logger.exception(
                 "Render failed: request_id=%s "
@@ -310,6 +324,7 @@ class DicomRenderWorker(QObject):
                 phase_identifier=request.phase_identifier,
             )
         )
+        volume = volume.in_unit(request.value_unit)
         resolved_frame = request.mpr_frame or MprFrame.standard_lps(
             volume.geometry.center_patient
         )
@@ -341,13 +356,15 @@ class DicomRenderWorker(QObject):
         )
 
         loader = DicomLoader()
+        minimum = 0.01 if volume.pixel_value_meta.is_suv else 0.001 if getattr(series, "modality", "").upper() == "PT" else 1.
         effective_window = loader.normalize_window(
-            request.window or volume.default_window
+            request.window or volume.default_window, minimum_width=minimum
         )
         image = loader.apply_window(
             modality_pixels=plane_pixels,
             target_window=effective_window,
             inverted=request.inverted,
+            minimum_width=minimum,
         )
 
         rows = plane_geometry.rows
@@ -393,6 +410,7 @@ class DicomRenderWorker(QObject):
                             plane_geometry.image_orientation_patient
                         ),
                     ),
+                    pixel_value_meta=volume.pixel_value_meta,
                 ),
                 mpr_frame=plane_geometry.frame,
                 plane_geometry=plane_geometry,

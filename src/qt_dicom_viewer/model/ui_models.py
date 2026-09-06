@@ -68,6 +68,15 @@ class DicomInstanceMeta:
     study_date: str = ""
     study_time: str = ""
     patient_id_issuer: str = ""
+    sop_class_uid: str = ""
+    photometric_interpretation: str = ""
+    pet_series_type: tuple[str, ...] = ()
+    pet_units: str = ""
+    pet_suv_type: str = ""
+    pet_corrected_image: tuple[str, ...] = ()
+    pet_decay_correction: str = ""
+    pet_2d_supported: bool = False
+    pet_2d_support_error: str = ""
     frame_of_reference_uid: str = ""
     phase_values: tuple[tuple[str, int | float | str], ...] = ()
     number_of_temporal_positions: int | None = None
@@ -110,6 +119,16 @@ class DicomSeriesRecord:
     patient_id_issuer: str = ""
     phases: tuple[DicomPhaseRecord, ...] = ()
     phase_source_keyword: str | None = None
+    sop_class_uid: str = ""
+    number_of_frames: int = 1
+    photometric_interpretation: str = ""
+    pet_series_type: tuple[str, ...] = ()
+    pet_units: str = ""
+    pet_suv_type: str = ""
+    pet_corrected_image: tuple[str, ...] = ()
+    pet_decay_correction: str = ""
+    pet_2d_supported: bool = False
+    pet_2d_support_error: str = ""
     frame_of_reference_uid: str = ""
 
     @property
@@ -249,6 +268,7 @@ class ViewportConfig:
     viewport_type: ViewportType
     series_uid: str
     series_meta: SeriesDisplayMeta
+    role: str = "image"
 
 @dataclass(frozen=True)
 class ViewportState:

@@ -28,9 +28,14 @@ from qt_dicom_viewer.core.pseudocolor import (
 from qt_dicom_viewer.ui.controller.viewport.operation.drag_operation import DragOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.pan_operation import PanOperation
 from qt_dicom_viewer.ui.controller.viewport.operation.scroll_operation import ScrollOperation
-from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import WindowLevelOperation
+from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import (
+    WindowLevelInteractionConfig,
+    WindowLevelOperation,
+)
 from qt_dicom_viewer.ui.controller.viewport.operation.zoom_operation import ZoomOperation
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
+
+from qt_dicom_viewer.ui.controller.viewport.controller.pet_display_controller import PetDisplayController
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +65,24 @@ VIEWPORT_SETTING_FIELDS = {
     "localizer": "show_localizer",
     "fit-to-window": "fit_to_window",
 }
+
+PET_SUV_WINDOW_LEVEL_CONFIG = WindowLevelInteractionConfig(
+    minimum_width=0.01,
+    minimum_width_control_range=1.0,
+    max_width_control_range=1_000_000_000.0,
+    minimum_center_control_range=1.0,
+    max_center_control_range=1_000_000_000.0,
+    fixed_lower_bound=0.0,
+)
+
+PET_NATIVE_WINDOW_LEVEL_CONFIG = WindowLevelInteractionConfig(
+    minimum_width=0.001,
+    minimum_width_control_range=1.0,
+    max_width_control_range=1_000_000_000.0,
+    minimum_center_control_range=1.0,
+    max_center_control_range=1_000_000_000.0,
+    fixed_lower_bound=0.0,
+)
 
 
 def _make_pointer_position(
@@ -104,6 +127,9 @@ class Image2DViewportController(ViewportController):
     crosshairHoverTargetChanged = Signal()
     activeInteractionChanged = Signal()
     directionLabelsChanged = Signal()
+    windowPresetsChanged = Signal()
+    loadStateChanged = Signal()
+    petDisplayChanged = Signal()
     hit_tolerance = 6
 
     def __init__(self, viewport_config: ViewportConfig, tool_controller: ToolController, parent=None):
@@ -116,6 +142,8 @@ class Image2DViewportController(ViewportController):
         self._image_revision = 0
         self._latest_request_id: str | None = None
         self._has_image = False
+        self._load_state = "idle"
+        self._error_message = ""
         self._frame_meta: FrameDisplayMeta | None = None
         self._baseline_window: WindowLevel | None = None
         self._baseline_slice_index: int | None = None
@@ -134,6 +162,12 @@ class Image2DViewportController(ViewportController):
         self._overlay_presenter = OverlayPresenter()
         self._active_drag_operation: DragOperation | None = None
         self._window_level_operation = WindowLevelOperation()
+        self._window_config_mode = "default"
+        self._pet_display = PetDisplayController(self)
+        self._pet_display.changed.connect(self.petDisplayChanged.emit)
+        self._pet_display.changed.connect(self.overlayChanged.emit)
+        self._pet_display.invalidated.connect(self.request_render)
+        self._latest_request_id = None
         self._active_drag_start_position: PointerPosition | None = None
         self._annotation_drag_active = False
         self.transformChanged.connect(self._measure_controller.clearHover)
@@ -214,6 +248,7 @@ class Image2DViewportController(ViewportController):
 
 
     def request_first_loader(self) -> None:
+        self._set_load_state("loading")
         request = self._build_render_request(initial=True)
         self._latest_request_id = request.request_id
         logger.debug(
@@ -268,13 +303,41 @@ class Image2DViewportController(ViewportController):
                 != self.viewport_config.viewport_id
         ):
             return
+        if not self.accepts_result(result):
+            return
         self._validate_render_result(result)
         self._latest_request_id = None
+        previous_value_meta = (
+            self._frame_meta.pixel_value_meta
+            if self._frame_meta is not None
+            else None
+        )
         if self._baseline_window is None:
             self._baseline_window = result.frame_meta.window
         if self._baseline_slice_index is None:
             self._baseline_slice_index = result.frame_meta.slice_index
         self._frame_meta = result.frame_meta
+        is_pet = self.isPetViewport
+        config_mode = (
+            "pet-suv"
+            if is_pet and result.frame_meta.pixel_value_meta.is_suv
+            else "pet-native"
+            if is_pet
+            else "default"
+        )
+        if config_mode != self._window_config_mode:
+            self._window_level_operation.cancel()
+            self._window_level_operation = WindowLevelOperation(
+                PET_SUV_WINDOW_LEVEL_CONFIG
+                if config_mode == "pet-suv"
+                else PET_NATIVE_WINDOW_LEVEL_CONFIG
+                if config_mode == "pet-native"
+                else WindowLevelInteractionConfig()
+            )
+            self._window_config_mode = config_mode
+        self._cursor_controller.set_pixel_value_meta(
+            result.frame_meta.pixel_value_meta
+        )
         slice_changed = (
             self._state.slice_index != result.frame_meta.slice_index
             or self._state.slice_count != result.frame_meta.slice_count
@@ -289,6 +352,8 @@ class Image2DViewportController(ViewportController):
         self._text_annotation_controller.set_current_slice(
             result.frame_meta.slice_index
         )
+        if is_pet:
+            self._pet_display.accept(result.frame_meta.pixel_value_meta, result.frame_meta.window)
         if slice_changed:
             self.sliceChanged.emit()
         self._modality_pixel = result.modality_pixel
@@ -297,7 +362,15 @@ class Image2DViewportController(ViewportController):
             result.series_uid,
             result.frame_meta,
         )
+        if self.isPetViewport:
+            self._measure_controller.refresh_roi_metrics(result.modality_pixel, result.frame_meta)
+        self._cursor_controller.resample(result.modality_pixel)
         self._apply_specific_render_result(result)
+        self._set_load_state("ready")
+        if previous_value_meta != result.frame_meta.pixel_value_meta:
+            self.windowPresetsChanged.emit()
+        if is_pet:
+            self.petDisplayChanged.emit()
 
         self.overlayChanged.emit()
         self.imageDimensionChanged.emit()
@@ -314,6 +387,131 @@ class Image2DViewportController(ViewportController):
             result.viewport_id,
             self._image_revision,
         )
+
+    def accepts_result(self, result) -> bool:
+        return not self.isPetViewport or self._latest_request_id is None or result.response_id == self._latest_request_id
+
+    @Slot(object)
+    def handleRenderFailure(self, failure) -> None:
+        if failure.viewport_id != self.viewport_config.viewport_id:
+            return
+        if self._latest_request_id and failure.request_id != self._latest_request_id:
+            return
+        self._pet_display.fail()
+        self._set_load_state("ready" if self.isPetViewport and self._has_image else "error",
+                             str(failure.error))
+
+    def _set_load_state(self, state: str, message: str = "") -> None:
+        if state == self._load_state and message == self._error_message:
+            return
+        self._load_state = state
+        self._error_message = message
+        self.loadStateChanged.emit()
+
+    @Property(str, notify=loadStateChanged)
+    def loadState(self) -> str:
+        return self._load_state
+
+    @Property(str, notify=loadStateChanged)
+    def errorMessage(self) -> str:
+        return self._error_message
+
+    @Property(str, notify=overlayChanged)
+    def quantificationWarning(self) -> str:
+        if self._frame_meta is None:
+            return ""
+        return self._frame_meta.pixel_value_meta.warning or ""
+
+    @Property(bool, constant=True)
+    def isPetViewport(self) -> bool:
+        return (
+            self.viewport_config.series_meta.modality.strip().upper() == "PT"
+        )
+
+    @property
+    def pet_active_unit_id(self) -> str:
+        target = self._pet_display.target
+        return target.meta.unit_id if target else ""
+
+    @Property(bool, notify=petDisplayChanged)
+    def petUnitPending(self):
+        return self._pet_display.pending
+
+    @Property(str, notify=petDisplayChanged)
+    def petActiveUnitId(self):
+        visible = self._pet_display.visible
+        return visible.meta.unit_id if visible else ""
+
+    @Property(str, notify=petDisplayChanged)
+    def petActiveUnitLabel(self):
+        visible = self._pet_display.visible
+        if visible is None:
+            return ""
+        return next((o.label for o in visible.meta.unit_options
+                     if o.unit_id == visible.meta.unit_id), visible.meta.unit)
+
+    @Property(float, notify=petDisplayChanged)
+    def petDisplayUpper(self):
+        visible = self._pet_display.visible
+        return visible.upper if visible else 0.0
+
+    @Property(float, notify=petDisplayChanged)
+    def petMinimumUpper(self):
+        visible = self._pet_display.visible
+        return visible.minimum if visible else 0.001
+
+    @Property(float, notify=petDisplayChanged)
+    def petControlUpper(self):
+        visible = self._pet_display.visible
+        return visible.control if visible else 30.0
+
+    @Property("QVariantList", notify=petDisplayChanged)
+    def petControlUpperOptions(self):
+        visible = self._pet_display.visible
+        if visible is None:
+            return []
+        values = list(visible.presets)
+        if not any(np.isclose(visible.control, p, rtol=0, atol=1e-7) for p in values):
+            values.append(visible.control)
+        return sorted(values)
+
+    @Property("QVariantList", notify=petDisplayChanged)
+    def petUnitOptions(self):
+        visible = self._pet_display.visible
+        return [] if visible is None else [
+            dict(unitId=o.unit_id, label=o.label, unit=o.unit,
+                 enabled=o.available, warning=o.warning or "",
+                 active=o.unit_id == visible.meta.unit_id)
+            for o in visible.meta.unit_options
+        ]
+
+    @Slot(float)
+    def setPetDisplayUpper(self, value):
+        if self.isPetViewport:
+            self._pet_display.set_upper(value)
+
+    @Slot(float)
+    def setPetControlUpper(self, value):
+        if self.isPetViewport:
+            self._pet_display.set_control(value)
+
+    @Slot(str)
+    def setPetUnit(self, unit_id):
+        if self.isPetViewport:
+            self.cancelMeasurement()
+            self._pet_display.set_unit(unit_id)
+
+    @Slot()
+    def resetPetDisplay(self):
+        if self.isPetViewport:
+            self.cancelMeasurement()
+            self._pet_display.reset()
+
+    @Property(list, notify=windowPresetsChanged)
+    def windowPresets(self) -> list[dict]:
+        if self.isPetViewport:
+            return []
+        return self._tool_controller.windowPresets
 
     @property
     def viewport_state(self) -> ViewportState:
@@ -609,14 +807,18 @@ class Image2DViewportController(ViewportController):
             self._cursor_controller.clearPosition()
             return
 
-        ct_value = self._modality_pixel[
+        pixel_value = self._modality_pixel[
             int(clipRow)
         ][int(clipColumn)]
-        if not np.isfinite(ct_value):
+        if not np.isfinite(pixel_value) and self.viewportRole != "fusion":
             self._cursor_controller.clearPosition()
             return
 
-        self._cursor_controller.updatePosition(clipColumn, clipRow, ct_value)
+        self._cursor_controller.updatePosition(
+            clipColumn,
+            clipRow,
+            pixel_value,
+        )
 
     @Slot(float, float, float, float, float, float)
     def updateMeasurementHover(self, x: float, y: float, column: float, row: float,
@@ -698,6 +900,9 @@ class Image2DViewportController(ViewportController):
         return self._state.inverted
 
     def apply_window_level(self, result: WindowLevelChange) -> None:
+        if self.isPetViewport:
+            self._pet_display.set_upper(result.window.center + result.window.width / 2.0)
+            return
         if result.window == self._state.window and result.inverted == self.inverted:
             return
         logger.debug(f'apply_window_level,{result}')
@@ -706,6 +911,8 @@ class Image2DViewportController(ViewportController):
             window=result.window,
             inverted=result.inverted,
         )
+        if self.isPetViewport:
+            self.petDisplayChanged.emit()
         self.overlayChanged.emit()
         self.request_render()
 
@@ -850,6 +1057,9 @@ class Image2DViewportController(ViewportController):
 
         match tool_type:
             case ToolType.WINDOW:
+                if self.isPetViewport:
+                    self.resetPetDisplay()
+                    return
                 if (
                     self._baseline_window is None
                     or state.window == self._baseline_window
@@ -1178,7 +1388,14 @@ class Image2DViewportController(ViewportController):
             slice_index=frame.slice_index, geometry=frame.geometry,
             endpoint_tolerance=endpoint_tolerance, line_tolerance=line_tolerance,
             modality_pixels=None if is_mtf else self._modality_pixel,
-            pixel_unit="HU" if self.viewport_config.series_meta.modality == "CT" else "",
+            pixel_unit=(
+                frame.pixel_value_meta.unit
+                or (
+                    "HU"
+                    if self.viewport_config.series_meta.modality.upper() == "CT"
+                    else ""
+                )
+            ),
         )
 
     @Slot()

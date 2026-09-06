@@ -242,8 +242,14 @@ class TabController(QObject):
         return self._tag_controller
 
     def _create_tool_controller(self) -> None:
+        modality = (
+            self._tab_config.series_metas[0].modality
+            if self._tab_config.series_metas
+            else ""
+        )
         self._tool_controller = ToolController(
             tab_type=self._tab_config.tab_type,
+            modality=modality,
             parent=self
         )
         self._tool_controller.commandRequested.connect(
@@ -701,6 +707,9 @@ class TabController(QObject):
     def handleRenderFailure(self, failure: RenderFailure) -> None:
         viewport = self._viewport_dict.get(failure.viewport_id)
         if isinstance(viewport, (VolumeViewportController, MontageViewportController)):
+            viewport.handleRenderFailure(failure)
+            return
+        if isinstance(viewport, StackViewportController):
             viewport.handleRenderFailure(failure)
             return
         expected_viewport_id = self._active_mpr_requests.get(

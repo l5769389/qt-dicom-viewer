@@ -7,6 +7,7 @@ class ViewportController(QObject):
     """所有 viewport controller 的最小 Qt 接口。"""
 
     renderRequested = Signal(object)
+    viewportTypeChanged = Signal()
 
     def __init__(
         self,
@@ -20,9 +21,17 @@ class ViewportController(QObject):
     def viewportId(self) -> str:
         return self.viewport_config.viewport_id
 
-    @Property(str, constant=True)
+    @Property(str, notify=viewportTypeChanged)
     def viewportType(self) -> str:
         return self.viewport_config.viewport_type.value
+
+    @Property(str, constant=True)
+    def viewportRole(self):
+        return self.viewport_config.role
+
+    @Property(QObject, constant=True)
+    def reconstructionController(self):
+        return getattr(self, "owner", None)
 
     def request_first_loader(self) -> None:
         raise NotImplementedError

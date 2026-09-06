@@ -36,6 +36,7 @@ class AppController(QObject):
         self._panel_controller.tabCreateRequested.connect(
             self._workspace_controller.activeWorkspace
         )
+        self._panel_controller.fusionCreateRequested.connect(self._workspace_controller.createFusionTab)
         # renderService接收渲染请求。
         self._workspace_controller.renderRequested.connect(
             self.render_service.submit

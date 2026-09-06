@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
+from hashlib import sha256
 
 import numpy as np
 import pydicom
@@ -11,6 +13,7 @@ from qt_dicom_viewer.model import (
     DicomSeriesRecord,
     InstanceDisplayMeta,
     WindowLevel,
+    PixelValueMeta,
 )
 from qt_dicom_viewer.model.dicom_core import (
     DicomVolume,
@@ -44,11 +47,12 @@ class VolumeManager:
         series: DicomSeriesRecord,
         phase_identifier: int | None = None,
     ) -> DicomVolume:
+        fingerprint = series_fingerprint(series)
         cached = self.get_volume(
             series.series_instance_uid,
             phase_identifier,
         )
-        if cached is not None:
+        if cached is not None and cached.fingerprint == fingerprint:
             logger.debug(
                 "Using cached volume: series_uid=%s phase=%s",
                 series.series_instance_uid,
@@ -75,6 +79,7 @@ class VolumeManager:
         )
 
         volume = self._build_volume(series, instances=instances)
+        volume.fingerprint = fingerprint
         self._volumes_by_series_uid[
             (series.series_instance_uid, phase_identifier)
         ] = volume
@@ -122,6 +127,12 @@ class VolumeManager:
     ) -> DicomVolume:
         instances = series.instances if instances is None else instances
         self._validate_instances(instances=instances)
+        from qt_dicom_viewer.core.volume_view import validate_volume_series
+        from qt_dicom_viewer.core.pet import validate_pet_2d_series
+        validate_volume_series(series)
+        validate_pet_2d_series(series)
+        if len({i.frame_of_reference_uid for i in instances}) != 1:
+            raise VolumeBuildError("同一序列的 FrameOfReferenceUID 不一致")
         first = instances[0]
 
 
@@ -195,6 +206,10 @@ class VolumeManager:
             )
 
         frames: list[np.ndarray] = []
+        source_frames: list[np.ndarray] = []
+        value_metas: list[PixelValueMeta] = []
+        source_meta = None
+        reference_dataset = None
         loader = DicomLoader()
         default_window: WindowLevel | None = None
         representative_meta: InstanceDisplayMeta | None = None
@@ -215,16 +230,51 @@ class VolumeManager:
                     f"shape={modality_pixels.shape}"
                 )
 
+            source_frames.append(modality_pixels)
+            display_pixels, value_meta, value_scale = loader.to_display_values(dataset, modality_pixels)
+            value_metas.append(value_meta)
+            if reference_dataset is None:
+                reference_dataset = dataset
+                if series.modality.upper() == "PT":
+                    _, source_meta, _ = loader.to_display_values(dataset, modality_pixels, preferred_unit="source")
             if default_window is None:
                 default_window = loader.resolve_window(
                     dataset=dataset,
                     target_window=None,
+                    modality_pixels=display_pixels,
+                    pixel_value_meta=value_meta,
+                    value_scale=value_scale,
                 )
                 representative_meta = loader.extract_instance_meta(
                     dataset
                 )
 
-            frames.append(modality_pixels)
+            frames.append(display_pixels)
+
+        value_meta = value_metas[0]
+        if series.modality.upper() == "PT":
+            if len({m.source_unit for m in value_metas}) != 1:
+                raise VolumeBuildError("PET 体积中存在不同源 Units，无法构建统一定量域")
+            if value_meta.source_unit == "BQML":
+                warning = next((m.warning for m in value_metas if m.quantification == "unavailable"), None)
+                if warning:
+                    options = tuple(replace(o, available=False, warning=warning)
+                                    if o.unit_id == "suvbw" else o
+                                    for o in source_meta.unit_options)
+                    source_meta = replace(source_meta, unit="Bq/ml", unit_id="source",
+                                          scale_from_source=1.0, suv_type=None,
+                                          quantification="unavailable", warning=warning,
+                                          unit_options=options)
+                    value_meta = source_meta
+                    frames = source_frames
+                    default_window = loader.resolve_window(reference_dataset, None, frames[0], value_meta)
+                elif not np.allclose([m.scale_from_source for m in value_metas], value_meta.scale_from_source,
+                                     rtol=1e-6, atol=0):
+                    warning = "各切片 SUV 换算比例不同；显示上限按初始参考切片换算，切换单位后局部亮度可能变化"
+                    value_meta = replace(value_meta, warning=warning)
+                    source_meta = replace(source_meta, warning=warning)
+            elif len({(m.unit, m.suv_type) for m in value_metas}) != 1:
+                raise VolumeBuildError("PET SUV 类型在同一体积中不一致")
 
         # 体数据轴顺序：(slice, row, column)
         volume_pixels = np.ascontiguousarray(
@@ -268,6 +318,12 @@ class VolumeManager:
             series_uid=series.series_instance_uid,
             default_window=default_window,
             representative_instance_meta=representative_meta,
+            suv_pixels=volume_pixels if value_meta.is_suv else None,
+            suv_value_meta=value_meta if value_meta.is_suv else None,
+            pixel_value_meta=value_meta,
+            source_pixels=(np.ascontiguousarray(np.stack(source_frames), dtype=np.float32)
+                           if value_meta.source_unit == "BQML" else None),
+            source_value_meta=source_meta,
         )
 
     @staticmethod
@@ -350,3 +406,14 @@ class VolumeManager:
                 f"Missing ImagePositionPatient: "
                 f"path={instance.path}"
             )
+
+
+def series_fingerprint(series: DicomSeriesRecord) -> str:
+    entries = []
+    for item in series.instances:
+        stat = item.path.stat()
+        entries.append((item.sop_instance_uid, item.image_position_patient,
+                        item.image_orientation_patient, item.rows, item.columns,
+                        item.pixel_spacing, item.frame_of_reference_uid,
+                        str(item.path), stat.st_size, stat.st_mtime_ns))
+    return sha256(repr(entries).encode()).hexdigest()

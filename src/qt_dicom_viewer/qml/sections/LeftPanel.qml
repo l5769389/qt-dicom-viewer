@@ -11,6 +11,7 @@ Rectangle {
     objectName: "leftPanel"
     required property var panelController
     readonly property string activeSeriesUid: panelController.activeSeriesUid
+    readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var primaryActions: [
         {label: "加载文件", shortLabel: "文件", type: "file", icon: "nav-load-file", supported: true},
         {label: "2D 视图", shortLabel: "2D", type: "2d", icon: "nav-view-2d", supported: true},
@@ -21,7 +22,7 @@ Rectangle {
         {label: "平铺视图", shortLabel: "平铺", type: "montage", icon: "nav-view-tile", supported: true},
         {label: "4D 视图", shortLabel: "4D", type: "4d", icon: "nav-view-4d", supported: true},
         {label: "DICOM Tag", shortLabel: "Tag", type: "tag", icon: "nav-view-tag", supported: true},
-        {label: "融合视图", shortLabel: "融合", type: "fusion", icon: "fusion", supported: false}
+        {label: "融合视图", shortLabel: "融合", type: "fusion", icon: "fusion", supported: true}
     ]
     property string lastQuery: ""
     color: Theme.panelBackground
@@ -68,6 +69,8 @@ Rectangle {
             ? !leftPanel.panelController.scanning
             : leftPanel.activeSeriesUid !== ""
                 && actionData.supported
+                && (leftPanel.activeSeriesModality !== "PT"
+                    || ["2d", "tag", "mpr", "fusion"].includes(actionData.type))
                 && (actionData.type !== "montage" || !leftPanel.panelController.scanning)
                 && (
                     actionData.type !== "4d"
@@ -77,6 +80,8 @@ Rectangle {
         onTriggered: {
             if (isFileAction)
                 leftPanel.panelController.openFolderDialog()
+            else if (actionData.type === "fusion")
+                leftPanel.panelController.requestFusionView()
             else
                 leftPanel.panelController.openSeriesView(
                     leftPanel.activeSeriesUid,
@@ -166,6 +171,13 @@ Rectangle {
             }
         }
 
+        Text {
+            Layout.leftMargin: 10
+            color: Theme.textMuted
+            font.pixelSize: 11
+            text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · Cmd/Ctrl 单击多选"
+        }
+
         ListView {
             id: seriesList
             objectName: "sidebarSeriesList"
@@ -180,7 +192,7 @@ Rectangle {
                 id: entry
                 required property var modelData
                 readonly property bool isSeries: modelData.kind === "series"
-                readonly property bool selected: isSeries && leftPanel.activeSeriesUid === modelData.seriesInstanceUid
+                readonly property bool selected: isSeries && leftPanel.panelController.selectedSeriesUids.includes(modelData.seriesInstanceUid)
                 objectName: isSeries ? "series-" + modelData.seriesInstanceUid : "sidebar-" + modelData.key
                 width: seriesList.width
                 height: isSeries ? 58 : modelData.kind === "patient" ? 30 : 26
@@ -285,11 +297,12 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: event => {
                         if (entry.isSeries && event.button === Qt.RightButton) {
-                            leftPanel.panelController.selectSeries(entry.modelData.seriesInstanceUid)
+                            leftPanel.panelController.selectContextSeries(entry.modelData.seriesInstanceUid)
                             const point = entry.mapToItem(null, event.x, event.y)
                             seriesContextMenu.openFor(entry.modelData.seriesInstanceUid, point.x, point.y)
                         } else if (entry.isSeries) {
-                            leftPanel.panelController.selectSeries(entry.modelData.seriesInstanceUid)
+                            leftPanel.panelController.selectSeriesWithModifiers(entry.modelData.seriesInstanceUid,
+                                (event.modifiers & (Qt.ControlModifier | Qt.MetaModifier)) !== 0)
                         } else if (leftPanel.panelController.patientSearch.trim() === "") {
                             leftPanel.panelController.toggleGroup(entry.modelData.key)
                         }
@@ -427,7 +440,9 @@ Rectangle {
         function triggerAction(action) {
             const seriesUid = contextSeriesUid
             close()
-            if (["2d", "mpr", "3d", "4d", "tag"].includes(action)) {
+            if (action === "fusion") {
+                leftPanel.panelController.requestFusionView()
+            } else if (["2d", "mpr", "tag", "3d", "4d", "montage"].includes(action)) {
                 leftPanel.panelController.openSeriesView(seriesUid, action)
             } else if (action === "directory") {
                 if (!leftPanel.panelController.openSeriesDirectory(seriesUid))
@@ -451,15 +466,20 @@ Rectangle {
             text: "快速浏览"
         }
         SeriesMenuItem {
-            actionCode: "tile"
-            iconName: "view-tile"
+            actionCode: "montage"
+            iconName: "nav-view-tile"
             text: "序列平铺"
-            actionEnabled: false
+            actionEnabled: !leftPanel.panelController.scanning
         }
         SeriesMenuItem {
             actionCode: "mpr"
             iconName: "rotate-3d"
             text: "多平面重建 (MPR)"
+        }
+        SeriesMenuItem {
+            actionCode: "fusion"
+            iconName: "fusion"
+            text: "融合浏览"
         }
         SeriesMenuItem {
             actionCode: "3d"
@@ -503,6 +523,8 @@ Rectangle {
             danger: true
         }
     }
+
+    FusionSeriesDialog { controller: leftPanel.panelController }
 
     Basic.Dialog {
         id: directoryErrorDialog
