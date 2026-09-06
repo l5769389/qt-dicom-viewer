@@ -23,6 +23,7 @@ class WindowLevelInteractionConfig:
     max_width_control_range: float = 1000.0
     minimum_center_control_range: float = 100.0
     max_center_control_range: float = 1000.0
+    allow_inversion: bool = True
 
 
 DEFAULT_WINDOW_LEVEL_CONFIG = WindowLevelInteractionConfig()
@@ -100,23 +101,25 @@ class WindowLevelOperation(DragOperation):
                 * config.center_direction
         )
 
-        # 把拖动开始时的 width 恢复为有符号值
-        start_signed_width = (
-            -start.width
-            if self._start_inverted
-            else start.width
-        )
-
-        signed_width = (
-                start_signed_width
-                + width_delta * width_step
-        )
+        if config.allow_inversion:
+            # 把拖动开始时的 width 恢复为有符号值。
+            start_signed_width = (
+                -start.width
+                if self._start_inverted
+                else start.width
+            )
+            signed_width = start_signed_width + width_delta * width_step
+            inverted = signed_width < 0
+            resolved_width = abs(signed_width)
+        else:
+            resolved_width = start.width + width_delta * width_step
+            inverted = self._start_inverted
 
         window = WindowLevel(
             width=round(
                 max(
                     config.minimum_width,
-                    abs(signed_width),
+                    resolved_width,
                 ),
                 2,
             ),
@@ -129,7 +132,7 @@ class WindowLevelOperation(DragOperation):
 
         result = WindowLevelChange(
             window=window,
-            inverted=signed_width < 0,
+            inverted=inverted,
         )
         return result
 

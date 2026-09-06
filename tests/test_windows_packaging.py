@@ -33,6 +33,10 @@ def test_onefile_build_keeps_package_resource_layout() -> None:
     )
     assert command[-1] == str(PROJECT_ROOT / "scripts/windows_entry.py")
     assert {"PySide6.QtQuick", "PySide6.QtQuickControls2", "PySide6.QtSvg"} <= set(command)
+    assert (
+        PROJECT_ROOT
+        / "src/qt_dicom_viewer/qml/sections/center/viewportArea/MontageViewport.qml"
+    ).is_file()
 
 
 def test_console_build_uses_separate_executable() -> None:

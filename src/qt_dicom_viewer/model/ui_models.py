@@ -44,6 +44,11 @@ class DicomInstanceMeta:
         | None
     )
     slice_thickness: float | None
+    patient_sex: str = ""
+    patient_age: str = ""
+    acquisition_datetime: str = ""
+    kvp: float | None = None
+    tube_current_ma: float | None = None
 
 @dataclass(frozen=True, slots=True)
 class DicomSeriesRecord:
@@ -114,6 +119,17 @@ class SeriesDisplayMeta:
     series_description: str
     modality: str
     series_uid: str
+    slice_count: int = 0
+    rows: int | None = None
+    columns: int | None = None
+    pixel_spacing: PixelSpacing | None = None
+    series_number: int | None = None
+    patient_sex: str = ""
+    patient_age: str = ""
+    acquisition_datetime: str = ""
+    kvp: float | None = None
+    tube_current_ma: float | None = None
+    slice_thickness: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

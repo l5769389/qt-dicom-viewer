@@ -85,6 +85,8 @@ from .measure import (
     RoiMetrics,
 )
 from .render_models import (
+    MontageRenderRequest,
+    MontageRenderResult,
     MprRenderResult,
     MprRenderRequest,
     RenderFailure,
@@ -173,6 +175,8 @@ __all__ = [
     "MprViewRolls",
     "MprViewGrids",
     "MprViewAnchors",
+    "MontageRenderRequest",
+    "MontageRenderResult",
     "Offset",
     "OperationStartContext",
     "PanChange",

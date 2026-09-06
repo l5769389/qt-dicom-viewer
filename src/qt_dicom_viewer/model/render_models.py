@@ -49,6 +49,19 @@ class StackRenderRequest(_RenderRequestBase):
     slots=True,
     kw_only=True,
 )
+class MontageRenderRequest(_RenderRequestBase):
+    slice_index: int
+
+    @property
+    def view_type(self) -> ViewportType:
+        return TwoDViewType.MONTAGE
+
+
+@dataclass(
+    frozen=True,
+    slots=True,
+    kw_only=True,
+)
 class MprRenderRequest(_RenderRequestBase):
     plane: MprPlane
     mpr_frame: MprFrame | None
@@ -63,6 +76,7 @@ class MprRenderRequest(_RenderRequestBase):
 
 RenderRequest: TypeAlias = (
     StackRenderRequest
+    | MontageRenderRequest
     | MprRenderRequest
 )
 
@@ -94,8 +108,18 @@ class StackRenderResult(_RenderResultBase):
     ...
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MontageRenderResult(_RenderResultBase):
+    slice_index: int
+
+    @property
+    def image_key(self) -> str:
+        return f"{self.viewport_id}:slice:{self.slice_index}"
+
+
 RenderResult: TypeAlias = (
     StackRenderResult
+    | MontageRenderResult
     | MprRenderResult
 )
 

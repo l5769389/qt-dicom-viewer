@@ -70,6 +70,8 @@ Rectangle {
                 readonly property bool resetAction:
                     primaryButton.modelData.toolType === "reset"
 
+                enabled: primaryButton.modelData.enabled !== false
+
                 width: toolFlow.buttonWidth
                 height: toolFlow.buttonHeight
                 checked: primaryButton.toolActive || primaryButton.feedbackActive

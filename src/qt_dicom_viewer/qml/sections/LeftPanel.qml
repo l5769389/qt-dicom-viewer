@@ -21,26 +21,37 @@ Rectangle {
             label: "2D"
             tabType: "2d"
             supported: true
+            requiresCompleteScan: false
+        }
+        ListElement {
+            label: "平铺"
+            tabType: "montage"
+            supported: true
+            requiresCompleteScan: true
         }
         ListElement {
             label: "MPR"
             tabType: "mpr"
             supported: true
+            requiresCompleteScan: false
         }
         ListElement {
             label: "3D"
             tabType: "3d"
             supported: false
+            requiresCompleteScan: false
         }
         ListElement {
             label: "4D"
             tabType: "4d"
             supported: false
+            requiresCompleteScan: false
         }
         ListElement {
             label: "Tag"
             tabType: "tag"
             supported: false
+            requiresCompleteScan: false
         }
     }
 
@@ -135,6 +146,7 @@ Rectangle {
                         required property string label
                         required property string tabType
                         required property bool supported
+                        required property bool requiresCompleteScan
 
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -151,13 +163,19 @@ Rectangle {
                         pressedColor: Theme.controlPressed
                         activeColor: Theme.selectionBackground
                         disabledColor: "transparent"
-                        enabled: seriesList.currentIndex >= 0 && supported
+                        enabled: seriesList.currentIndex >= 0
+                            && supported
+                            && (!requiresCompleteScan
+                                || !leftPanel.panelController.scanning)
 
                         ToolTip.visible: hovered
                         ToolTip.delay: 450
-                        ToolTip.text: supported
-                            ? "以 " + label + " 方式打开"
-                            : label + " 暂未实现"
+                        ToolTip.text: !supported
+                            ? label + " 暂未实现"
+                            : requiresCompleteScan
+                                && leftPanel.panelController.scanning
+                                ? "等待 DICOM 扫描完成后打开平铺"
+                                : "以 " + label + " 方式打开"
 
                         onClicked: {
                             if (leftPanel.activeSeriesUid === "") {

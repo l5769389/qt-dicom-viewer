@@ -4,6 +4,7 @@ from typing import TypeAlias
 
 class TabType(StrEnum):
     TWO_D = "2d"
+    MONTAGE = "montage"
     MPR = "mpr"
     THREE_D = "3d"
     FOUR_D = "4d"
@@ -12,6 +13,7 @@ class TabType(StrEnum):
 
 class TwoDViewType(StrEnum):
     STACK = "stack"
+    MONTAGE = "montage"
 
 
 class MprPlane(StrEnum):
@@ -31,6 +33,7 @@ class ToolType(StrEnum):
     MEASURE = "measure"
     ANNOTATE = "annotate"
     ROTATE = "rotate"
+    INVERT = "invert"
     MPR_ROTATE_3D = "mpr-rotate-3d"
     SERVICE = "service"
     RESET = "reset"

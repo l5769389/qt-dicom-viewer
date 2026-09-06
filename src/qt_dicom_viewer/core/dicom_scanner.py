@@ -91,6 +91,52 @@ def _read_instance(file_path: Path) -> DicomInstanceMeta | None:
         ),
         pixel_spacing=pixel_spacing,
         slice_thickness=_as_float(getattr(dataset, "SliceThickness", None)),
+        patient_sex=_as_str(getattr(dataset, "PatientSex", "")),
+        patient_age=_as_str(getattr(dataset, "PatientAge", "")),
+        acquisition_datetime=_acquisition_datetime(dataset),
+        kvp=_as_float(getattr(dataset, "KVP", None)),
+        tube_current_ma=_as_float(
+            getattr(dataset, "XRayTubeCurrent", None)
+        ),
+    )
+
+
+def _acquisition_datetime(dataset) -> str:
+    """Return a compact, human-readable acquisition timestamp."""
+    combined = _as_str(getattr(dataset, "AcquisitionDateTime", ""))
+    if combined:
+        date_value = combined[:8]
+        time_value = combined[8:]
+    else:
+        date_value = (
+            _as_str(getattr(dataset, "AcquisitionDate", ""))
+            or _as_str(getattr(dataset, "SeriesDate", ""))
+            or _as_str(getattr(dataset, "StudyDate", ""))
+        )
+        time_value = (
+            _as_str(getattr(dataset, "AcquisitionTime", ""))
+            or _as_str(getattr(dataset, "SeriesTime", ""))
+            or _as_str(getattr(dataset, "StudyTime", ""))
+        )
+
+    date_text = date_value
+    if len(date_value) >= 8 and date_value[:8].isdigit():
+        date_text = (
+            f"{date_value[:4]}.{date_value[4:6]}.{date_value[6:8]}"
+        )
+
+    main_time = time_value.split(".", 1)[0]
+    time_text = time_value
+    if len(main_time) >= 2 and main_time[:2].isdigit():
+        components = [main_time[:2]]
+        if len(main_time) >= 4 and main_time[2:4].isdigit():
+            components.append(main_time[2:4])
+        if len(main_time) >= 6 and main_time[4:6].isdigit():
+            components.append(main_time[4:6])
+        time_text = ":".join(components)
+
+    return " ".join(
+        value for value in (date_text, time_text) if value
     )
 
 

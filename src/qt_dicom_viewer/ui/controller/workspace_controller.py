@@ -8,6 +8,7 @@ from qt_dicom_viewer.model import (
     RenderResult,
     TabConfig,
     TabType,
+    WindowLevel,
 )
 from qt_dicom_viewer.ui.controller.tab.tab_controller import TabController
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
@@ -38,6 +39,7 @@ class WorkspaceController(QObject):
     def closeTab(self, tab_id: str):
         if tab_id in self._tab_dict:
             tab = self._tab_dict[tab_id]
+            tab.dispose()
             tab.deleteLater()
             del self._tab_dict[tab_id]
         if tab_id == self._active_tab_id:
@@ -132,9 +134,23 @@ class WorkspaceController(QObject):
                         tab_label: str,
                         tab_type: TabType
                    ):
+        tab, created = self._create_or_activate_tab(
+            series_uid,
+            tab_label,
+            tab_type,
+        )
+        if created and tab is not None:
+            tab.init_render()
+
+    def _create_or_activate_tab(
+        self,
+        series_uid: str,
+        tab_label: str,
+        tab_type: TabType,
+    ) -> tuple[TabController | None, bool]:
         tab_id = f'{series_uid}_{tab_type}'
         if tab_id == self._active_tab_id:
-            return
+            return self._tab_dict.get(tab_id), False
         new_tab = None
         if tab_id not in self._tab_dict:
             series_display_meta = self._series_catalog.get_series_display_meta(series_uid)
@@ -143,7 +159,7 @@ class WorkspaceController(QObject):
                     "Cannot create tab for unknown series: series_uid=%s",
                     series_uid,
                 )
-                return
+                return None, False
 
             tab_config = TabConfig(
                 tab_id = tab_id,
@@ -156,14 +172,13 @@ class WorkspaceController(QObject):
             self.connect_signal(new_tab)
             self._tab_dict[tab_id] = new_tab
 
+        tab = new_tab or self._tab_dict[tab_id]
+
         self._active_tab_id = tab_id
         self.tabsChanged.emit()
         self.activeTabChanged.emit()
         self.activeViewportChanged.emit()
-
-        # QML 已能访问 active viewport 后再发起首帧请求。
-        if new_tab is not None:
-            new_tab.init_render()
+        return tab, new_tab is not None
 
 
     def connect_signal(self, tab: TabController):
@@ -172,6 +187,12 @@ class WorkspaceController(QObject):
         )
         tab.activeViewportChanged.connect(
             self.activeViewportChanged.emit
+        )
+        tab.imageRemovalRequested.connect(
+            self._image_provider.remove_image
+        )
+        tab.stackNavigationRequested.connect(
+            self.openSeriesSlice
         )
 
     def _find_tab_by_viewport_id(
@@ -209,7 +230,8 @@ class WorkspaceController(QObject):
             return
 
         if result.image is not None:
-            self._image_provider.set_array(result.viewport_id, result.image)
+            image_key = getattr(result, "image_key", result.viewport_id)
+            self._image_provider.set_array(image_key, result.image)
 
         tab.handleRenderResult(result)
 
@@ -219,6 +241,34 @@ class WorkspaceController(QObject):
         if tab is None:
             return
         tab.handleRenderFailure(failure)
+
+    @Slot(str, int, float, float, bool)
+    def openSeriesSlice(
+        self,
+        series_uid: str,
+        slice_index: int,
+        window_center: float,
+        window_width: float,
+        inverted: bool,
+    ) -> None:
+        series = self._series_catalog.get_series(series_uid)
+        if series is None:
+            return
+        tab, _ = self._create_or_activate_tab(
+            series_uid,
+            series.patient_name,
+            TabType.TWO_D,
+        )
+        if tab is None:
+            return
+        tab.navigate_stack(
+            slice_index,
+            WindowLevel(
+                center=float(window_center),
+                width=max(float(window_width), 1.0),
+            ),
+            bool(inverted),
+        )
 
 
     @Slot(str, str)
@@ -236,3 +286,7 @@ class WorkspaceController(QObject):
             return
         label = f'{series.patient_name}'
         self.createTab(series_uid,label,tab_type)
+
+    def shutdown(self) -> None:
+        for tab in self._tab_dict.values():
+            tab.dispose()

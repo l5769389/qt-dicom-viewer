@@ -7,6 +7,7 @@ from qt_dicom_viewer.model import (
 )
 from qt_dicom_viewer.model.interaction import WindowLevelContext
 from qt_dicom_viewer.ui.controller.viewport.operation.window_level_operation import (
+    WindowLevelInteractionConfig,
     WindowLevelOperation,
 )
 
@@ -43,3 +44,31 @@ def test_default_window_level_drag_direction_matches_viewer_convention() -> None
     assert result is not None
     assert result.window.width > 400.0
     assert result.window.center < 40.0
+
+
+def test_montage_window_mode_clamps_width_without_inverting() -> None:
+    operation = WindowLevelOperation(
+        WindowLevelInteractionConfig(allow_inversion=False)
+    )
+    start = _pointer(50.0, 50.0)
+    operation.begin(
+        start,
+        WindowLevelContext(
+            viewport_size=(100.0, 100.0),
+            inverted=False,
+            current_window=WindowLevel(center=40.0, width=100.0),
+        ),
+    )
+
+    result = operation.update(
+        DragUpdateEvent(
+            start_position=start,
+            current_position=_pointer(-500.0, 50.0),
+            step_offset=Offset(x=-550.0, y=0.0),
+            total_offset=Offset(x=-550.0, y=0.0),
+        )
+    )
+
+    assert result is not None
+    assert result.window.width == 1.0
+    assert result.inverted is False

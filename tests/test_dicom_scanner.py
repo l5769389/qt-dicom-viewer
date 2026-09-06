@@ -54,6 +54,8 @@ def test_read_instance_extracts_typed_identity_and_geometry(tmp_path: Path) -> N
     )
     dataset.PatientName = "Example Patient"
     dataset.PatientID = "P001"
+    dataset.PatientSex = "M"
+    dataset.PatientAge = "034Y"
     dataset.StudyInstanceUID = "1.2.3"
     dataset.SeriesInstanceUID = "1.2.3.4"
     dataset.SOPInstanceUID = "1.2.3.4.5"
@@ -65,6 +67,9 @@ def test_read_instance_extracts_typed_identity_and_geometry(tmp_path: Path) -> N
     dataset.Columns = 512
     dataset.PixelSpacing = [0.7, 0.8]
     dataset.SliceThickness = 0.625
+    dataset.AcquisitionDateTime = "20230724105538"
+    dataset.KVP = 120
+    dataset.XRayTubeCurrent = 30
     dataset.ImagePositionPatient = [-120.5, -90.25, 42.0]
     dataset.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
     dataset.save_as(dataset.filename, enforce_file_format=True)
@@ -75,6 +80,11 @@ def test_read_instance_extracts_typed_identity_and_geometry(tmp_path: Path) -> N
     assert instance.sop_instance_uid == "1.2.3.4.5"
     assert instance.pixel_spacing == PixelSpacing(row=0.7, column=0.8)
     assert instance.slice_thickness == 0.625
+    assert instance.patient_sex == "M"
+    assert instance.patient_age == "034Y"
+    assert instance.acquisition_datetime == "2023.07.24 10:55:38"
+    assert instance.kvp == 120.0
+    assert instance.tube_current_ma == 30.0
     assert instance.image_position_patient == (-120.5, -90.25, 42.0)
     assert instance.image_orientation_patient == (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
 

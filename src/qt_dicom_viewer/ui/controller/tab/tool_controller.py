@@ -19,6 +19,15 @@ from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
 
 logger = logging.getLogger(__name__)
 
+MONTAGE_TOOL_TYPES = frozenset((
+    ToolType.WINDOW,
+    ToolType.PAN,
+    ToolType.ZOOM,
+    ToolType.ROTATE,
+    ToolType.INVERT,
+    ToolType.RESET,
+))
+
 
 class ToolController(QObject):
     activeToolChanged = Signal()
@@ -100,6 +109,18 @@ class ToolController(QObject):
             logger.warning("Missing tool definition: %s", tool_type.value)
             return
         if (
+            self._tab_type == TabType.MONTAGE
+            and tool_type not in MONTAGE_TOOL_TYPES
+        ):
+            logger.warning(
+                "Tool %s is not available for montage tabs",
+                tool_type.value,
+            )
+            return
+        if not definition.enabled:
+            logger.info("Tool %s is a disabled placeholder", tool_type.value)
+            return
+        if (
             self._tab_type is not None
             and definition.supported_tab_types is not None
             and self._tab_type not in definition.supported_tab_types
@@ -137,6 +158,20 @@ class ToolController(QObject):
             interaction = InteractionType(interaction_value)
         except ValueError:
             logger.warning("Unknown interaction type: %s", interaction_value)
+            return
+
+        if (
+            self._tab_type == TabType.MONTAGE
+            and interaction not in {
+                InteractionType.WINDOW,
+                InteractionType.PAN,
+                InteractionType.ZOOM,
+            }
+        ):
+            logger.warning(
+                "Interaction %s is not available for montage tabs",
+                interaction.value,
+            )
             return
 
         self._set_active_interaction(interaction)
@@ -247,11 +282,18 @@ def build_tool_items(
             "label": definition.label,
             "iconName": definition.icon_name,
             "behavior": definition.behavior.value,
+            "enabled": definition.enabled,
         }
         for definition in TOOL_CATALOG
         if (
-            definition.supported_tab_types is None
-            or tab_type is None
-            or tab_type in definition.supported_tab_types
+            (
+                tab_type != TabType.MONTAGE
+                or definition.tool_type in MONTAGE_TOOL_TYPES
+            )
+            and (
+                definition.supported_tab_types is None
+                or tab_type is None
+                or tab_type in definition.supported_tab_types
+            )
         )
     ]
