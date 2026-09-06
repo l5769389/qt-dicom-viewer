@@ -10,6 +10,8 @@ Item {
     objectName: "workspaceEmptyState"
 
     required property var panelController
+    property var pacsController: null
+    property var workspaceController: null
 
     readonly property bool scanning:
         emptyState.panelController?.scanning ?? false
@@ -90,7 +92,11 @@ Item {
                 if (emptyState.hasSeries)
                     return "已发现 " + emptyState.seriesCount
                         + " 个序列。请在左侧选择序列，然后双击打开影像。"
-                return "打开一个包含 DICOM 文件的文件夹，程序会自动扫描并整理可用序列。"
+                return emptyState.pacsController && emptyState.pacsController.pacsEnabled
+                    ? (emptyState.pacsController.localEnabled
+                        ? "从本地文件夹或 PACS 导入 DICOM 影像，开始浏览序列。"
+                        : "从 PACS 查询并导入 DICOM 影像，开始浏览序列。")
+                    : "打开一个包含 DICOM 文件的文件夹，程序会自动扫描并整理可用序列。"
             }
             color: Theme.textMuted
             font.pixelSize: 13
@@ -104,7 +110,7 @@ Item {
             Layout.topMargin: 8
             Layout.preferredWidth: 168
 
-            visible: !emptyState.hasSeries
+            visible: !emptyState.hasSeries && (!emptyState.pacsController || emptyState.pacsController.localEnabled)
             enabled: !emptyState.scanning
             text: emptyState.scanning ? "正在扫描…" : "打开 DICOM 文件夹"
             icon.source: Qt.resolvedUrl(
@@ -118,6 +124,25 @@ Item {
             focusBorderColor: Theme.primaryButtonBorder
 
             onClicked: emptyState.panelController.openFolderDialog()
+        }
+        Components.AppButton {
+            objectName: "homeOpenPacs"
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 168
+            visible: emptyState.pacsController && emptyState.pacsController.pacsEnabled
+            text: "从 PACS 导入序列"
+            baseBorderWidth: 1
+            baseBorderColor: Theme.borderStrong
+            onClicked: emptyState.workspaceController.openPacs()
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: emptyState.pacsController && emptyState.pacsController.pacsEnabled
+            text: emptyState.pacsController ? emptyState.pacsController.defaultName : ""
+            color: Theme.textSubtle
+            font.pixelSize: 11
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
         }
     }
 }

@@ -1,9 +1,9 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../theme"
+import "../../../components" as Components
 
 ColumnLayout {
     id: annotatePanel
@@ -14,9 +14,33 @@ ColumnLayout {
         : null
     spacing: 12
 
+    RowLayout {
+        Layout.fillWidth: true
+        Components.AppButton {
+            objectName: "annotateArrowMode"
+            Layout.fillWidth: true
+            compact: true
+            momentary: true
+            text: "箭头"
+            checked: annotatePanel.viewportController.activeInteraction === "annotate:arrow"
+            onClicked: annotatePanel.viewportController.setAnnotationMode(false)
+        }
+        Components.AppButton {
+            objectName: "annotateTextMode"
+            Layout.fillWidth: true
+            compact: true
+            momentary: true
+            text: "文字箭头"
+            checked: annotatePanel.viewportController.activeInteraction === "annotate:text"
+            onClicked: annotatePanel.viewportController.setAnnotationMode(true)
+        }
+    }
+
     Text {
         Layout.fillWidth: true
-        text: "在影像上按住并拖拽绘制箭头；起点放置文字，箭头尖端指向目标。单击箭身可选中编辑。"
+        text: annotatePanel.viewportController.activeInteraction === "annotate:text"
+            ? "拖动绘制文字箭头，单击箭身编辑。"
+            : "拖动绘制箭头，选中后可移动或调整端点。"
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap
@@ -48,8 +72,10 @@ ColumnLayout {
         bottomPadding: 7
 
         onTextChanged: {
-            if (activeFocus && annotatePanel.controller)
+            if (activeFocus && annotatePanel.controller) {
+                annotatePanel.viewportController.setAnnotationMode(true)
                 annotatePanel.controller.setAnnotationText(text)
+            }
         }
 
         background: Rectangle {

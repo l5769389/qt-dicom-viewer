@@ -47,7 +47,18 @@ class VolumeManager:
         series: DicomSeriesRecord,
         phase_identifier: int | None = None,
     ) -> DicomVolume:
-        fingerprint = series_fingerprint(series)
+        instances = series.instances
+        if phase_identifier is not None:
+            phase = series.phase_by_identifier(phase_identifier)
+            if phase is None:
+                raise VolumeBuildError(
+                    "Unknown temporal phase: "
+                    f"series_uid={series.series_instance_uid} "
+                    f"phase={phase_identifier}"
+                )
+            instances = phase.instances
+
+        fingerprint = series_fingerprint(replace(series, instances=instances))
         cached = self.get_volume(
             series.series_instance_uid,
             phase_identifier,
@@ -59,17 +70,6 @@ class VolumeManager:
                 phase_identifier,
             )
             return cached
-
-        instances = series.instances
-        if phase_identifier is not None:
-            phase = series.phase_by_identifier(phase_identifier)
-            if phase is None:
-                raise VolumeBuildError(
-                    "Unknown temporal phase: "
-                    f"series_uid={series.series_instance_uid} "
-                    f"phase={phase_identifier}"
-                )
-            instances = phase.instances
 
         logger.info(
             "Building volume: series_uid=%s phase=%s instances=%d",
@@ -129,7 +129,7 @@ class VolumeManager:
         self._validate_instances(instances=instances)
         from qt_dicom_viewer.core.volume_view import validate_volume_series
         from qt_dicom_viewer.core.pet import validate_pet_2d_series
-        validate_volume_series(series)
+        validate_volume_series(replace(series, instances=instances))
         validate_pet_2d_series(series)
         if len({i.frame_of_reference_uid for i in instances}) != 1:
             raise VolumeBuildError("同一序列的 FrameOfReferenceUID 不一致")

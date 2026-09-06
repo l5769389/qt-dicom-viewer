@@ -9,6 +9,8 @@ Item {
     id: sidebar
     objectName: "sidebarContainer"
     required property var panelController
+    property var pacsController: null
+    property var workspaceController: null
     readonly property real minimumExpandedWidth: 200
     readonly property real maximumExpandedWidth: 350
     property real expandedWidth: 300
@@ -30,6 +32,8 @@ Item {
         anchors.fill: parent
         visible: !sidebar.collapsed
         panelController: sidebar.panelController
+        pacsController: sidebar.pacsController
+        workspaceController: sidebar.workspaceController
     }
 
     Rectangle {

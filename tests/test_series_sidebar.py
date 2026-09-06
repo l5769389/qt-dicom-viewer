@@ -338,8 +338,9 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
     top_button_names = [
         "sidebarOpenFolder", "openView-2d", "openView-mpr", "openView-3d",
     ]
-    bottom_button_names = ["openView-tile", "openView-4d", "openView-tag", "openView-fusion"]
+    bottom_button_names = ["openView-montage", "openView-4d", "openView-tag", "openView-fusion"]
     button_names = top_button_names + bottom_button_names
+    panel.selectSeries(first_uid)
 
     for width in [200, 300, 350]:
         drag_width(window, width)
@@ -361,20 +362,20 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
             assert all(right + 3 <= next_left
                        for (_, right), (next_left, _) in zip(bounds, bounds[1:]))
         assert rows[1][0].mapToScene(QPointF(0, 0)).y() > rows[0][0].mapToScene(QPointF(0, 0)).y()
-        assert not find(window, "openView-tile").isEnabled()
-        assert not find(window, "openView-fusion").isEnabled()
+        assert find(window, "openView-montage").isEnabled()
+        assert find(window, "openView-fusion").isEnabled()
 
     window.resize(1000, 600)
     QTest.qWait(40)
     right_click(window, find(window, "series-" + first_uid))
     assert panel.activeSeriesUid == first_uid
-    action_codes = ["2d", "tile", "mpr", "3d", "4d", "tag", "directory", "deidentify", "remove"]
+    action_codes = ["2d", "montage", "mpr", "fusion", "3d", "4d", "tag", "directory", "deidentify", "remove"]
     actions = {code: find(window, "seriesContextAction-" + code) for code in action_codes}
     assert all(action.height() <= 32 for action in actions.values())
     assert all(actions[code].property("actionEnabled")
-               for code in ["2d", "mpr", "3d", "tag", "directory", "remove"])
+               for code in ["2d", "montage", "mpr", "fusion", "3d", "tag", "directory", "remove"])
     assert all(not actions[code].property("actionEnabled")
-               for code in ["tile", "4d", "deidentify"])
+               for code in ["4d", "deidentify"])
     assert not any(item.objectName() in {"seriesContextAction-compatibility", "seriesContextAction-compare"}
                    for item in descendants(window.contentItem()))
     for action in actions.values():

@@ -77,7 +77,7 @@ Basic.TabBar {
 
                         anchors.centerIn: parent
                         font.pixelSize: 11
-                        text: String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
+                        text: String(tabButton.modelData.tabType).toLowerCase() === "settings" ? "⚙" : String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
                             tabButton.modelData.tabType
                         ).toUpperCase()
                         font.weight: tabButton.checked

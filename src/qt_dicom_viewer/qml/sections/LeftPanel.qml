@@ -10,6 +10,8 @@ Rectangle {
     id: leftPanel
     objectName: "leftPanel"
     required property var panelController
+    property var pacsController: null
+    property var workspaceController: null
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var primaryActions: [
@@ -60,6 +62,7 @@ Rectangle {
         Layout.fillHeight: true
         Layout.preferredWidth: 1
         Layout.minimumWidth: 0
+        visible: !isFileAction || !leftPanel.pacsController || leftPanel.pacsController.localEnabled
         label: actionData.label
         shortLabel: actionData.shortLabel
         iconSize: Theme.navigationIconSize
@@ -176,6 +179,17 @@ Rectangle {
             color: Theme.textMuted
             font.pixelSize: 11
             text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · Cmd/Ctrl 单击多选"
+        }
+
+        Components.AppButton {
+            objectName: "sidebarPacs"
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            visible: leftPanel.pacsController && leftPanel.pacsController.pacsEnabled
+            text: "PACS 浏览器"
+            baseBorderWidth: 1
+            onClicked: leftPanel.workspaceController.openPacs()
         }
 
         ListView {
@@ -328,6 +342,16 @@ Rectangle {
                 lineHeight: 1.4
             }
         }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.dividerColor }
+        Components.AppButton {
+            objectName: "sidebarSettings"
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            text: "⚙  设置"
+            visible: leftPanel.workspaceController !== null
+            onClicked: leftPanel.workspaceController.openSettings()
+        }
     }
 
     component SeriesMenuItem: Basic.MenuItem {
@@ -339,7 +363,8 @@ Rectangle {
         property bool danger: false
 
         objectName: "seriesContextAction-" + actionCode
-        enabled: actionEnabled
+        enabled: actionEnabled && (leftPanel.panelController.seriesModality(seriesContextMenu.contextSeriesUid) !== "PT"
+            || !["montage", "3d", "4d"].includes(actionCode))
         implicitWidth: 244
         implicitHeight: 30
         leftPadding: 9
@@ -392,7 +417,8 @@ Rectangle {
 
         Basic.ToolTip.visible: hovered && !actionEnabled
         Basic.ToolTip.delay: 350
-        Basic.ToolTip.text: "暂未实现"
+        Basic.ToolTip.text: ["montage", "3d", "4d"].includes(actionCode)
+            ? "所选序列不支持此视图" : "暂未实现"
     }
 
     component SeriesMenuSeparator: Basic.MenuSeparator {

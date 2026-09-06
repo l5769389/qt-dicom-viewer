@@ -107,13 +107,8 @@ def load_registration_document(document, expected):
 
 
 def pet_rgb(gray, color_map):
-    x = np.asarray(gray, dtype=np.float32) / 255.
-    if color_map == "grayscale":
-        return np.repeat(gray[..., None], 3, axis=-1)
-    if color_map != "hotIron":
-        raise ValueError("不支持的 PET 色表")
-    return np.round(np.stack((np.clip(3*x, 0, 1), np.clip(3*x-1, 0, 1),
-                              np.clip(3*x-2, 0, 1)), axis=-1) * 255).astype(np.uint8)
+    from qt_dicom_viewer.core.color_maps import color_lut
+    return color_lut(color_map)[np.asarray(gray, dtype=np.uint8)]
 
 
 def blend_pet_ct(ct_gray, pet_gray, pet_values, opacity, color_map="hotIron"):

@@ -477,7 +477,9 @@ def test_mpr_slab_guides_skip_own_view_and_use_physical_half_thickness() -> None
 
     assert axial.mprSlabGuides == []
     assert len(coronal.mprSlabGuides) == 2
-    assert {guide["color"] for guide in coronal.mprSlabGuides} == {"red"}
+    assert {guide["color"] for guide in coronal.mprSlabGuides} == {"#ff0000"}
+    tools.settingsController.setValue("crosshair", "axialColor", "#123456")
+    assert {guide["color"] for guide in coronal.mprSlabGuides} == {"#123456"}
     assert sorted(
         guide["anchorRow"] for guide in coronal.mprSlabGuides
     ) == pytest.approx([-2.5, 2.5])

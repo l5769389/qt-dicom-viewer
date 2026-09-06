@@ -14,6 +14,12 @@ from test_viewport_transform import _controller, _render_result
 from test_water_qa import water_image
 
 
+def deliver_frame(view, frame):
+    # These fixtures emulate a newly completed render of the requested slice.
+    # QA/MTF task staleness is tested independently of renderer request IDs.
+    view.handleRenderResult(replace(frame, response_id=view._latest_request_id or frame.response_id))
+
+
 def water_render(view, index=0, spacing=(1, 1), pixels=None):
     base = _render_result(view)
     pixels = water_image(mean=2+index*3) if pixels is None else pixels
@@ -31,7 +37,7 @@ def water_render(view, index=0, spacing=(1, 1), pixels=None):
 def qa_view(qt_app):
     view = _controller()
     frame = water_render(view)
-    view.handleRenderResult(frame)
+    deliver_frame(view, frame)
     try:
         yield view, frame
     finally:
@@ -90,7 +96,7 @@ def test_display_changes_reuse_result_and_resets_are_scoped(qa_view, qt_app):
     view.apply_zoom(1.4)
     view.applyTransformAction("rotate:cw90")
     view.applyTransformAction("rotate:mirror-h")
-    view.handleRenderResult(replace(frame, image=255-frame.image,
+    deliver_frame(view, replace(frame, image=255-frame.image,
         frame_meta=replace(frame.frame_meta, window=WindowLevel(100, 500), inverted=True)))
     assert qa.currentResult == original and qa._token == token
     view.reset_tool_state(ToolType.MEASURE)
@@ -112,11 +118,11 @@ def test_auto_activation_before_load_and_missing_pixel_spacing(qt_app):
         tools.selectService("service:qa")
         assert qa.status == "waiting"
         frame = water_render(view)
-        view.handleRenderResult(frame)
+        deliver_frame(view, frame)
         wait_qa(qt_app, qa)
         missing = replace(frame, frame_meta=replace(frame.frame_meta,
             instance_meta=replace(frame.frame_meta.instance_meta, pixel_spacing=None)))
-        view.handleRenderResult(missing)
+        deliver_frame(view, missing)
         pump_until(qt_app, lambda: qa.status != "calculating")
         assert qa.status == "error" and "PixelSpacing" in qa.error
         assert qa.currentResult == {} and not qa.roiItems
@@ -155,21 +161,21 @@ def test_slice_cache_stale_callbacks_reset_and_changed_raw_pixels(qa_view, monke
     view.apply_slice_index(1)
     assert not qa.roiItems and qa.currentResult == {} and qa.status == "waiting"
     second = water_render(view, 1)
-    view.handleRenderResult(second)
+    deliver_frame(view, second)
     latest = jobs[-1]
     finish(qa, old)
     assert qa.status == "calculating" and not qa.currentResult
     finish(qa, latest)
     result_second = qa.currentResult
     view.apply_slice_index(0)
-    view.handleRenderResult(first)
+    deliver_frame(view, first)
     finish(qa, jobs[-1])
     count = len(jobs)
     view.apply_slice_index(1)
-    view.handleRenderResult(second)
+    deliver_frame(view, second)
     assert len(jobs) == count and qa.currentResult == result_second
     modified = replace(second, modality_pixel=second.modality_pixel+1)
-    view.handleRenderResult(modified)
+    deliver_frame(view, modified)
     assert len(jobs) == count+1
     latest = jobs[-1]
     qa.reset()
@@ -194,7 +200,7 @@ def test_fast_slice_changes_coalesce_to_latest_snapshot(qa_view, qt_app, monkeyp
     try:
         for index in (1, 2, 3):
             view.apply_slice_index(index)
-            view.handleRenderResult(water_render(view, index))
+            deliver_frame(view, water_render(view, index))
             assert len(qa._tasks) == 1 and qa._pending is not None
     finally:
         release.set()
@@ -265,10 +271,10 @@ def test_manual_drag_remeasures_and_caches_each_slice_without_detection(qa_view,
     view.apply_slice_index(1)
     assert qa.currentResult == {}
     view.apply_slice_index(0)
-    view.handleRenderResult(frame)
+    deliver_frame(view, frame)
     assert qa.currentResult == saved
     view.applyTransformAction("rotate:mirror-h")
-    view.handleRenderResult(replace(frame, image=255-frame.image))
+    deliver_frame(view, replace(frame, image=255-frame.image))
     assert qa.currentResult == saved
 
 
@@ -299,7 +305,7 @@ def test_drag_preview_cancel_overlap_and_bounds_keep_complete_results(qa_view, q
     assert not qa.dragging and qa.roiItems == []
     view.endInteraction(0, 0, True, 0, 0)
     view.apply_slice_index(0)
-    view.handleRenderResult(frame)
+    deliver_frame(view, frame)
     assert qa.currentResult["rois"][0] == saved["rois"][0]
     qa.analyze()
     wait_qa(qt_app, qa)

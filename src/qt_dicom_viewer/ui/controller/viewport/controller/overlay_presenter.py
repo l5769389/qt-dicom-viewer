@@ -213,4 +213,6 @@ class OverlayPresenter:
                 if state.vertical_flip
                 else "--"
             ),
+            "seriesUid": series.series_uid,
+            "transform": f"Rot: {state.rotation_degrees:.0f}° / Flip: " + ("H" if state.horizontal_flip else "") + ("V" if state.vertical_flip else "") + ("—" if not state.horizontal_flip and not state.vertical_flip else ""),
         }

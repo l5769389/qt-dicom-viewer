@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
 from PySide6.QtCore import Property, QObject, Signal, Slot
+from qt_dicom_viewer.ui.controller.settings_controller import SettingsController
 
+from qt_dicom_viewer.ui.controller.pacs_controller import PacsController
 from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.model import DicomSeriesRecord
 from qt_dicom_viewer.service.render_serivce import RenderService
@@ -16,7 +19,7 @@ class AppController(QObject):
     summaryTextChanged = Signal()
     seriesItemsChanged = Signal()
 
-    def __init__(self,image_provider) -> None:
+    def __init__(self, image_provider, *, pacs_config_path=None, pacs_import_root=None, settings_path=None) -> None:
         super().__init__()
         self._status_message = "Ready"
         self._image_provider = image_provider
@@ -24,8 +27,13 @@ class AppController(QObject):
         self._series_items = []
         self._series_info: dict[str, DicomSeriesRecord] = {}
         self._series_catalog = SeriesCatalog()
+        if settings_path is None and pacs_config_path is not None:
+            settings_path = Path(pacs_config_path).with_name("display-settings.json")
+        self._settings_controller = SettingsController(self, path=settings_path)
         self._workspace_controller = WorkspaceController(self._series_catalog,self._image_provider,parent= self)
         self._panel_controller = PanelController(parent=self, series_catalog=self._series_catalog, image_provider=image_provider)
+        self._pacs_controller = PacsController(self, config_path=pacs_config_path, import_root=pacs_import_root)
+        self._pacs_controller.imported.connect(self._panel_controller.acceptPacsImport)
         self._volume_manager = VolumeManager()
         self.render_service = RenderService(self._series_catalog, self._volume_manager, self)
         self._signal_connect()
@@ -51,11 +59,20 @@ class AppController(QObject):
 
 
     @Property(QObject, constant=True)
+    def settingsController(self):
+        return self._settings_controller
+
+    @Property(QObject, constant=True)
     def panelController(self) -> QObject:
         return self._panel_controller
 
+    @Property(QObject, constant=True)
+    def pacsController(self) -> QObject:
+        return self._pacs_controller
+
     @Slot()
     def shutdown(self) -> None:
+        self._pacs_controller.shutdown()
         self._panel_controller.shutdown()
         self._workspace_controller.shutdown()
         self.render_service.shutdown()

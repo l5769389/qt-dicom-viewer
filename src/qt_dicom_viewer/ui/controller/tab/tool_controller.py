@@ -22,6 +22,7 @@ from qt_dicom_viewer.model.tool_catalog import (
     TOOL_DEFINITIONS,
 )
 from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
+from qt_dicom_viewer.ui.controller.settings_controller import resolve_settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class ToolController(QObject):
     resetRequested = Signal(str)
     resetStateChanged = Signal()
     mprProjectionChanged = Signal()
+    windowPresetsChanged = Signal()
 
     def __init__(
             self,
@@ -55,6 +57,8 @@ class ToolController(QObject):
     ):
         super().__init__(parent)
 
+        self._settings_controller = resolve_settings(parent)
+        self._settings_controller.changed.connect(self.windowPresetsChanged.emit)
         self._tab_type = tab_type
         self._modality = modality.strip().upper()
         self._active_tool = ToolType.WINDOW
@@ -339,9 +343,13 @@ class ToolController(QObject):
         self._mpr_projection_settings = settings
         self.mprProjectionChanged.emit()
 
-    @Property(list, constant=True)
+    @Property(QObject, constant=True)
+    def settingsController(self):
+        return self._settings_controller
+
+    @Property(list, notify=windowPresetsChanged)
     def windowPresets(self) -> list[dict]:
-        return build_window_presets(self._modality)
+        return [] if self._modality == "PT" else self._settings_controller.window_presets
 
     @Property(list, constant=True)
     def tools(self) -> list[dict]:

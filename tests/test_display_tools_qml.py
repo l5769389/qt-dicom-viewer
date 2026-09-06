@@ -75,7 +75,7 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
         if item.objectName().startswith("primaryTool-") and item.isVisible()
     ]
     assert primary_buttons
-    assert {button.height() for button in primary_buttons} == {36.0}
+    assert {button.height() for button in primary_buttons} == {58.0}
 
     _click(view, _find(root, "primaryTool-annotate"))
     _find(root, "annotatePanel")
@@ -93,7 +93,7 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
     _find(root, "viewportSettingsPanel")
     scale_setting = _find(root, "viewportSetting-scale-bar")
     _click(view, scale_setting)
-    assert viewport_controller.showScaleBar
+    assert not viewport_controller.showScaleBar
     assert not warnings, warnings
 
 
@@ -104,6 +104,7 @@ def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
     view, controller, pixel_layer, warnings = viewport
     tools = controller._tool_controller
     tools.activateTool("annotate")
+    controller.setAnnotationMode(True)
     controller.textAnnotationController.setAnnotationText("目标区域")
     controller.textAnnotationController.setAnnotationColor("#66d0ff")
     controller.textAnnotationController.setAnnotationFontSize(22)
@@ -153,7 +154,7 @@ def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
     controller.setViewportSetting("scale-bar", True)
     controller.setViewportSetting("color-bar", True)
     QTest.qWait(50)
-    assert _find(view.rootObject(), "viewportScaleBar").width() > 0
+    assert _find(view.rootObject(), "imageScaleBar").width() > 0
     assert _find(view.rootObject(), "viewportColorBar").height() > 0
 
     controller.setViewportSetting("window-annotations", False)

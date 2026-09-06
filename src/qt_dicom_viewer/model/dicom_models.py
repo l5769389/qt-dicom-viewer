@@ -10,6 +10,8 @@ class TabType(StrEnum):
     FOUR_D = "4d"
     TAG = "tag"
     PETCT_FUSION = "petctfusion"
+    SETTINGS = "settings"
+    PACS = "pacs"
 
 
 class TwoDViewType(StrEnum):

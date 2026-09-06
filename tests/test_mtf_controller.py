@@ -16,6 +16,12 @@ from test_measurement_qml import qt_app
 from test_viewport_transform import _controller, _render_result
 
 
+def deliver_frame(view, frame):
+    # These fixtures emulate a newly completed render of the requested slice.
+    # QA/MTF task staleness is tested independently of renderer request IDs.
+    view.handleRenderResult(replace(frame, response_id=view._latest_request_id or frame.response_id))
+
+
 def bead_render(viewport):
     base = _render_result(viewport)
     pixels = gaussian()
@@ -31,7 +37,7 @@ def bead_render(viewport):
 def mtf_viewport(qt_app):
     view = _controller()
     frame = bead_render(view)
-    view.handleRenderResult(frame)
+    deliver_frame(view, frame)
     view._tool_controller.selectService("service:mtf")
     try:
         yield view, frame
@@ -154,7 +160,7 @@ def test_only_commit_submits_and_display_operations_do_not_recompute(mtf_viewpor
     view.beginInteraction(0, 0, 1, True, 30, 30, .1, .1)
     view.updateInteraction(QPointF(), QPointF(10, 10), QPointF(10, 10), QPointF(10, 10), True, 40, 40)
     view.endInteraction(10, 10, True, 40, 40)
-    view.handleRenderResult(replace(frame, frame_meta=replace(frame.frame_meta, window=WindowLevel(100, 1000))))
+    deliver_frame(view, replace(frame, frame_meta=replace(frame.frame_meta, window=WindowLevel(100, 1000))))
     view.updateCursorPosition(10, 10, 20, 20, 20, 20, True, .1, .1)
     assert len(jobs) == 1
     assert view.mtfController.currentResult == saved
@@ -233,19 +239,19 @@ def test_slice_geometry_and_instance_isolation_and_restore(mtf_viewport, monkeyp
     finish(view, jobs[0])
     assert view.mtfController.currentResult == {}
     other = replace(frame, frame_meta=replace(frame.frame_meta, slice_index=1))
-    view.handleRenderResult(other)
+    deliver_frame(view, other)
     draw(view)
     finish(view, jobs[1])
     assert len(view.mtfController.roiController.committed_measurements) == 2
-    view.handleRenderResult(frame)
+    deliver_frame(view, frame)
     assert view.mtfController.roiController.measurementItems == first_roi
     assert view.mtfController.status == "ready"
     for changed in [replace(frame.frame_meta, instance_meta=replace(frame.frame_meta.instance_meta, sop_instance_uid="other")),
                     replace(frame.frame_meta, geometry=replace(frame.frame_meta.geometry, image_position_patient=(1, 2, 3)))]:
-        view.handleRenderResult(replace(frame, frame_meta=changed))
+        deliver_frame(view, replace(frame, frame_meta=changed))
         assert view.mtfController.status == "empty"
         assert not view.mtfController.roiController.measurementItems
-    view.handleRenderResult(frame)
+    deliver_frame(view, frame)
     assert view.mtfController.status == "ready"
     assert len(jobs) == 2
 
@@ -279,7 +285,7 @@ def test_failed_current_roi_hides_previous_result_and_no_spacing_fallback(mtf_vi
     assert len(jobs) == 1
     no_spacing = replace(frame, frame_meta=replace(frame.frame_meta,
                          instance_meta=replace(frame.frame_meta.instance_meta, pixel_spacing=None)))
-    view.handleRenderResult(no_spacing)
+    deliver_frame(view, no_spacing)
     draw(view, (20, 20), (110, 110))
     assert "PixelSpacing" in view.mtfController.error
     assert len(jobs) == 1
@@ -289,7 +295,7 @@ def test_reset_mtf_clears_all_slices_but_not_normal_measurements(mtf_viewport, m
     view, frame = mtf_viewport
     capture_tasks(view, monkeypatch)
     draw(view)
-    view.handleRenderResult(replace(frame, frame_meta=replace(frame.frame_meta, slice_index=1)))
+    deliver_frame(view, replace(frame, frame_meta=replace(frame.frame_meta, slice_index=1)))
     draw(view)
     view._tool_controller.selectInteraction("measure:rect")
     draw(view)
@@ -344,7 +350,7 @@ def test_real_inflight_worker_does_not_access_removed_or_other_slice(mtf_viewpor
             view.deleteSelectedMeasurement()
         elif action == "page":
             view.apply_slice_index(1)
-            view.handleRenderResult(replace(frame, frame_meta=replace(frame.frame_meta, slice_index=1)))
+            deliver_frame(view, replace(frame, frame_meta=replace(frame.frame_meta, slice_index=1)))
         release.set()
         if action == "close":
             view.shutdown()

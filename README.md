@@ -8,6 +8,23 @@ A lightweight DICOM viewer built with PySide6 and QML.
 uv run qt-dicom-viewer
 ```
 
+## PACS 数据源
+
+左侧栏底部 **设置 → 数据源** 可新增、编辑、测试和管理 DICOMweb PACS 配置。
+通过首页 **从 PACS 导入序列** 或侧栏 **PACS 浏览器** 查询检查、选择序列并后台下载，
+完成后加入现有序列列表并打开 2D。支持多个配置、Basic/Bearer 认证、分页、多序列选择、
+进度和取消；密码/令牌只保留在当前会话。当前协议为 DICOMweb，尚不包含 DIMSE。
+
+配置地址、存储位置、使用步骤及验证范围见 [PACS 使用说明](docs/pacs.md)。
+使用 OrbStack / Docker 启动 Orthanc、dcm4chee 并验证完整导入流程，见
+[本地 PACS 联调环境](docs/pacs-lab.md)。
+
+## 显示设置
+
+设置 Tab 提供伪彩、窗模板、十字线、四角信息、比例尺、测量与标注、ROI 指标。
+修改即时生效并保存到本机；右侧标注工具支持箭头绘制、编辑和删除。
+各设置的作用范围、恢复默认与使用方法见 [显示设置说明](docs/display-settings.md)。
+
 ## Dev Auto-Restart
 
 ```bash
@@ -187,7 +204,8 @@ Montage 调窗使用后台模态像素缓存并合并连续请求；离开可视
 - 默认构建未使用商业签名证书；正式分发前需要签名、公证（macOS）及目标机安装验收。
 ## 标注、伪彩与视口设置
 
-- **标注**：输入最多 200 个字符，选择颜色和 10～48 px 字号后，在影像上单击放置。
+- **标注**：输入最多 200 个字符，选择颜色和 10～48 px 字号后，切换「文字箭头」并在影像上拖动绘制。
+  默认「箭头」支持移动及端点调整，样式通过设置 → 测量与标注调整。
   文本按切片保存并跟随影像平移、缩放、旋转和镜像；可从右侧列表重新选中编辑，或用
   `Delete` / `Backspace` 删除。当前仅保存在本次会话内。
 - **伪彩**：支持 BW、BWInverse、BlackBody、Cardiac、Flow、French、GrayRainbow、

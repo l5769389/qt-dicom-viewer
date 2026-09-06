@@ -44,6 +44,15 @@ class PetWorkspaceController(TabController):
         self._applying = False
         self._closed = False
         super().__init__(config, parent)
+        settings = self._tool_controller.settingsController
+        self._pet_color = settings.section("colormap")["pet"]
+        settings.sectionChanged.connect(self._preferences_changed)
+
+    def _preferences_changed(self, section):
+        if section == "colormap":
+            self._pet_color = self._tool_controller.settingsController.section("colormap")["pet"]
+            self.settingsChanged.emit()
+            self.request_render()
 
     def _create_tool_controller(self):
         self.pet_display = PetDisplayController(self)
@@ -266,14 +275,16 @@ class PetWorkspaceController(TabController):
 
     @Slot(str)
     def setPetColorMap(self, value):
-        if value in ("grayscale", "hotIron"):
+        from qt_dicom_viewer.core.color_maps import COLOR_MAPS
+        if value in COLOR_MAPS and value != self._pet_color:
             self._pet_color = value
             self.settingsChanged.emit()
             self.request_render()
 
     @Slot(str)
     def setFusionColorMap(self, value):
-        if value in ("grayscale", "hotIron"):
+        from qt_dicom_viewer.core.color_maps import COLOR_MAPS
+        if value in COLOR_MAPS and value != self._fusion_color:
             self._fusion_color = value
             self.settingsChanged.emit()
             self.request_render()

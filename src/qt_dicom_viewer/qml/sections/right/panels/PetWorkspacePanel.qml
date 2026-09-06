@@ -96,12 +96,13 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         Text { text: "PET 色表"; color: Theme.textMuted }
-        Basic.ComboBox {
+        Components.AppComboBox {
             objectName: "petColorMap"
             Layout.fillWidth: true
-            model: ["灰阶", "Hot Iron"]
-            currentIndex: panel.controller.petColorMap === "hotIron" ? 1 : 0
-            onActivated: panel.controller.setPetColorMap(currentIndex === 1 ? "hotIron" : "grayscale")
+            model: panel.controller.petController.colorMapOptions
+            textRole: "label"
+            currentIndex: model.findIndex(entry => entry.colorMap === panel.controller.petColorMap)
+            onActivated: panel.controller.setPetColorMap(model[currentIndex].colorMap)
         }
     }
     ColumnLayout {
@@ -109,11 +110,13 @@ ColumnLayout {
         Layout.fillWidth: true
         RowLayout {
             Text { text: "融合 PET 色表"; color: Theme.textMuted }
-            Basic.ComboBox {
+            Components.AppComboBox {
+                objectName: "fusionColorMap"
                 Layout.fillWidth: true
-                model: ["灰阶", "Hot Iron"]
-                currentIndex: panel.controller.fusionColorMap === "hotIron" ? 1 : 0
-                onActivated: panel.controller.setFusionColorMap(currentIndex === 1 ? "hotIron" : "grayscale")
+                model: panel.controller.petController.colorMapOptions
+                textRole: "label"
+                currentIndex: model.findIndex(entry => entry.colorMap === panel.controller.fusionColorMap)
+                onActivated: panel.controller.setFusionColorMap(model[currentIndex].colorMap)
             }
         }
         Text { text: "PET 叠加比例 " + Math.round(panel.controller.opacity * 100) + "%"; color: Theme.textPrimary }

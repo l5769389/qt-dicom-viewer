@@ -5,6 +5,7 @@ from math import isfinite
 import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF, Qt
 
+from qt_dicom_viewer.core.color_maps import COLOR_MAPS
 from qt_dicom_viewer.core.patient_orientation import (
     displayed_image_edge_labels,
 )
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 MEASUREMENT_KINDS = {
     InteractionType.MEASURE_LENGTH: MeasurementKind.LENGTH,
+    InteractionType.ANNOTATE_ARROW: MeasurementKind.ARROW,
     InteractionType.MEASURE_ANGLE: MeasurementKind.ANGLE,
     InteractionType.MEASURE_RECT: MeasurementKind.RECT,
     InteractionType.MEASURE_ELLIPSE: MeasurementKind.ELLIPSE,
@@ -123,6 +125,7 @@ class Image2DViewportController(ViewportController):
     transformChanged = Signal()
     displayStyleChanged = Signal()
     viewportSettingsChanged = Signal()
+    preferencesChanged = Signal()
     crosshairImagePositionChanged = Signal()
     crosshairHoverTargetChanged = Signal()
     activeInteractionChanged = Signal()
@@ -152,6 +155,13 @@ class Image2DViewportController(ViewportController):
         self._mtf_controller = None
         self._qa_controller = None
         self._tool_controller = tool_controller
+        self._settings_controller = tool_controller.settingsController
+        self._set_default_color_map()
+        annotation_style = self._settings_controller.section("measurement")
+        self._text_annotation_controller.setAnnotationColor(annotation_style["annotationColor"])
+        self._text_annotation_controller.setAnnotationFontSize(annotation_style["annotationSize"])
+        self._settings_controller.sectionChanged.connect(self._preferences_changed)
+        self._tool_controller.windowPresetsChanged.connect(self.windowPresetsChanged.emit)
         self._tool_controller.activeInteractionChanged.connect(
             self._handle_active_interaction_changed
         )
@@ -171,6 +181,45 @@ class Image2DViewportController(ViewportController):
         self._active_drag_start_position: PointerPosition | None = None
         self._annotation_drag_active = False
         self.transformChanged.connect(self._measure_controller.clearHover)
+
+    @Property(QObject, constant=True)
+    def settingsController(self):
+        return self._settings_controller
+
+    @Slot(bool)
+    def setAnnotationMode(self, with_text):
+        self._tool_controller.selectInteraction(
+            InteractionType.ANNOTATE_TEXT.value if with_text else InteractionType.ANNOTATE_ARROW.value
+        )
+
+    @Property(str, notify=displayStyleChanged)
+    def colorMap(self):
+        return self._state.display_style.color_map
+
+    def _set_default_color_map(self):
+        category = "pet" if self.viewport_config.series_meta.modality.upper() in ("PT", "PET") else "gray"
+        name = self._settings_controller.section("colormap")[category]
+        self._state = replace(self._state, display_style=DisplayStyle(name, COLOR_MAPS[name][1][0]))
+
+    def _preferences_changed(self, section):
+        if section == "measurement":
+            style = self._settings_controller.section("measurement")
+            self._text_annotation_controller.setAnnotationColor(style["annotationColor"])
+            self._text_annotation_controller.setAnnotationFontSize(style["annotationSize"])
+        if section == "colormap":
+            before = self._state.display_style
+            self._set_default_color_map()
+            if before != self._state.display_style:
+                self.displayStyleChanged.emit()
+                self.request_render()
+        self.viewportSettingsChanged.emit()
+        self.preferencesChanged.emit()
+        self.overlayChanged.emit()
+
+    @Property(bool, notify=imageDimensionChanged)
+    def hasPhysicalSpacing(self):
+        spacing = self._frame_meta.instance_meta.pixel_spacing if self._frame_meta else None
+        return bool(spacing and len(spacing) == 2 and all(isfinite(v) and v > 0 for v in spacing))
 
     def _initial_slice_index(self) -> int | None:
         return None
@@ -272,7 +321,7 @@ class Image2DViewportController(ViewportController):
     def accepts_result(self, result: RenderResult) -> bool:
         return (
             result.viewport_id == self.viewport_config.viewport_id
-            and result.response_id == self._latest_request_id
+            and (self._latest_request_id is None or result.response_id == self._latest_request_id)
         )
 
     @Slot(float, float)
@@ -306,7 +355,6 @@ class Image2DViewportController(ViewportController):
         if not self.accepts_result(result):
             return
         self._validate_render_result(result)
-        self._latest_request_id = None
         previous_value_meta = (
             self._frame_meta.pixel_value_meta
             if self._frame_meta is not None
@@ -387,9 +435,6 @@ class Image2DViewportController(ViewportController):
             result.viewport_id,
             self._image_revision,
         )
-
-    def accepts_result(self, result) -> bool:
-        return not self.isPetViewport or self._latest_request_id is None or result.response_id == self._latest_request_id
 
     @Slot(object)
     def handleRenderFailure(self, failure) -> None:
@@ -638,7 +683,7 @@ class Image2DViewportController(ViewportController):
                     )
                 case (InteractionType.MEASURE_LENGTH | InteractionType.MEASURE_ANGLE
                       | InteractionType.MEASURE_RECT | InteractionType.MEASURE_ELLIPSE
-                      | InteractionType.SERVICE_MTF):
+                      | InteractionType.SERVICE_MTF | InteractionType.ANNOTATE_ARROW):
                     if self._frame_meta is None:
                         logger.error(
                             "Cannot measure before an image is loaded"
@@ -1103,11 +1148,13 @@ class Image2DViewportController(ViewportController):
                 )
                 self.transformChanged.emit()
                 self.directionLabelsChanged.emit()
+                self.overlayChanged.emit()
 
             case ToolType.MEASURE:
-                self._measure_controller.clear_all()
+                self._measure_controller.clear_kind(arrows=False)
             case ToolType.ANNOTATE:
                 self._text_annotation_controller.clearAll()
+                self._measure_controller.clear_kind(arrows=True)
             case ToolType.PSEUDOCOLOR:
                 self.applyColorMap("grayscale")
             case ToolType.VIEWPORT_SETTINGS:
@@ -1238,6 +1285,7 @@ class Image2DViewportController(ViewportController):
         self._state = next_state
         self.transformChanged.emit()
         self.directionLabelsChanged.emit()
+        self.overlayChanged.emit()
 
     @Property(str, notify=displayStyleChanged)
     def canvasBackgroundColor(self) -> str:
@@ -1245,7 +1293,7 @@ class Image2DViewportController(ViewportController):
 
     @Property(bool, notify=viewportSettingsChanged)
     def showWindowAnnotations(self) -> bool:
-        return self._state.display_settings.show_window_annotations
+        return self._state.display_settings.show_window_annotations and self._settings_controller.section("corners")["enabled"]
 
     @Property(bool, notify=viewportSettingsChanged)
     def hideSensitiveInfo(self) -> bool:
@@ -1253,7 +1301,7 @@ class Image2DViewportController(ViewportController):
 
     @Property(bool, notify=viewportSettingsChanged)
     def showScaleBar(self) -> bool:
-        return self._state.display_settings.show_scale_bar
+        return self._state.display_settings.show_scale_bar and self._settings_controller.section("scale")["enabled"]
 
     @Property(bool, notify=viewportSettingsChanged)
     def showColorBar(self) -> bool:
@@ -1315,6 +1363,8 @@ class Image2DViewportController(ViewportController):
             center: float,
             width: float,
     ) -> None:
+        if not isfinite(center) or not isfinite(width) or width < 1:
+            return
         window = WindowLevel(
             center=center,
             width=width,
@@ -1422,7 +1472,7 @@ class Image2DViewportController(ViewportController):
         if self._measurement_context(0, 0) is not None:
             self.activeAnnotationController.delete_selected()
 
-    @Property("QVariantMap", constant=True)
+    @Property("QVariantMap", notify=preferencesChanged)
     def crosshairStyle(self) -> dict:
         return {
             "centerGap": 0,

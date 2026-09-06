@@ -4,12 +4,16 @@ import QtQuick
 import QtQuick.Layouts
 import 'viewportArea' as ViewportSection
 import "../../theme"
+import "../settings" as Settings
+import "../pacs" as Pacs
 
 Rectangle {
     id: centerPanel
 
     required property var workspaceController
     required property var panelController
+    property var pacsController: null
+    property var settingsController: null
     required property var viewportController
     required property var currentTabAllViewports
 
@@ -38,13 +42,27 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             active: centerPanel.hasTabs
-            sourceComponent: centerPanel.workspaceController.activeTabType === "tag"
+            sourceComponent: centerPanel.workspaceController.activeTabType === "settings"
+                ? settingsComponent
+                : centerPanel.workspaceController.activeTabType === "pacs"
+                ? pacsComponent
+                : centerPanel.workspaceController.activeTabType === "tag"
                 ? tagComponent
                 : centerPanel.workspaceController.activeTabType === "3d"
                     ? volumeComponent
                     : centerPanel.workspaceController.activeTabType === "montage"
                         ? montageComponent : imageComponent
         }
+    }
+
+    Component {
+        id: settingsComponent
+        Settings.SettingsPage { pacsController: centerPanel.pacsController; settingsController: centerPanel.settingsController }
+    }
+
+    Component {
+        id: pacsComponent
+        Pacs.PacsBrowser { pacsController: centerPanel.pacsController; workspaceController: centerPanel.workspaceController }
     }
 
     Component {
@@ -92,5 +110,7 @@ Rectangle {
         anchors.fill: parent
         visible: !centerPanel.hasTabs
         panelController: centerPanel.panelController
+        pacsController: centerPanel.pacsController
+        workspaceController: centerPanel.workspaceController
     }
 }

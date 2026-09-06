@@ -7,10 +7,10 @@ import numpy as np
 import pydicom
 from PySide6.QtCore import QObject, Signal, Slot
 
+from qt_dicom_viewer.core.color_maps import apply_color_map
 from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.core.dicom_loader import DicomLoader
 from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
-from qt_dicom_viewer.core.pseudocolor import apply_color_map
 from qt_dicom_viewer.core.pet import validate_pet_2d_series
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,

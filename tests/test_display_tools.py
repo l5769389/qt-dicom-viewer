@@ -164,6 +164,7 @@ def test_viewport_applies_color_map_settings_and_annotation_reset() -> None:
 
     tools = viewport._tool_controller
     tools.activateTool("annotate")
+    viewport.setAnnotationMode(True)
     viewport.textAnnotationController.setAnnotationText("重点")
     viewport.beginInteraction(50, 60, 1, True, 20, 25, 8, 6)
     viewport.updateInteraction(

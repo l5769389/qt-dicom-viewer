@@ -26,9 +26,28 @@ class LinkedPetViewport(MprViewportController):
         self._pet_display.changed.connect(self.overlayChanged.emit)
         self.transformChanged.connect(lambda: owner.synchronize_view(self))
         self.overlayChanged.connect(self.linkedOverlayChanged.emit)
+        owner.settingsChanged.connect(self.displayStyleChanged.emit)
+        owner.settingsChanged.connect(self.linkedOverlayChanged.emit)
 
     def request_render(self):
         self.owner.request_render()
+
+    def _preferences_changed(self, section):
+        # The owner commits one palette change for all linked PET views.
+        if section == "colormap":
+            return
+        super()._preferences_changed(section)
+
+    @Slot(str)
+    def applyColorMap(self, color_map):
+        if self.viewportRole == "fusion":
+            self.owner.setFusionColorMap(color_map)
+        else:
+            self.owner.setPetColorMap(color_map)
+
+    @Property(str, notify=linkedOverlayChanged)
+    def activeColorMap(self):
+        return self.owner.fusionColorMap if self.viewportRole == "fusion" else self.owner.petColorMap
 
     def set_plane(self, plane):
         self.viewport_config = replace(self.viewport_config, viewport_type=plane)
@@ -126,6 +145,19 @@ class PetMipViewport(Image2DViewportController):
         self._pet_display = owner.pet_display
         self._pet_display.changed.connect(self.petDisplayChanged.emit)
         self._pet_display.changed.connect(self.overlayChanged.emit)
+        owner.settingsChanged.connect(self.displayStyleChanged.emit)
+
+    def _preferences_changed(self, section):
+        if section != "colormap":
+            super()._preferences_changed(section)
+
+    @Slot(str)
+    def applyColorMap(self, color_map):
+        self.owner.setPetColorMap(color_map)
+
+    @Property(str, notify=Image2DViewportController.displayStyleChanged)
+    def activeColorMap(self):
+        return self.owner.petColorMap
 
     @Property(int, notify=Image2DViewportController.sliceChanged)
     def sliceCount(self):

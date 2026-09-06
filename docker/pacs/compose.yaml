@@ -1,0 +1,107 @@
+name: qt-dicom-pacs-lab
+
+x-orthanc: &orthanc
+  image: orthancteam/orthanc:25.10.3
+  restart: unless-stopped
+  healthcheck:
+    test: [CMD, python3, /probes/test-aliveness.py]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+  logging:
+    options: {max-size: 10m, max-file: '2'}
+
+services:
+  orthanc-open:
+    <<: *orthanc
+    ports: ['127.0.0.1:8042:8042']
+    environment:
+      ORTHANC__NAME: 'PACS Lab · Orthanc Open'
+      ORTHANC__AUTHENTICATION_ENABLED: 'false'
+      DICOM_WEB_PLUGIN_ENABLED: 'true'
+      ORTHANC__DEFAULT_ENCODING: Utf8
+    volumes: [orthanc-open:/var/lib/orthanc/db]
+
+  orthanc-basic:
+    <<: *orthanc
+    ports: ['127.0.0.1:8043:8042']
+    environment:
+      ORTHANC__NAME: 'PACS Lab · Orthanc Basic'
+      ORTHANC__AUTHENTICATION_ENABLED: 'true'
+      ORTHANC__REGISTERED_USERS: '{"pacs-lab":"${PACS_LAB_PASSWORD:?Run scripts/pacs_lab.py prepare first}"}'
+      DICOM_WEB_PLUGIN_ENABLED: 'true'
+      ORTHANC__DEFAULT_ENCODING: Utf8
+    volumes: [orthanc-basic:/var/lib/orthanc/db]
+
+  bearer-gateway:
+    image: nginx:1.28.0-alpine
+    restart: unless-stopped
+    ports: ['127.0.0.1:8044:8080']
+    environment:
+      PACS_LAB_BEARER_TOKEN: '${PACS_LAB_BEARER_TOKEN:?Run scripts/pacs_lab.py prepare first}'
+      NGINX_ENVSUBST_FILTER: '^PACS_LAB_BEARER_TOKEN$$'
+    volumes: ['./bearer.conf.template:/etc/nginx/templates/default.conf.template:ro']
+    depends_on:
+      orthanc-open: {condition: service_healthy}
+    logging:
+      options: {max-size: 10m, max-file: '2'}
+
+  ldap:
+    image: dcm4che/slapd-dcm4chee:2.6.13-35.0
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      STORAGE_DIR: /storage/fs1
+    volumes:
+      - ldap-data:/var/lib/openldap/openldap-data
+      - ldap-config:/etc/openldap/slapd.d
+    logging:
+      options: {max-size: 10m, max-file: '2'}
+
+  db:
+    image: dcm4che/postgres-dcm4chee:17.9-35
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pacsdb
+      POSTGRES_USER: pacs
+      POSTGRES_PASSWORD: '${PACS_LAB_DB_PASSWORD:?Run scripts/pacs_lab.py prepare first}'
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U pacs -d pacsdb']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging:
+      options: {max-size: 10m, max-file: '2'}
+
+  dcm4chee:
+    image: dcm4che/dcm4chee-arc-psql:5.35.0
+    platform: linux/amd64
+    restart: unless-stopped
+    ports: ['127.0.0.1:8080:8080']
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: pacsdb
+      POSTGRES_USER: pacs
+      POSTGRES_PASSWORD: '${PACS_LAB_DB_PASSWORD:?Run scripts/pacs_lab.py prepare first}'
+      WILDFLY_CHOWN: /storage
+      WILDFLY_WAIT_FOR: 'ldap:389 db:5432'
+      JAVA_OPTS: '-Xms256m -Xmx1024m -Djava.net.preferIPv4Stack=true -Djava.awt.headless=true'
+    depends_on:
+      ldap: {condition: service_started}
+      db: {condition: service_healthy}
+    volumes:
+      - wildfly:/opt/wildfly/standalone
+      - archive-storage:/storage
+    logging:
+      options: {max-size: 10m, max-file: '2'}
+
+volumes:
+  orthanc-open:
+  orthanc-basic:
+  ldap-data:
+  ldap-config:
+  postgres-data:
+  wildfly:
+  archive-storage:

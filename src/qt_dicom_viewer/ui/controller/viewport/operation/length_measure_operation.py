@@ -11,6 +11,7 @@ from qt_dicom_viewer.model.measure import (
     LengthMeasurement,
     LengthMeasurementDraft,
     MeasureContext,
+    MeasurementKind,
     MeasurementEditTarget,
 )
 
@@ -31,6 +32,7 @@ class LengthMeasureOperation:
             slice_index=context.slice_index,
             points=[point, point],
             length_mm=0.0,
+            kind=context.measurement_kind,
         )
 
     def create_edit_draft(
@@ -44,6 +46,7 @@ class LengthMeasureOperation:
             slice_index=measurement.slice_index,
             points=list(measurement.points),
             length_mm=measurement.length_mm,
+            kind=measurement.kind,
         )
 
     def update_draft(
@@ -86,12 +89,16 @@ class LengthMeasureOperation:
             slice_index=draft.slice_index,
             points=tuple(draft.points),
             length_mm=draft.length_mm,
+            kind=draft.kind,
         )
 
     @staticmethod
     def is_valid(
         measurement: LengthMeasurement,
     ) -> bool:
+        if measurement.kind == MeasurementKind.ARROW:
+            a, b = measurement.points
+            return math.hypot(a.column - b.column, a.row - b.row) >= 1
         return (
             math.isfinite(measurement.length_mm)
             and measurement.length_mm >= 1.0

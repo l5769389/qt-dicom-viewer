@@ -75,7 +75,7 @@ def test_active_tool_exposes_and_requests_its_scoped_reset() -> None:
     assert resets == ["pan"]
 
 
-def test_annotation_tool_exposes_scoped_reset() -> None:
+def test_annotation_tool_activates_arrow_and_exposes_scoped_reset() -> None:
     controller = ToolController()
     resets: list[str] = []
     controller.resetRequested.connect(resets.append)
@@ -87,6 +87,7 @@ def test_annotation_tool_exposes_scoped_reset() -> None:
     controller.resetActiveTool()
 
     assert resets == ["annotate"]
+    assert controller.activeInteraction == "annotate:arrow"
 
 
 def test_image_display_tools_are_panels_with_expected_interaction() -> None:
@@ -97,7 +98,7 @@ def test_image_display_tools_are_panels_with_expected_interaction() -> None:
 
     controller.activateTool("annotate")
     assert controller.activePanel == "annotate"
-    assert controller.activeInteraction == "annotate:text"
+    assert controller.activeInteraction == "annotate:arrow"
 
     controller.activateTool("pseudocolor")
     assert controller.activePanel == "pseudocolor"

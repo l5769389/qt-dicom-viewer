@@ -21,7 +21,7 @@ class DisplayStyle:
 class ViewportDisplaySettings:
     show_window_annotations: bool = True
     hide_sensitive_info: bool = False
-    show_scale_bar: bool = False
+    show_scale_bar: bool = True
     show_color_bar: bool = False
     show_dicom_overlay: bool = True
     show_localizer: bool = True
@@ -317,6 +317,7 @@ class InteractionType(StrEnum):
     PAN = "pan"
     ZOOM = "zoom"
     MEASURE_LENGTH = "measure:length"
+    ANNOTATE_ARROW = "annotate:arrow"
     MEASURE_ANGLE = "measure:angle"
     MEASURE_RECT = "measure:rect"
     MEASURE_ELLIPSE = "measure:ellipse"

@@ -9,6 +9,7 @@ Item {
     required property var measurementController
     required property var coordinateMapper
     required property var transformState
+    property var preferences: ({})
     property bool showRoiMetrics: true
     property string roiLabel: ""
 
@@ -36,6 +37,7 @@ Item {
         delegate: MeasurementItem {
             required property var modelData
             isDraft: false
+            preferences: measurementLayer.preferences
             showRoiMetrics: measurementLayer.showRoiMetrics
             roiLabel: measurementLayer.roiLabel
             isSelected: measurementLayer.measurementController
@@ -59,6 +61,7 @@ Item {
                      measurementLayer.measurementController.activeTransaction
                  ).length > 0
         isDraft: true
+        preferences: measurementLayer.preferences
         showRoiMetrics: measurementLayer.showRoiMetrics
         roiLabel: measurementLayer.roiLabel
         isSelected: false

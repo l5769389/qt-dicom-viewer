@@ -18,7 +18,8 @@ Rectangle {
                 mtfOverlay.labelHitRegions(interactionLayer))
         }
         if (imageCanvasRoot.viewportController
-                && imageCanvasRoot.viewportController.activeInteraction.startsWith("measure:")) {
+                && (imageCanvasRoot.viewportController.activeInteraction.startsWith("measure:")
+                    || imageCanvasRoot.viewportController.activeInteraction.startsWith("annotate:"))) {
             imageCanvasRoot.viewportController.measurementController.setLabelHitRegions(
                 measurementOverlay.labelHitRegions(interactionLayer)
             )
@@ -281,6 +282,7 @@ Rectangle {
 
     MeasurementLayer.MeasurementLayer {
         id: measurementOverlay
+        preferences: imageCanvasRoot.viewportController?.settingsController.values ?? ({})
         anchors.fill: parent
         coordinateMapper: imageCanvasRoot
         transformState: imageCanvasRoot.measurementTransformState

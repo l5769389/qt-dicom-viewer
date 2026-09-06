@@ -57,7 +57,7 @@ def _assert_service_panel_has_only_top_aligned_buttons(view):
     panel = _find(view, "servicePanel")
     visible_texts = {item.property("text") for item in _visual_children(panel)
                      if item.isVisible() and item.property("text")}
-    assert {"MTF", "QA · 待"} <= visible_texts
+    assert {"MTF", "QA"} <= visible_texts
     assert not any("预留" in text or "待实现" in text or text == "服务" for text in visible_texts)
     assert not any(item.objectName() == "serviceEntryStatus"
                    for item in _visual_children(panel))
@@ -91,7 +91,7 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
         item for item in _visual_children(primary_service)
         if item.objectName() == "tintedRasterToolIcon" and item.isVisible()
     )
-    assert tinted_service_icon.property("tintColor").name() == "#96a6b5"
+    assert tinted_service_icon.property("tintColor").name() == "#b0bfcc"
 
     _click(view, primary_service)
     assert controller.activePanel == "service"
@@ -109,11 +109,11 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
         assert not other.property("checked")
 
     qa = _find(view, "serviceEntry-qa")
-    assert not qa.isEnabled()
+    assert qa.isEnabled()
     _click(view, qa)
-    assert controller.activeService == "service:mtf"
-    assert controller.activeInteraction == "service:mtf"
-    assert not qa.property("checked")
+    assert controller.activeService == "service:qa"
+    assert controller.activeInteraction == "service:qa"
+    assert qa.property("checked")
 
     for button_name, icon_name in [("primaryTool-service", "service"),
                                     ("serviceEntry-mtf", "mtf"),

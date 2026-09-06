@@ -1,264 +1,77 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import "../../../theme"
 
-pragma ComponentBehavior: Bound
-
 Item {
-    id: viewportOverlay
+    id: root
     objectName: "viewportMetadataOverlay"
-
     required property var viewportController
     property bool hideSensitiveInfo: false
+    readonly property var overlay: viewportController ? viewportController.overlayInfo : ({})
+    readonly property var cursorInfo: viewportController ? viewportController.cursorController.cursorInfo : ({})
+    readonly property var options: viewportController?.settingsController.values.corners ?? ({})
+    readonly property color backgroundColor: viewportController?.canvasBackgroundColor ?? "#000000"
+    readonly property bool lightBackground: backgroundColor.r * 0.299 + backgroundColor.g * 0.587 + backgroundColor.b * 0.114 > 0.6
+    readonly property color textColor: options.colorMode === "custom" ? options.color : lightBackground ? "#182334" : Theme.overlayText
+    visible: options.enabled !== false
 
-    readonly property int overlayMargin: 2
-    readonly property var overlay:
-        viewportController ? viewportController.overlayInfo : ({})
-    readonly property var cursorInfo:
-        viewportController
-            ? viewportController.cursorController.cursorInfo
-            : ({})
-
-    component OverlayText: Text {
-        visible: viewportOverlay.viewportController !== null
-            && text.length > 0
-        color: Theme.overlayText
-        font.pixelSize: 12
+    function value(key) { return String(overlay[key] ?? "").trim() }
+    function label(key, title, unit = "") { const text = value(key); return text ? title + text + unit : "" }
+    function field(key) {
+        switch (key) {
+        case "viewPosition": {
+            const role = value("viewRole")
+            if (role === "fusion")
+                return "PET/CT FUSION · " + value("viewType").toUpperCase()
+                    + (hideSensitiveInfo ? "" : "\nCT: " + value("ctSeries") + "\nPET: " + value("petSeries"))
+            if (role === "mip") return "PET MIP · 最大值投影"
+            if (role) return (role === "ct" ? "CT" : "PET") + " · " + value("viewType").toUpperCase()
+            return value("viewPosition") || value("viewType").toUpperCase()
+        }
+        case "slice": return label("sliceIndex", "Slice: ") + (value("sliceCount") ? " / " + value("sliceCount") : "")
+        case "patientName": return hideSensitiveInfo ? "" : label("patientName", "Patient: ")
+        case "patientId": return hideSensitiveInfo ? "" : label("patientId", "ID: ")
+        case "exposure": return value("modality") === "PT"
+            ? [label("radiopharmaceutical", "Tracer: "),
+               "Correction: " + value("correctedImage") + " · " + value("decayCorrection")].filter(Boolean).join("\n")
+            : [label("kvp", "kV: "), label("tubeCurrentMa", "mA: ")].filter(Boolean).join("   ")
+        case "sliceThickness": return label("sliceThickness", "Thickness: ", " mm")
+        case "window": {
+            if (value("modality") === "PT") {
+                const lines = ["PET Range: 0 – " + value("petDisplayUpper") + " " + value("pixelUnit"),
+                    label("petUnits", "Source Units: "), label("suvType", "SUV Type: ")]
+                if (value("viewRole") === "fusion")
+                    lines.push("CT WL: " + value("ctWindowCenter") + "  WW: " + value("ctWindowWidth"), value("registration"))
+                return lines.filter(Boolean).join("\n")
+            }
+            return [label("windowCenter", "WL: "), label("windowWidth", "WW: ")].filter(Boolean).join("   ")
+        }
+        case "cursor": return "X: " + (cursorInfo.x ?? "--") + "   Y: " + (cursorInfo.y ?? "--")
+            + "\n" + (cursorInfo.label ?? "Value") + ": " + (cursorInfo.value ?? "--") + " " + (cursorInfo.unit ?? "")
+            + (viewportController?.secondaryCursorText ? "\n" + viewportController.secondaryCursorText : "")
+        case "zoom": return label("zoom", "Zoom: ")
+        case "matrix": return [value("rows"), value("columns")].filter(Boolean).join(" × ")
+        case "spacing": return value("pixelSpacingX") && value("pixelSpacingY") ? value("pixelSpacingX") + " × " + value("pixelSpacingY") + " mm" : ""
+        default: return value(key)
+        }
+    }
+    function lines(corner) { return (options[corner] ?? []).map(key => field(key)).filter(Boolean).join("\n") }
+    component CornerText: Text {
+        color: root.textColor
+        font.pixelSize: root.options.fontSize ?? 12
         font.weight: Font.DemiBold
-        font.letterSpacing: 0.15
-        lineHeight: 1.28
+        lineHeight: root.options.lineHeight ?? 1.2
         style: Text.Outline
-        styleColor: Theme.overlayOutline
+        styleColor: root.lightBackground ? "#99ffffff" : Theme.overlayOutline
+        textFormat: Text.PlainText
         wrapMode: Text.Wrap
-        z: 2
+        width: Math.min(implicitWidth, root.width * 0.46)
+        maximumLineCount: 12
+        elide: Text.ElideRight
+        visible: root.viewportController !== null && text.length > 0
     }
-
-    function displayValue(value, showPlaceholder) {
-        if (value === undefined || value === null)
-            return showPlaceholder ? "--" : ""
-
-        const text = String(value).trim()
-        if (text.length === 0)
-            return showPlaceholder ? "--" : ""
-
-        return text
-    }
-
-    function overlayValue(key, showPlaceholder = false) {
-        return displayValue(overlay[key], showPlaceholder)
-    }
-
-    function cursorValue(key, showPlaceholder = false) {
-        return displayValue(cursorInfo[key], showPlaceholder)
-    }
-
-    function labeledPair(
-        leftLabel,
-        leftValue,
-        rightLabel,
-        rightValue
-    ) {
-        const values = []
-
-        if (leftValue !== "")
-            values.push(leftLabel + ": " + leftValue)
-
-        if (rightValue !== "")
-            values.push(rightLabel + ": " + rightValue)
-
-        return values.join("   ")
-    }
-
-    OverlayText {
-        id: topLeftText
-        wrapMode: overlayValue("viewRole") === "fusion" ? Text.NoWrap : Text.Wrap
-        elide: overlayValue("viewRole") === "fusion" ? Text.ElideRight : Text.ElideNone
-
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-
-        text: {
-            const lines = []
-            const modality = overlayValue("modality")
-            const role = overlayValue("viewRole")
-            if (role === "fusion") {
-                lines.push("PET/CT FUSION · " + overlayValue("viewType").toUpperCase())
-                lines.push("CT: " + overlayValue("ctSeries"))
-                lines.push("PET: " + overlayValue("petSeries"))
-                lines.push("Image: " + overlayValue("sliceIndex") + " / " + overlayValue("sliceCount"))
-                return lines.join("\n")
-            } else if (role === "ct" || role === "pet") {
-                lines.push(role.toUpperCase() + " · " + overlayValue("viewType").toUpperCase())
-            } else if (role === "mip") {
-                lines.push("PET MIP · 最大值投影")
-            } else if (role !== "") {
-                lines.push("PET " + overlayValue("viewType").toUpperCase())
-            }
-            const manufacturer = overlayValue("manufacturer")
-            const seriesDescription = overlayValue("seriesDescription")
-            const studyDescription = overlayValue("studyDescription")
-            const viewType = overlayValue("viewType")
-            const viewPosition = overlayValue("viewPosition")
-            const sliceLocation = overlayValue("sliceLocation")
-            const sliceIndex = overlayValue("sliceIndex")
-            const sliceCount = overlayValue("sliceCount")
-
-            if (viewPosition !== "") {
-                lines.push(viewPosition)
-            } else {
-                if (viewType !== "")
-                    lines.push(viewType.toUpperCase())
-            }
-
-            if (manufacturer !== "")
-                lines.push(manufacturer)
-
-            if (modality === "PT") {
-                if (studyDescription !== "")
-                    lines.push("PET · " + studyDescription)
-                if (seriesDescription !== "")
-                    lines.push(seriesDescription)
-                if (role !== "mip" && sliceIndex !== "" && sliceCount !== "")
-                    lines.push("Image: " + sliceIndex + " / " + sliceCount)
-                return lines.join("\n")
-            }
-
-            if (seriesDescription !== "") lines.push(seriesDescription)
-
-            if (viewPosition === "") {
-                if (sliceLocation !== "")
-                    lines.push("Location: " + sliceLocation)
-            }
-
-            if (sliceIndex !== "" && sliceCount !== "") {
-                lines.push("Slice: " + sliceIndex + " / " + sliceCount)
-            } else if (sliceIndex !== "") {
-                lines.push("Slice: " + sliceIndex)
-            }
-
-            return lines.join("\n")
-        }
-    }
-
-    OverlayText {
-        id: topRightText
-
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-        horizontalAlignment: Text.AlignRight
-        visible: !viewportOverlay.hideSensitiveInfo
-
-        text: {
-            const lines = []
-            const modality = overlayValue("modality")
-            const patientName = overlayValue("patientName")
-            const patientId = overlayValue("patientId")
-
-            if (patientName !== "")
-                lines.push("Patient: " + patientName)
-
-            if (patientId !== "")
-                lines.push("ID: " + patientId)
-
-            if (modality === "PT") {
-                const tracer = overlayValue("radiopharmaceutical")
-                const corrections = overlayValue("correctedImage")
-                const decay = overlayValue("decayCorrection")
-                if (tracer !== "")
-                    lines.push("Tracer: " + tracer)
-                if (corrections !== "" || decay !== "")
-                    lines.push("Correction: " + corrections
-                        + (corrections !== "" && decay !== "" ? " · " : "")
-                        + decay)
-            }
-
-            return lines.join("\n")
-        }
-    }
-
-    OverlayText {
-        id: bottomLeftText
-
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-
-        text: {
-            const lines = []
-            const exposure = labeledPair(
-                "kV",
-                overlayValue("kvp"),
-                "mA",
-                overlayValue("tubeCurrentMa")
-            )
-            const sliceThickness = overlayValue("sliceThickness")
-            const window = labeledPair(
-                "WL",
-                overlayValue("windowCenter"),
-                "WW",
-                overlayValue("windowWidth")
-            )
-            const modality = overlayValue("modality")
-
-            if (modality === "PT") {
-                const sourceUnit = overlayValue("petUnits")
-                const pixelUnit = overlayValue("pixelUnit")
-                const suvType = overlayValue("suvType")
-                const lower = overlayValue("petDisplayLower", true)
-                const upper = overlayValue("petDisplayUpper", true)
-                lines.push("PET Range: " + lower + " – " + upper
-                    + (pixelUnit === "" ? "" : " " + pixelUnit))
-                if (sourceUnit !== "")
-                    lines.push("Source Units: " + sourceUnit)
-                if (suvType !== "")
-                    lines.push("SUV Type: " + suvType)
-                if (sliceThickness !== "")
-                    lines.push("Slice Thickness: " + sliceThickness + " mm")
-                if (overlayValue("viewRole") === "fusion") {
-                    lines.push("CT WL: " + overlayValue("ctWindowCenter")
-                        + "  WW: " + overlayValue("ctWindowWidth"))
-                    lines.push(overlayValue("registration"))
-                }
-                return lines.join("\n")
-            }
-
-            if (exposure !== "") lines.push(exposure)
-            if (sliceThickness !== "") lines.push("Thickness: " + sliceThickness + " mm")
-            if (window !== "") lines.push(window)
-
-            return lines.join("\n")
-        }
-    }
-
-    OverlayText {
-        id: bottomRightText
-
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-        horizontalAlignment: Text.AlignRight
-
-        text: {
-            const sample = "X: " + cursorValue("x", true)
-                + "   Y: " + cursorValue("y", true)
-                + "\n" + cursorValue("label", true) + ": "
-                + cursorValue("value", true)
-                + (cursorValue("unit") === ""
-                    ? "" : " " + cursorValue("unit"))
-            if (overlayValue("modality") !== "PT")
-                return sample
-            const secondary = viewportController.secondaryCursorText ?? ""
-            return "Zoom: " + overlayValue("zoom", true)
-                + "   Rot: " + overlayValue("rotation", true) + "°"
-                + "   Flip: " + overlayValue("flip", true)
-                + "\n" + sample.replace("\n", "   ")
-                + (secondary === "" ? "" : "\n" + secondary)
-        }
-    }
+    CornerText { objectName: "overlay-topLeft"; anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 2; text: root.lines("topLeft") }
+    CornerText { objectName: "overlay-topRight"; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 2; horizontalAlignment: Text.AlignRight; text: root.lines("topRight") }
+    CornerText { objectName: "overlay-bottomLeft"; anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 2; text: root.lines("bottomLeft") }
+    CornerText { objectName: "overlay-bottomRight"; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 2; horizontalAlignment: Text.AlignRight; text: root.lines("bottomRight") }
 }

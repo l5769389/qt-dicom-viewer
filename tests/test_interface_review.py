@@ -14,10 +14,10 @@ from test_measurement_qml import _visual_children
 
 
 @pytest.mark.parametrize("tab_type, expected", [
-    (TabType.TWO_D, {"annotate", "pseudocolor"}),
-    (TabType.MPR, {"annotate", "pseudocolor", "segmentation", "voi"}),
-    (TabType.THREE_D, {"voi", "remove-bed"}),
-    (TabType.FOUR_D, {"annotate", "pseudocolor"}),
+    (TabType.TWO_D, set()),
+    (TabType.MPR, {"segmentation", "voi"}),
+    (TabType.THREE_D, {"voi"}),
+    (TabType.FOUR_D, set()),
 ])
 def test_placeholder_catalog_is_view_specific(tab_type, expected):
     controller = ToolController(tab_type=tab_type)
@@ -80,17 +80,13 @@ def test_full_workspace_readability(sidebar_scene, tab_type, tmp_path):
         find(window, "sidebarContainer").setProperty("expandedWidth", sidebar_width)
         QTest.mouseMove(window, QPoint(width // 2, height - 10))
         QTest.qWait(250)
-        for name in ["sidebarOpenFolder", "openView-fusion", "openView-tile", "openView-3d"]:
+        for name in ["sidebarOpenFolder", "openView-fusion", "openView-montage", "openView-3d"]:
             button = find(window, name)
             for label in descendants(button):
                 if label.objectName() == "toolbarLabel":
                     assert not label.property("truncated")
-        initial_tabs = len(workspace.tabs)
-        for name in ["openView-fusion", "openView-tile"]:
-            button = find(window, name)
-            assert not button.isEnabled()
-            click(window, button)
-            assert len(workspace.tabs) == initial_tabs
+        assert find(window, "openView-fusion").isEnabled()
+        assert find(window, "openView-montage").isEnabled()
         QTest.mouseMove(window, QPoint(width // 2, height - 10))
         QTest.qWait(80)
         assert window.grabWindow().save(str(tmp_path / f"workspace-{tab_type}-{width}.png"))

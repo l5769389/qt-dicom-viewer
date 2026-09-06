@@ -1,5 +1,7 @@
 # 界面一致性检查 · 2026-09-06
 
+> 这是合并前的设计记录。当前已实现入口与合并验收见 [集成检查](integration-review.md)。
+
 修改位置：主项目 `/Users/jun/Documents/git-repo/qt-dicom-viewer`，没有新建 worktree。
 
 ## 结论

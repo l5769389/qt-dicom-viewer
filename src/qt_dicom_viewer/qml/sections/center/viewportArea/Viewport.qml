@@ -116,6 +116,18 @@ Item {
 
     }
 
+    ScaleBar {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 32
+        z: 11
+        pixelsPerMm: imageCanvas.pixelsPerMillimeter
+        visible: viewportRoot.viewportController?.showScaleBar === true && lengthMm > 0
+        calibrated: viewportRoot.viewportController?.hasPhysicalSpacing ?? false
+        options: viewportRoot.viewportController?.settingsController.values.scale ?? ({})
+    }
+
     DirectionOverlay {
         anchors.fill: parent
         z: 11
@@ -169,16 +181,6 @@ Item {
             ? viewportRoot.viewportController.textAnnotationController : null
         coordinateMapper: imageCanvas
         transformState: imageCanvas.measurementTransformState
-    }
-
-    ScaleBar {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 12
-        z: 15
-        visible: viewportRoot.viewportController
-            ? viewportRoot.viewportController.showScaleBar : false
-        pixelsPerMillimeter: imageCanvas.pixelsPerMillimeter
     }
 
     ColorBar {

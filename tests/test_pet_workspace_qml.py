@@ -47,6 +47,17 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
         layers = [x for x in items if x.objectName() == "dicomPixelLayer"]
         assert len(layers) == 4
         assert any(x.objectName() == "petWorkspacePanel" and x.isVisible() for x in items)
+        palette = next(x for x in items if x.objectName() == "petColorMap")
+        tab.toolController.settingsController.setValue("colormap", "pet", "cardiac")
+        QTest.qWait(30)
+        assert palette.property("currentText") == "Cardiac"
+        assert all(v.activeColorMap == "cardiac" for v in tab.viewports_by_id.values()
+                   if v.viewportRole not in ("ct", "fusion"))
+        if fusion:
+            fusion_palette = next(x for x in items if x.objectName() == "fusionColorMap")
+            tab.setFusionColorMap("hotMetal")
+            QTest.qWait(30)
+            assert fusion_palette.property("currentText") == "Hot Metal"
         kbq = next(x for x in items if x.objectName() == "petUnit-kbqml")
         QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier,
                         kbq.mapToScene(QPointF(kbq.width()/2, kbq.height()/2)).toPoint())

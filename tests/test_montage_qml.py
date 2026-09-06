@@ -14,9 +14,9 @@ def test_montage_entry_and_center_loader_are_wired() -> None:
         "src/qt_dicom_viewer/qml/sections/center/CenterPanel.qml"
     )
 
-    assert 'label: "平铺"' in left_panel
-    assert 'tabType: "montage"' in left_panel
-    assert "requiresCompleteScan: true" in left_panel
+    assert 'shortLabel: "平铺"' in left_panel
+    assert 'type: "montage"' in left_panel
+    assert 'actionData.type !== "montage" || !leftPanel.panelController.scanning' in left_panel
     assert 'activeTabType === "montage"' in center_panel
     assert "ViewportSection.MontageViewport" in center_panel
 
