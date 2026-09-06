@@ -45,15 +45,16 @@ Item {
                         iconSize: 24
                         iconName: serviceEntry.modelData.iconName
                         label: serviceEntry.modelData.label
-                        placeholder: serviceEntry.modelData.action === "service:qa"
-                        checked: !placeholder && servicePanel.selectedService === serviceEntry.modelData.action
+                        enabled: serviceEntry.modelData.action !== "service:qa"
+                            || !servicePanel.viewportController
+                            || !!servicePanel.viewportController.qaController?.available
+                        checked: servicePanel.selectedService === serviceEntry.modelData.action
                         onClicked: servicePanel.actionTriggered(serviceEntry.modelData.action)
                     }
                     HoverHandler { id: serviceHover }
                     Basic.ToolTip.visible: serviceHover.hovered
                     Basic.ToolTip.delay: 400
                     Basic.ToolTip.text: serviceEntry.modelData.label
-                        + (serviceEntry.modelData.action === "service:qa" ? " · 待实现" : "")
                 }
             }
         }
@@ -62,6 +63,12 @@ Item {
             Layout.fillWidth: true
             visible: servicePanel.selectedService === "service:mtf"
             controller: servicePanel.viewportController?.mtfController ?? null
+        }
+
+        WaterQaResults {
+            Layout.fillWidth: true
+            visible: servicePanel.selectedService === "service:qa"
+            controller: servicePanel.viewportController?.qaController ?? null
         }
     }
 }

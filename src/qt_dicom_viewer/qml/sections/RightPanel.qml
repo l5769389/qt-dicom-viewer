@@ -14,6 +14,8 @@ Rectangle {
     required property bool toolVisible
     required property var viewportController
     property var tabController: null
+    readonly property var volumeController: viewportController && viewportController.viewportType === "volume"
+        ? viewportController : null
 
     color: Theme.panelBackground
     border.color: Theme.borderDefault
@@ -41,6 +43,20 @@ Rectangle {
                     toolDefinition.toolType
                 )
             }
+        }
+
+        Text {
+            objectName: "volumeEditStatus"
+            Layout.fillWidth: true
+            Layout.margins: visible ? 10 : 0
+            visible: !!rightPanel.volumeController && (rightPanel.volumeController.bedRemovalEnabled
+                || rightPanel.volumeController.editMessage !== "")
+            text: rightPanel.volumeController
+                ? [rightPanel.volumeController.bedRemovalEnabled ? "去床板已启用" : "",
+                    rightPanel.volumeController.editMessage].filter(s => s !== "").join("\n") : ""
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            wrapMode: Text.Wrap
         }
 
         Flickable {

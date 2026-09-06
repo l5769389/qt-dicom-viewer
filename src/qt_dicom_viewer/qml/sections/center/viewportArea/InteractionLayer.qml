@@ -57,6 +57,7 @@ Item {
         || activeInteraction === "measure:ellipse"
         || activeInteraction === "service:mtf"
         || activeInteraction === "annotate:text"
+        || activeInteraction === "service:qa"
 
     function cursorKindForInteraction(interaction) {
         switch (interaction) {
@@ -83,7 +84,8 @@ Item {
         : crosshairHoverTarget === "horizontalLine"
             || crosshairHoverTarget === "verticalLine"
             ? "rotate-3d-variant"
-            : (activeInteraction.startsWith("measure:") || activeInteraction === "service:mtf")
+            : (activeInteraction.startsWith("measure:") || activeInteraction === "service:mtf"
+                || activeInteraction === "service:qa")
                 && measurementCursorKind !== ""
                 ? measurementCursorKind
                 : cursorKindForInteraction(activeInteraction)

@@ -2,15 +2,16 @@
 from dataclasses import replace
 import numpy as np
 from vtkmodules.util.numpy_support import numpy_to_vtk
-from vtkmodules.vtkCommonCore import vtkUnsignedCharArray
-from vtkmodules.vtkCommonDataModel import vtkImageData
+from vtkmodules.vtkCommonCore import vtkUnsignedCharArray, vtkPoints
+from vtkmodules.vtkCommonDataModel import vtkImageData, vtkPolyData, vtkCellArray
 from vtkmodules.vtkFiltersSources import vtkCubeSource
 from vtkmodules.vtkRenderingCore import (
     vtkRenderer, vtkVolume, vtkVolumeProperty, vtkColorTransferFunction,
     vtkActor, vtkPolyDataMapper, vtkPropAssembly,
+    vtkActor2D, vtkPolyDataMapper2D, vtkCoordinate,
 )
 from vtkmodules.vtkCommonDataModel import vtkPiecewiseFunction
-from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkSmartVolumeMapper
+from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLGPUVolumeRayCastMapper
 from vtkmodules.vtkRenderingAnnotation import vtkAnnotatedCubeActor
 from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 # Object-factory registration and font rendering; also visible to PyInstaller.
@@ -104,14 +105,17 @@ class VolumeRenderBackend:
         self.renderer = vtkRenderer()
         self.renderer.SetBackground(2/255, 7/255, 14/255)
         self.window.AddRenderer(self.renderer)
-        self.mapper = vtkSmartVolumeMapper()
+        # A binary GPU mask excludes voxels in composite, MIP and additive
+        # rendering without substituting an intensity that windowing can reveal.
+        self.mapper = vtkOpenGLGPUVolumeRayCastMapper()
         self.mapper.SetBlendModeToComposite()
         # Keep the same ray step while dragging and after release. VTK's
         # interactive adjustment otherwise trades sampling quality for its
         # requested frame rate, which makes the volume visibly blur and then
         # snap back when interaction stops.
-        self.mapper.SetInteractiveAdjustSampleDistances(False)
         self.mapper.SetAutoAdjustSampleDistances(False)
+        self.mapper.SetImageSampleDistance(1.0)
+        self.mapper.SetMaskTypeToBinary()
         self.actor = vtkVolume()
         self.actor.SetMapper(self.mapper)
         self.properties = vtkVolumeProperty()
@@ -122,6 +126,18 @@ class VolumeRenderBackend:
         self.properties.SetSpecular(0.15)
         self.actor.SetProperty(self.properties)
         self.renderer.AddVolume(self.actor)
+        self.selection_data = vtkPolyData()
+        selection_mapper = vtkPolyDataMapper2D()
+        selection_mapper.SetInputData(self.selection_data)
+        coordinate = vtkCoordinate()
+        coordinate.SetCoordinateSystemToNormalizedViewport()
+        selection_mapper.SetTransformCoordinate(coordinate)
+        self.selection_actor = vtkActor2D()
+        self.selection_actor.SetMapper(selection_mapper)
+        self.selection_actor.GetProperty().SetColor(1, 0.8, 0.2)
+        self.selection_actor.GetProperty().SetLineWidth(2)
+        self.selection_actor.SetVisibility(False)
+        self.renderer.AddViewProp(self.selection_actor)
         self.renderer.GetActiveCamera().ParallelProjectionOn()
         self.orientation_actor, self.cube, self.cube_surface = create_orientation_marker()
         self.marker = vtkOrientationMarkerWidget()
@@ -134,6 +150,8 @@ class VolumeRenderBackend:
         self._pixels = None
         self._sample_distance = None
         self._applied_display = None
+        self._mask_source = None
+        self._mask_image = self._mask_pixels = None
         self._error = False
         self._observers = [(obj, obj.AddObserver("ErrorEvent", self._on_error))
                            for obj in (self.window, self.mapper)]
@@ -150,6 +168,41 @@ class VolumeRenderBackend:
         self.mapper.SetSampleDistance(self._sample_distance)
         self._image, self._pixels, self.volume = image, pixels, volume
         self._applied_display = None
+        self._mask_source = None
+        self._mask_image = self._mask_pixels = None
+        self.mapper.SetMaskInput(None)
+
+    def apply_mask(self, mask):
+        if mask is self._mask_source:
+            return
+        if mask is None:
+            self.mapper.SetMaskInput(None)
+            self._mask_image = self._mask_pixels = None
+        else:
+            if mask.shape != self._pixels.shape:
+                raise ValueError("裁剪遮罩与体数据尺寸不一致")
+            pixels = np.ascontiguousarray(mask, dtype=np.uint8) * 255
+            image = vtkImageData()
+            image.CopyStructure(self._image)
+            image.GetPointData().SetScalars(numpy_to_vtk(pixels.ravel(), deep=False))
+            self.mapper.SetMaskInput(image)
+            self._mask_image, self._mask_pixels = image, pixels
+        self._mask_source = mask
+
+    def set_selection(self, points, size):
+        self.selection_actor.SetVisibility(bool(points) and size is not None)
+        if not points or size is None:
+            return
+        vertices, lines = vtkPoints(), vtkCellArray()
+        for x, y in points:
+            vertices.InsertNextPoint(x/max(1, size[0]), 1-y/max(1, size[1]), 0)
+        lines.InsertNextCell(len(points)+1)
+        for index in range(len(points)):
+            lines.InsertCellPoint(index)
+        lines.InsertCellPoint(0)
+        self.selection_data.SetPoints(vertices)
+        self.selection_data.SetLines(lines)
+        self.selection_data.Modified()
 
     def apply_display(self, state):
         if self.volume is None:
@@ -204,11 +257,12 @@ class VolumeRenderBackend:
         self.marker.SetViewport((width-margin-edge)/width, (height-margin-edge)/height,
                                 (width-margin)/width, (height-margin)/height)
 
-    def render(self, state, interactive=False, display_state=None):
+    def render(self, state, interactive=False, display_state=None, mask=None):
         if self.volume is None:
             return
         self._error = False
         self.apply_display(display_state or VolumeDisplayState())
+        self.apply_mask(mask)
         if not self._initialized:
             self.widget.Initialize()
             # Input is handled by the Python controller, not the default VTK style.
@@ -234,7 +288,9 @@ class VolumeRenderBackend:
         self._observers.clear()
         self.renderer.RemoveAllViewProps()
         self.mapper.RemoveAllInputs()
+        self.mapper.SetMaskInput(None)
         self.window.RemoveRenderer(self.renderer)
         self.widget.Finalize()
         self.volume = self._image = self._pixels = self._sample_distance = None
         self._applied_display = None
+        self._mask_source = self._mask_image = self._mask_pixels = None

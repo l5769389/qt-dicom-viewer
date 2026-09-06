@@ -64,6 +64,9 @@
         <file>src/qt_dicom_viewer/qml/sections/right/panels/RotateToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/WindowLevelToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumeDirectionPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumeCropPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/WaterQaResults.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/WaterQaOverlay.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumePresetPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/theme/Theme.qml</file>
         <file>src/qt_dicom_viewer/qml/theme/qmldir</file>

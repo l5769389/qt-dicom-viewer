@@ -35,6 +35,7 @@ def make_series(folder):
     pixels[((x+0.25)/0.18)**2+(y/0.42)**2+(z/0.6)**2 < 1] = -650
     pixels[((x-0.2)/0.15)**2+((y+0.2)/0.2)**2+(z/0.65)**2 < 1] = 400
     pixels[((x-0.23)/0.2)**2+(y/0.23)**2+(z/0.65)**2 < 1] = 800
+    pixels[(y > 0.86) & (y < 0.97) & (np.abs(x) < 0.92)] = 450
     instances = []
     for index, plane in enumerate(pixels):
         path = folder / f"{index:03}.dcm"
@@ -102,7 +103,7 @@ def main():
         assert viewport.nativeWindow.parent() == root
         assert viewport._host.isVisible()
 
-    def capture(viewport, filename):
+    def capture(viewport, filename, allow_empty=False):
         from vtkmodules.vtkRenderingCore import vtkWindowToImageFilter
         from vtkmodules.vtkIOImage import vtkPNGWriter
         from vtkmodules.util.numpy_support import vtk_to_numpy
@@ -111,7 +112,8 @@ def main():
         grab.ReadFrontBufferOff()
         grab.Update()
         array = vtk_to_numpy(grab.GetOutput().GetPointData().GetScalars())
-        assert np.count_nonzero(array.max(axis=1) > 80) > 1000, "Empty framebuffer"
+        if not allow_empty:
+            assert np.count_nonzero(array.max(axis=1) > 80) > 1000, "Empty framebuffer"
         if filename:
             writer = vtkPNGWriter()
             writer.SetFileName(str(filename))
@@ -149,6 +151,23 @@ def main():
     def sample_anatomy(array, widget):
         w, h = widget.GetRenderWindow().GetSize()
         return array.reshape(h, w, 3)[h//5:4*h//5, w//5:4*w//5]
+
+    def edit_ready(viewport):
+        deadline = time.monotonic()+15
+        while viewport.editBusy and time.monotonic() < deadline:
+            pump(30)
+        assert not viewport.editBusy
+        assert not viewport.editMessage, viewport.editMessage
+        pump()
+
+    def draw_crop(widget, fractions):
+        points = [QPoint(round(x*widget.width()), round(y*widget.height())) for x, y in fractions]
+        QTest.mousePress(widget, Qt.LeftButton, pos=points[0])
+        for point in points[1:]:
+            QTest.mouseMove(widget, point, 20)
+        QTest.mouseRelease(widget, Qt.LeftButton, pos=points[-1])
+        pump(80)
+        assert first.hasCropSelection
 
     def exercise():
         try:
@@ -270,6 +289,60 @@ def main():
             select_tool("reset")
             assert first.state == VolumeViewState()
             assert first.display_state == VolumeDisplayState(window=first.volume.default_window)
+            original_pixels = first.volume.modality_pixels.copy()
+            with_bed = capture(first, None)
+            select_tool("volume-bed")
+            edit_ready(first)
+            assert first.bedRemovalEnabled
+            assert workspace.activeTab.toolController.activeTool != "volume-bed"
+            assert find_item("primaryTool-volume-bed").property("checked")
+            bed_mask = first.visible_mask.copy()
+            assert not bed_mask[:, 60, 10:54].any()
+            without_bed = capture(first, None)
+            assert np.mean(np.abs(with_bed.astype(float)-without_bed.astype(float))) > 0.1
+            select_tool("volume-crop")
+            assert not find_item("volumeCrop-inside").isEnabled()
+            draw_crop(widget, [(0.34, 0.30), (0.62, 0.29), (0.55, 0.48), (0.63, 0.65), (0.36, 0.68)])
+            assert first._host.backend.selection_actor.GetVisibility()
+            if len(sys.argv) > 1:
+                capture(first, Path(sys.argv[1]).with_stem("volume-crop-selection"))
+            click_item("volumeCrop-inside")
+            edit_ready(first)
+            assert first.hasCrop and not first.hasCropSelection
+            assert np.count_nonzero(first.visible_mask) < np.count_nonzero(bed_mask)
+            inside_mask = first.crop_mask.copy()
+            cropped = capture(first, None, allow_empty=True)
+            assert np.mean(np.abs(cropped.astype(float)-without_bed.astype(float))) > 0.1
+            select_tool("pan")
+            assert first.bedRemovalEnabled and first.hasCrop
+            select_tool("volume-bed")
+            assert not first.bedRemovalEnabled
+            np.testing.assert_array_equal(first.visible_mask, inside_mask)
+            select_tool("volume-bed")
+            assert first.bedRemovalEnabled
+            select_tool("volume-crop")
+            draw_crop(widget, [(0.03, 0.03), (0.12, 0.03), (0.10, 0.12), (0.03, 0.10)])
+            click_item("volumeCrop-outside")
+            edit_ready(first)
+            assert not first.visible_mask.any()
+            # A completely excluded volume must remain invisible in every blend
+            # mode and after transfer-function edits, not just look like air.
+            select_tool("volume-preset")
+            for preset in ("general", "bone", "lung", "vessel", "mip", "xray"):
+                click_item("volumePreset-"+preset)
+                pump()
+                anatomy = sample_anatomy(capture(first, None, allow_empty=True), widget)
+                assert anatomy.max() < 20, (preset, anatomy.max())
+            select_tool("volume-crop")
+            click_item("activeToolReset")
+            assert first.bedRemovalEnabled and not first.hasCrop
+            np.testing.assert_array_equal(first.visible_mask, bed_mask)
+            capture(first, None)
+            select_tool("reset")
+            assert not first.bedRemovalEnabled and first.visible_mask is None
+            np.testing.assert_array_equal(first.volume.modality_pixels, original_pixels)
+            print("PASS: bed toggle coexists, native freehand preview, inside/outside crops, "
+                  "all six masked presets, scoped/global resets, original pixels unchanged", flush=True)
             workspace.closeTab(first_id)
             pump()
             assert first.nativeWindow is None

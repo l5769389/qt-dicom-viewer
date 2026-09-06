@@ -40,6 +40,7 @@ class ToolController(QObject):
     activePanelChanged = Signal()
     activeInteractionChanged = Signal()
     activeServiceChanged = Signal()
+    serviceSelected = Signal(str)
     commandRequested = Signal(str)
     resetRequested = Signal(str)
     resetStateChanged = Signal()
@@ -122,6 +123,8 @@ class ToolController(QObject):
     def resetLabel(self) -> str:
         if self._active_tool == ToolType.SERVICE and self._active_service == "service:mtf":
             return "重置 MTF"
+        if self._active_tool == ToolType.SERVICE and self._active_service == "service:qa":
+            return "重置水模 QA"
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         if definition is None or definition.reset_label is None:
             return "暂无可重置内容"
@@ -130,7 +133,7 @@ class ToolController(QObject):
     @Property(bool, notify=resetStateChanged)
     def canResetActiveTool(self) -> bool:
         if self._active_tool == ToolType.SERVICE:
-            return self._active_service == "service:mtf"
+            return self._active_service in ("service:mtf", "service:qa")
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         return (
             definition is not None
@@ -181,12 +184,12 @@ class ToolController(QObject):
             case ToolBehavior.PANEL:
                 self._set_active_tool(definition.tool_type)
                 self._set_active_interaction(
-                    InteractionType.SERVICE_MTF
-                    if tool_type == ToolType.SERVICE and self._active_service == "service:mtf"
+                    InteractionType(self._active_service)
+                    if tool_type == ToolType.SERVICE and self._active_service in ("service:mtf", "service:qa")
                     else definition.default_interaction)
                 self._set_active_panel(definition.tool_type)
 
-            case ToolBehavior.COMMAND:
+            case ToolBehavior.COMMAND | ToolBehavior.TOGGLE:
                 if definition.command is not None:
                     self.commandRequested.emit(definition.command)
 
@@ -202,9 +205,10 @@ class ToolController(QObject):
 
         if self._tab_type == TabType.THREE_D and interaction not in (
             InteractionType.PAN, InteractionType.ZOOM, InteractionType.VOLUME_ROTATE, InteractionType.WINDOW,
+            InteractionType.VOLUME_CROP,
         ):
             return
-        if interaction == InteractionType.SERVICE_MTF:
+        if interaction in (InteractionType.SERVICE_MTF, InteractionType.SERVICE_QA):
             self.selectService(interaction.value)
             return
         if (
@@ -228,7 +232,7 @@ class ToolController(QObject):
 
     @Slot(str)
     def selectService(self, action: str) -> None:
-        """MTF 启用独立矩形交互，QA 只保留菜单入口。"""
+        """MTF 绘制矩形，QA 自动识别并支持拖动已有 ROI。"""
         if action not in {item.action for item in SERVICE_ACTIONS}:
             logger.warning("Unknown service entry: %s", action)
             return
@@ -240,8 +244,9 @@ class ToolController(QObject):
         if action != self._active_service:
             self._active_service = action
             self.activeServiceChanged.emit()
-        self._set_active_interaction(InteractionType.SERVICE_MTF if action == "service:mtf"
+        self._set_active_interaction(InteractionType(action) if action in ("service:mtf", "service:qa")
                                      else InteractionType.NONE)
+        self.serviceSelected.emit(action)
 
     @Slot(bool)
     def setMprProjectionEnabled(self, enabled: bool) -> None:
@@ -413,6 +418,7 @@ def tool_available(tool: ToolType, tab_type: TabType | None) -> bool:
         return tool in MONTAGE_TOOL_TYPES
     if tab_type == TabType.THREE_D:
         return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
-                        ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)
+                        ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.VOLUME_BED,
+                        ToolType.VOLUME_CROP, ToolType.RESET)
     supported = TOOL_DEFINITIONS[tool].supported_tab_types
     return tab_type is None or supported is None or tab_type in supported

@@ -45,6 +45,7 @@ Rectangle {
             delegate: Components.ToolbarAction {
                 id: primaryAction
                 required property var modelData
+                readonly property bool bedAction: modelData.toolType === "volume-bed"
                 width: toolFlow.buttonWidth
                 height: Theme.toolbarButtonHeight
                 buttonObjectName: "primaryTool-" + modelData.toolType
@@ -52,8 +53,11 @@ Rectangle {
                 shortLabel: modelData.toolType === "mpr-rotate-3d" ? "3D旋转" : label
                 iconName: modelData.iconName
                 placeholder: modelData.available === false
-                actionEnabled: !toolBar.playbackActive || modelData.toolType === "play"
-                checked: modelData.toolType === toolBar.feedbackTool
+                actionEnabled: (!toolBar.playbackActive || modelData.toolType === "play")
+                    && (!bedAction || (toolBar.volumeController
+                        && toolBar.volumeController.bedRemovalAvailable && !toolBar.volumeController.editBusy))
+                checked: bedAction ? !!toolBar.volumeController && toolBar.volumeController.bedRemovalEnabled
+                    : modelData.toolType === toolBar.feedbackTool
                     || (toolBar.toolController && modelData.toolType === toolBar.toolController.activeTool)
                 resetAction: modelData.toolType === "reset"
                 directionFace: modelData.toolType === "volume-direction"

@@ -137,15 +137,10 @@ def test_real_service_roi_to_canvas_chart_and_metrics(workspace, tmp_path):
         flickable.setProperty("contentY", 0)
         QTest.qWait(20)
     saved = controller.mtfController.roiController.measurementItems
-    qa = _find(view, "serviceEntry-qa")
-    assert not qa.isEnabled()
-    _click(view, qa)
-    assert controller.activeInteraction == "service:mtf"
+    _click(view, _find(view, "serviceEntry-qa"))
+    assert controller.activeInteraction == "service:qa"
     assert controller._tool_controller.canResetActiveTool
-    assert controller.mtfController.roiController.measurementItems == saved
-    # 离开 MTF 使用真正可用的平移工具；QA 占位不应切换当前工具。
-    _click(view, _find(view, "primaryTool-pan"))
-    assert controller.activeInteraction == "pan"
+    assert controller._tool_controller.resetLabel == "重置水模 QA"
     assert not [item for item in _visual_children(view.rootObject())
                 if item.objectName() == "mtfResults" and item.isVisible()]
     _mouse_drag(view, _scene(pixels, 20, 20), _scene(pixels, 90, 90))

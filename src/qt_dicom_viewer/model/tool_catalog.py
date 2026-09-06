@@ -119,6 +119,23 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         reset_label="重置模板",
     ),
     ToolDefinition(
+        tool_type=ToolType.VOLUME_BED,
+        label="去床板",
+        icon_name="remove-bed",
+        behavior=ToolBehavior.TOGGLE,
+        command="volume:toggle-bed",
+        supported_tab_types=frozenset((TabType.THREE_D,)),
+    ),
+    ToolDefinition(
+        tool_type=ToolType.VOLUME_CROP,
+        label="裁剪",
+        icon_name="volume-crop",
+        behavior=ToolBehavior.INTERACTION_PANEL,
+        default_interaction=InteractionType.VOLUME_CROP,
+        supported_tab_types=frozenset((TabType.THREE_D,)),
+        reset_label="重置裁剪",
+    ),
+    ToolDefinition(
         tool_type=ToolType.ANNOTATE,
         label="标注",
         icon_name="annotate",
@@ -184,7 +201,6 @@ class PlaceholderToolDefinition:
 PLACEHOLDER_TOOLS = (
     PlaceholderToolDefinition("segmentation", "分割", frozenset((TabType.MPR,))),
     PlaceholderToolDefinition("voi", "VOI", frozenset((TabType.MPR, TabType.THREE_D))),
-    PlaceholderToolDefinition("remove-bed", "去床板", frozenset((TabType.THREE_D,))),
 )
 
 @dataclass(frozen=True, slots=True)
@@ -194,7 +210,7 @@ class ToolActionDefinition:
     icon_name: str
 
 
-# 服务菜单暂时只保存入口选择，不对应任何绘制交互或执行命令。
+# 服务入口分别启动手动 MTF ROI 和自动水模 QA。
 SERVICE_ACTIONS = (
     ToolActionDefinition(action="service:mtf", label="MTF", icon_name="mtf"),
     ToolActionDefinition(action="service:qa", label="QA", icon_name="qa"),

@@ -285,10 +285,12 @@ class ToolBehavior(StrEnum):
     PANEL = "panel"    # 只打开面板
     INTERACTION_PANEL = "interactionPanel" # 触发长期功能且打开面板
     COMMAND = "command"  # 一次性命令，比如reset
+    TOGGLE = "toggle"  # 独立状态，不替换当前交互或面板
 
 
 class InteractionType(StrEnum):
     SERVICE_MTF = "service:mtf"
+    SERVICE_QA = "service:qa"
     NONE = ""
     WINDOW = "window"
     SCROLL = "scroll"
@@ -301,6 +303,7 @@ class InteractionType(StrEnum):
     ANNOTATE_TEXT = "annotate:text"
     MPR_ROTATE_3D = "mpr:rotate3d"
     VOLUME_ROTATE = "volume:rotate"
+    VOLUME_CROP = "volume:crop"
 
 @dataclass(frozen=True, slots=True)
 class WindowPreset:

@@ -171,7 +171,7 @@ def test_display_updates_reuse_volume_and_camera_changes_reuse_transfer_function
                             volume.geometry.row_spacing,
                             volume.geometry.slice_spacing)
         assert backend.mapper.GetSampleDistance() == pytest.approx(expected_step)
-        assert not backend.mapper.GetInteractiveAdjustSampleDistances()
+        assert backend.mapper.GetImageSampleDistance() == 1
         assert not backend.mapper.GetAutoAdjustSampleDistances()
         for p in VOLUME_PRESETS:
             state = VolumeDisplayState(p.preset_id, p.default_window or volume.default_window)
@@ -187,7 +187,7 @@ def test_display_updates_reuse_volume_and_camera_changes_reuse_transfer_function
                 VolumeBlendMode.COMPOSITE: 0, VolumeBlendMode.MIP: 1, VolumeBlendMode.ADDITIVE: 4,
             }[p.blend_mode]
             assert backend.mapper.GetSampleDistance() == pytest.approx(expected_step)
-            assert not backend.mapper.GetInteractiveAdjustSampleDistances()
+            assert backend.mapper.GetImageSampleDistance() == 1
             assert not backend.mapper.GetAutoAdjustSampleDistances()
             changed = replace(state, window=WindowLevel(200, 400))
             backend.apply_display(changed)

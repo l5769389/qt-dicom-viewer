@@ -68,6 +68,20 @@ def _assert_service_panel_has_only_top_aligned_buttons(view):
     assert second.mapToItem(panel, QPointF(0, 0)).x() == pytest.approx(first.width() + 8)
 
 
+@pytest.mark.parametrize("service_panel", [None], indirect=True)
+def test_expanded_tool_catalog_fits_toolbar_at_fractional_column_width(service_panel):
+    view, controller, warnings = service_panel
+    view.resize(264, 560)
+    QTest.qWait(50)
+    for button in _visual_children(view.rootObject()):
+        if button.objectName().startswith("primaryTool-"):
+            assert button.y()+button.height() <= button.parentItem().height()
+    _click(view, _find(view, "primaryTool-service"))
+    assert controller.activePanel == "service"
+    assert _find(view, "serviceEntry-mtf").isEnabled()
+    assert not warnings, warnings
+
+
 def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(service_panel, tmp_path):
     view, controller, warnings = service_panel
     commands = []
@@ -88,7 +102,7 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
         button = _find(view, "serviceEntry-" + entry)
         _click(view, button)
         assert controller.activeService == "service:" + entry
-        assert controller.activeInteraction == ("service:mtf" if entry == "mtf" else "")
+        assert controller.activeInteraction == "service:" + entry
         assert button.property("checked")
         _assert_service_panel_has_only_top_aligned_buttons(view)
         other = _find(view, "serviceEntry-" + ("qa" if entry == "mtf" else "mtf"))
@@ -135,7 +149,7 @@ def test_non_2d_toolbar_has_no_service_entry(service_panel):
 
 
 @pytest.mark.parametrize("entry", ["qa"])
-def test_service_placeholder_cancels_draft_and_does_not_draw_on_drag(viewport, entry):
+def test_automatic_qa_cancels_draft_and_does_not_draw_manual_measurements(viewport, entry):
     view, controller, pixel_layer, warnings = viewport
     tools = controller._tool_controller
     tools.activateTool("measure")
@@ -148,7 +162,7 @@ def test_service_placeholder_cancels_draft_and_does_not_draw_on_drag(viewport, e
     _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
     assert controller.measurementController.measurementItems == []
     assert not controller.measurementController.has_active_transaction
-    assert tools.activeInteraction == ""
+    assert tools.activeInteraction == "service:qa"
     assert not warnings, warnings
 
     # 切回普通测量后，原有矩形绘制功能仍可正常使用。
