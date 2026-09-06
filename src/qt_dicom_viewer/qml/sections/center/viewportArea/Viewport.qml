@@ -110,6 +110,17 @@ Item {
 
     }
 
+    ScaleBar {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 32
+        z: 11
+        pixelsPerMm: imageCanvas.fitScale * (viewportRoot.viewportController?.zoom ?? 1)
+        calibrated: viewportRoot.viewportController?.hasPhysicalSpacing ?? false
+        options: viewportRoot.viewportController?.settingsController.values.scale ?? ({})
+    }
+
     DirectionOverlay {
         anchors.fill: parent
         z: 11

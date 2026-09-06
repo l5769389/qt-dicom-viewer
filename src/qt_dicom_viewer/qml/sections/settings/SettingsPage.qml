@@ -9,17 +9,19 @@ Rectangle {
     id: page
     objectName: "settingsPage"
     required property var pacsController
+    required property var settingsController
     color: Theme.panelBackgroundStrong
-    property string selectedCategory: "sources"
-    // Each category maps to a separate settings page.
+    readonly property string selectedCategory: settingsController.activeCategory
     readonly property var categories: [
-        {
-            key: "sources",
-            title: "数据源",
-            subtitle: "本地与 PACS"
-        }
+        {key: "sources", title: "数据源", subtitle: "本地与 PACS"},
+        {key: "colormap", title: "伪彩", subtitle: "灰阶与 PET"},
+        {key: "window", title: "窗模板", subtitle: "窗宽 / 窗位预设"},
+        {key: "crosshair", title: "十字线", subtitle: "MPR 颜色与线宽"},
+        {key: "corners", title: "四角信息", subtitle: "显示内容与样式"},
+        {key: "scale", title: "比例尺", subtitle: "显示与颜色"},
+        {key: "measurement", title: "测量与标注", subtitle: "线条、文字与箭头"},
+        {key: "roi", title: "ROI 指标", subtitle: "选择显示统计项"}
     ]
-
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -29,78 +31,63 @@ Rectangle {
             color: Theme.panelBackground
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 16
-                spacing: 8
-                Text {
-                    text: "工作区设置"
-                    color: Theme.textPrimary
-                    font.pixelSize: 18
-                    font.bold: true
-                    Layout.topMargin: 12
+                anchors.margins: 12
+                spacing: 12
+                Text { text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 18; font.bold: true; Layout.topMargin: 12 }
+                Text { text: "DICOMVision"; color: Theme.textSubtle; font.pixelSize: 11 }
+                Components.AppTextField {
+                    id: search
+                    objectName: "settingsSearch"
+                    Layout.fillWidth: true
+                    placeholderText: "搜索设置"
                 }
-                Text {
-                    text: "DICOMVision"
-                    color: Theme.textSubtle
-                    font.pixelSize: 11
-                    Layout.bottomMargin: 24
-                }
-                Repeater {
-                    model: page.categories
-                    delegate: Rectangle {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 66
-                        color: page.selectedCategory === modelData.key ? Theme.selectionBackground : Theme.controlBackground
-                        border.color: page.selectedCategory === modelData.key ? Theme.selectionBorder : Theme.borderDefault
-                        radius: 7
-                        Rectangle {
-                            width: 3
-                            height: 28
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: Theme.primaryColor
-                        }
-                        TapHandler {
-                            onTapped: page.selectedCategory = modelData.key
-                        }
-                        Column {
-                            anchors.centerIn: parent
-                            width: parent.width - 26
-                            spacing: 6
-                            Text {
-                                text: modelData.title
-                                color: Theme.textPrimary
-                                font.pixelSize: 14
-                                font.bold: true
-                            }
-                            Text {
-                                text: modelData.subtitle
-                                color: Theme.textMuted
-                                font.pixelSize: 11
+                Basic.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: availableWidth
+                    clip: true
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 6
+                        Repeater {
+                            model: page.categories
+                            delegate: Components.AppButton {
+                                id: category
+                                required property var modelData
+                                objectName: "settingsCategory-" + modelData.key
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 56
+                                visible: !search.text || (modelData.title + modelData.subtitle).toLowerCase().indexOf(search.text.toLowerCase()) >= 0
+                                checkable: true
+                        autoExclusive: true
+                                checked: page.selectedCategory === modelData.key
+                                onClicked: page.settingsController.selectCategory(modelData.key)
+                                baseBorderWidth: 1
+                                contentItem: Column {
+                                    spacing: 5
+                                    Text { text: category.modelData.title; color: Theme.textPrimary; font.pixelSize: 13; font.bold: category.checked }
+                                    Text { text: category.modelData.subtitle; color: Theme.textMuted; font.pixelSize: 10 }
+                                }
                             }
                         }
                     }
                 }
-                Item {
-                    Layout.fillHeight: true
-                }
             }
         }
-        Rectangle {
-            Layout.preferredWidth: 1
-            Layout.fillHeight: true
-            color: Theme.dividerColor
-        }
+        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: Theme.dividerColor }
         Loader {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            sourceComponent: page.selectedCategory === "sources" ? sourcesComponent : null
+            sourceComponent: page.selectedCategory === "sources" ? sourcesComponent : displayComponent
         }
     }
+    Component { id: sourcesComponent; DataSourcesPage { pacsController: page.pacsController } }
     Component {
-        id: sourcesComponent
-        DataSourcesPage {
-            pacsController: page.pacsController
+        id: displayComponent
+        DisplaySettingsPage {
+            settingsController: page.settingsController
+            category: page.selectedCategory
+            title: page.categories.find(item => item.key === page.selectedCategory)?.title ?? ""
         }
     }
 }

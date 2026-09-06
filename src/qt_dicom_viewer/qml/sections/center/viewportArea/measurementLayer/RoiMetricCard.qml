@@ -5,6 +5,8 @@ import "../../../../theme"
 
 Rectangle {
     id: root
+    property var visibleMetrics: ({})
+    property int metricFontSize: 13
     required property var measurement
     required property color accentColor
     readonly property var metrics: measurement.metrics ?? ({})
@@ -13,14 +15,15 @@ Rectangle {
         return typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : "—"
     }
     readonly property var rows: [
-        {label: "面积", value: format(metrics.area_mm2) + " mm²"},
-        {label: measurement.type === "ellipse" ? "轴径" : "宽 × 高",
-            value: format(metrics.width_mm) + " × " + format(metrics.height_mm) + " mm"},
-        {label: "均值", value: format(metrics.mean) + unitSuffix},
-        {label: "标准差", value: format(metrics.std) + unitSuffix},
-        {label: "最小 / 最大", value: format(metrics.minimum) + " / " + format(metrics.maximum) + unitSuffix},
-        {label: "有效像素", value: String(metrics.pixel_count ?? 0)}
-    ]
+        {key: "area", label: "面积", value: format(metrics.area_mm2) + " mm²"},
+        {key: "width", label: measurement.type === "ellipse" ? "横轴直径" : "宽度", value: format(metrics.width_mm) + " mm"},
+        {key: "height", label: measurement.type === "ellipse" ? "纵轴直径" : "高度", value: format(metrics.height_mm) + " mm"},
+        {key: "mean", label: "均值", value: format(metrics.mean) + unitSuffix},
+        {key: "std", label: "标准差", value: format(metrics.std) + unitSuffix},
+        {key: "minimum", label: "最小值", value: format(metrics.minimum) + unitSuffix},
+        {key: "maximum", label: "最大值", value: format(metrics.maximum) + unitSuffix},
+        {key: "count", label: "有效像素", value: String(metrics.pixel_count ?? 0)}
+    ].filter(row => root.visibleMetrics[row.key] !== false)
     implicitWidth: 238
     implicitHeight: content.implicitHeight + 20
     height: implicitHeight
@@ -50,12 +53,12 @@ Rectangle {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: 8
-                Text { text: metricRow.modelData.label; color: Theme.textMuted; font.pixelSize: 11 }
+                Text { text: metricRow.modelData.label; color: Theme.textMuted; font.pixelSize: root.metricFontSize - 2 }
                 Text {
                     Layout.fillWidth: true
                     text: metricRow.modelData.value
                     color: Theme.overlayText
-                    font.pixelSize: 11
+                    font.pixelSize: root.metricFontSize - 2
                     horizontalAlignment: Text.AlignRight
                     elide: Text.ElideRight
                 }

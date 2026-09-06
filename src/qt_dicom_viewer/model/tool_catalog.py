@@ -114,6 +114,8 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         label="标注",
         icon_name="annotate",
         behavior=ToolBehavior.INTERACTION_PANEL,
+        default_interaction=InteractionType.ANNOTATE_ARROW,
+        reset_label="重置标注",
     ),
     ToolDefinition(
         tool_type=ToolType.PLAY,

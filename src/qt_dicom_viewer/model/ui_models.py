@@ -265,6 +265,7 @@ class InteractionType(StrEnum):
     PAN = "pan"
     ZOOM = "zoom"
     MEASURE_LENGTH = "measure:length"
+    ANNOTATE_ARROW = "annotate:arrow"
     MEASURE_ANGLE = "measure:angle"
     MEASURE_RECT = "measure:rect"
     MEASURE_ELLIPSE = "measure:ellipse"

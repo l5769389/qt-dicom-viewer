@@ -1,0 +1,1 @@
+"""Persistent workspace display preferences."""

@@ -5,12 +5,15 @@ import "../../../../theme"
 
 Item {
     id: root
+    property var preferences: ({})
+    readonly property var styleSettings: preferences.measurement ?? ({})
+    readonly property bool dashed: isDraft || isSelected ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
     required property var mappedPoints
     required property bool isDraft
     required property bool isSelected
     property alias labelItem: measurementLabel
-    readonly property color lineColor: isDraft || isSelected ? Theme.measurementSelected : Theme.measurementPrimary
+    readonly property color lineColor: isDraft || isSelected ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
     readonly property point a: mappedPoints[0] ?? Qt.point(0, 0)
     readonly property point vertex: mappedPoints[1] ?? Qt.point(0, 0)
     readonly property point b: mappedPoints[2] ?? Qt.point(0, 0)
@@ -27,9 +30,9 @@ Item {
         anchors.fill: parent
         ShapePath {
             strokeColor: root.lineColor
-            strokeWidth: 1.5
+            strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: "transparent"
-            strokeStyle: root.isDraft ? ShapePath.DashLine : ShapePath.SolidLine
+            strokeStyle: root.dashed ? ShapePath.DashLine : ShapePath.SolidLine
             dashPattern: [4, 2]
             startX: root.a.x
             startY: root.a.y
@@ -67,7 +70,7 @@ Item {
         y: Math.max(4, Math.min(root.height - height - 4, root.vertex.y + 14))
         text: root.measurement.label ?? ""
         color: root.lineColor
-        font.pixelSize: 13
+        font.pixelSize: root.styleSettings.fontSize ?? 13
         font.bold: true
         style: Text.Outline
         styleColor: Theme.overlayOutline

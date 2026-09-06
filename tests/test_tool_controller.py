@@ -75,18 +75,19 @@ def test_active_tool_exposes_and_requests_its_scoped_reset() -> None:
     assert resets == ["pan"]
 
 
-def test_tool_without_reset_content_disables_scoped_reset() -> None:
+def test_annotation_tool_activates_arrow_and_exposes_scoped_reset() -> None:
     controller = ToolController()
     resets: list[str] = []
     controller.resetRequested.connect(resets.append)
     controller.activateTool("annotate")
 
-    assert controller.resetLabel == "暂无可重置内容"
-    assert controller.canResetActiveTool is False
+    assert controller.resetLabel == "重置标注"
+    assert controller.canResetActiveTool is True
 
     controller.resetActiveTool()
 
-    assert resets == []
+    assert resets == ["annotate"]
+    assert controller.activeInteraction == "annotate:arrow"
 
 
 def test_mpr_3d_rotation_is_a_primary_interaction_tool() -> None:

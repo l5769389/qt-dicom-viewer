@@ -144,4 +144,6 @@ class OverlayPresenter:
                 frame.window.width * (-1 if frame.inverted else 1) if frame else None, 0
             ),
             "zoom": f"{state.zoom * 100:.0f}%",
+            "seriesUid": series.series_uid,
+            "transform": f"Rot: {state.rotation_degrees:.0f}° / Flip: " + ("H" if state.horizontal_flip else "") + ("V" if state.vertical_flip else "") + ("—" if not state.horizontal_flip and not state.vertical_flip else ""),
         }

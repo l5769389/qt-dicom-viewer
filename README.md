@@ -19,6 +19,12 @@ uv run qt-dicom-viewer
 使用 OrbStack / Docker 启动 Orthanc、dcm4chee 并验证完整导入流程，见
 [本地 PACS 联调环境](docs/pacs-lab.md)。
 
+## 显示设置
+
+设置 Tab 提供伪彩、窗模板、十字线、四角信息、比例尺、测量与标注、ROI 指标。
+修改即时生效并保存到本机；右侧标注工具支持箭头绘制、编辑和删除。
+各设置的作用范围、恢复默认与使用方法见 [显示设置说明](docs/display-settings.md)。
+
 ## Dev Auto-Restart
 
 ```bash

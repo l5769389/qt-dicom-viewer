@@ -55,5 +55,20 @@
         <file>src/qt_dicom_viewer/qml/components/AppComboBox.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppCheckBox.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/DataSourcesPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/CrosshairLayer.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/DirectionOverlay.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ScaleBar.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/ColorMapsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/CornerSettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/CrosshairSettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/DisplaySettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/GradientStrip.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/MeasurementSettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/RoiSettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/ScaleSettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/SettingColor.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/SettingSlider.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/SettingsCard.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/WindowTemplatesPage.qml</file>
     </qresource>
 </RCC>

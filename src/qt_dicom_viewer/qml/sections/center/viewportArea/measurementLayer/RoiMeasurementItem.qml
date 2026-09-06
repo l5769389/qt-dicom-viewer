@@ -5,6 +5,9 @@ import "../../../../theme"
 
 Item {
     id: root
+    property var preferences: ({})
+    readonly property var styleSettings: preferences.measurement ?? ({})
+    readonly property bool dashed: isDraft || isSelected ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
     required property var corners
     required property bool isDraft
@@ -12,7 +15,7 @@ Item {
     property bool showMetrics: true
     property string shortLabel: ""
     readonly property Item labelItem: showMetrics ? metricCard : compactLabel
-    readonly property color lineColor: isDraft || isSelected ? Theme.measurementSelected : Theme.measurementPrimary
+    readonly property color lineColor: isDraft || isSelected ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
 
     readonly property string outlinePath: {
         if (root.corners.length !== 4)
@@ -41,9 +44,9 @@ Item {
         anchors.fill: parent
         ShapePath {
             strokeColor: root.lineColor
-            strokeWidth: 1.5
+            strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: "transparent"
-            strokeStyle: root.isDraft ? ShapePath.DashLine : ShapePath.SolidLine
+            strokeStyle: root.dashed ? ShapePath.DashLine : ShapePath.SolidLine
             dashPattern: [4, 2]
             PathSvg { path: root.outlinePath }
         }
@@ -66,6 +69,8 @@ Item {
         visible: root.showMetrics && root.corners.length === 4
         measurement: root.measurement
         accentColor: root.lineColor
+        visibleMetrics: root.preferences.roi ?? ({})
+        metricFontSize: root.styleSettings.fontSize ?? 13
         width: Math.max(0, Math.min(238, root.width - 16))
         x: Math.max(8, Math.min(root.width - width - 8,
             root.rightEdge + width + 12 <= root.width ? root.rightEdge + 12 : root.leftEdge - width - 12))

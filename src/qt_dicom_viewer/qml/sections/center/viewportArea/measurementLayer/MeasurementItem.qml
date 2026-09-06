@@ -9,11 +9,12 @@ Item {
     required property bool isSelected
     required property var coordinateMapper
     required property var transformState
+    property var preferences: ({})
     property bool showRoiMetrics: true
     property string roiLabel: ""
     z: isSelected ? 2 : 1
 
-    readonly property Item labelItem: root.measurement.type === "length"
+    readonly property Item labelItem: (root.measurement.type === "length" || root.measurement.type === "arrow")
         ? lengthItem.labelItem
         : root.measurement.type === "angle" ? angleItem.labelItem : roiItem.labelItem
 
@@ -50,7 +51,8 @@ Item {
     LengthMeasurementItem {
         id: lengthItem
         anchors.fill: parent
-        visible: root.measurement.type === "length"
+        visible: (root.measurement.type === "length" || root.measurement.type === "arrow")
+        preferences: root.preferences
         measurement: root.measurement
         mappedPoints: root.mappedPoints
         isDraft: root.isDraft
@@ -60,6 +62,7 @@ Item {
         id: angleItem
         anchors.fill: parent
         visible: root.measurement.type === "angle"
+        preferences: root.preferences
         measurement: root.measurement
         mappedPoints: root.mappedPoints
         isDraft: root.isDraft
@@ -71,6 +74,7 @@ Item {
         shortLabel: root.roiLabel
         anchors.fill: parent
         visible: root.measurement.type === "rect" || root.measurement.type === "ellipse"
+        preferences: root.preferences
         measurement: root.measurement
         corners: root.corners
         isDraft: root.isDraft

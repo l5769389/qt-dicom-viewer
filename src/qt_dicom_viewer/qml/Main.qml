@@ -45,6 +45,7 @@ ApplicationWindow {
             workspaceController: window.workspaceController
             panelController: window.panelController
             pacsController: window.pacsController
+            settingsController: appController.settingsController ?? null
             currentTabAllViewports: window.currentTabAllViewports
             viewportController: window.viewportController
         }

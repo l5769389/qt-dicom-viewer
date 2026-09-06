@@ -5,6 +5,7 @@ from math import isfinite
 import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot, Property, QPointF
 
+from qt_dicom_viewer.core.color_maps import COLOR_MAPS
 from qt_dicom_viewer.core.patient_orientation import (
     displayed_image_edge_labels,
 )
@@ -29,24 +30,10 @@ logger = logging.getLogger(__name__)
 
 MEASUREMENT_KINDS = {
     InteractionType.MEASURE_LENGTH: MeasurementKind.LENGTH,
+    InteractionType.ANNOTATE_ARROW: MeasurementKind.ARROW,
     InteractionType.MEASURE_ANGLE: MeasurementKind.ANGLE,
     InteractionType.MEASURE_RECT: MeasurementKind.RECT,
     InteractionType.MEASURE_ELLIPSE: MeasurementKind.ELLIPSE,
-}
-
-DISPLAY_STYLES = {
-    "grayscale": DisplayStyle(
-        color_map="grayscale",
-        no_data_color="#000000",
-    ),
-    "hotIron": DisplayStyle(
-        color_map="hotIron",
-        no_data_color="#090000",
-    ),
-    "rainbow": DisplayStyle(
-        color_map="rainbow",
-        no_data_color="#000020",
-    ),
 }
 
 
@@ -87,6 +74,7 @@ class Image2DViewportController(ViewportController):
     sliceChanged = Signal()
     transformChanged = Signal()
     displayStyleChanged = Signal()
+    preferencesChanged = Signal()
     crosshairImagePositionChanged = Signal()
     crosshairHoverTargetChanged = Signal()
     activeInteractionChanged = Signal()
@@ -108,6 +96,9 @@ class Image2DViewportController(ViewportController):
         self._measure_controller = MeasurementController(self)
         self._mtf_controller = None
         self._tool_controller = tool_controller
+        self._settings_controller = tool_controller.settingsController
+        self._set_default_color_map()
+        self._settings_controller.sectionChanged.connect(self._preferences_changed)
         self._tool_controller.activeInteractionChanged.connect(
             self._handle_active_interaction_changed
         )
@@ -120,6 +111,34 @@ class Image2DViewportController(ViewportController):
         self._window_level_operation = WindowLevelOperation()
         self._active_drag_start_position: PointerPosition | None = None
         self.transformChanged.connect(self._measure_controller.clearHover)
+
+    @Property(QObject, constant=True)
+    def settingsController(self):
+        return self._settings_controller
+
+    @Property(str, notify=displayStyleChanged)
+    def colorMap(self):
+        return self._state.display_style.color_map
+
+    def _set_default_color_map(self):
+        category = "pet" if self.viewport_config.series_meta.modality.upper() in ("PT", "PET") else "gray"
+        name = self._settings_controller.section("colormap")[category]
+        self._state = replace(self._state, display_style=DisplayStyle(name, COLOR_MAPS[name][1][0]))
+
+    def _preferences_changed(self, section):
+        if section == "colormap":
+            before = self._state.display_style
+            self._set_default_color_map()
+            if before != self._state.display_style:
+                self.displayStyleChanged.emit()
+                self.request_render()
+        self.preferencesChanged.emit()
+        self.overlayChanged.emit()
+
+    @Property(bool, notify=imageDimensionChanged)
+    def hasPhysicalSpacing(self):
+        spacing = self._frame_meta.instance_meta.pixel_spacing if self._frame_meta else None
+        return bool(spacing and len(spacing) == 2 and all(isfinite(v) and v > 0 for v in spacing))
 
     def _initial_slice_index(self) -> int | None:
         return None
@@ -365,7 +384,7 @@ class Image2DViewportController(ViewportController):
                     )
                 case (InteractionType.MEASURE_LENGTH | InteractionType.MEASURE_ANGLE
                       | InteractionType.MEASURE_RECT | InteractionType.MEASURE_ELLIPSE
-                      | InteractionType.SERVICE_MTF):
+                      | InteractionType.SERVICE_MTF | InteractionType.ANNOTATE_ARROW):
                     if self._frame_meta is None:
                         logger.error(
                             "Cannot measure before an image is loaded"
@@ -796,9 +815,12 @@ class Image2DViewportController(ViewportController):
                 )
                 self.transformChanged.emit()
                 self.directionLabelsChanged.emit()
+                self.overlayChanged.emit()
 
             case ToolType.MEASURE:
-                self._measure_controller.clear_all()
+                self._measure_controller.clear_kind(arrows=False)
+            case ToolType.ANNOTATE:
+                self._measure_controller.clear_kind(arrows=True)
             case ToolType.SERVICE:
                 if self._mtf_controller is not None and self._tool_controller.activeService == "service:mtf":
                     self._mtf_controller.reset()
@@ -905,6 +927,7 @@ class Image2DViewportController(ViewportController):
         self._state = next_state
         self.transformChanged.emit()
         self.directionLabelsChanged.emit()
+        self.overlayChanged.emit()
 
     @Property(str, notify=displayStyleChanged)
     def canvasBackgroundColor(self) -> str:
@@ -916,6 +939,8 @@ class Image2DViewportController(ViewportController):
             center: float,
             width: float,
     ) -> None:
+        if not isfinite(center) or not isfinite(width) or width < 1:
+            return
         window = WindowLevel(
             center=center,
             width=width,
@@ -997,7 +1022,7 @@ class Image2DViewportController(ViewportController):
         if self._measurement_context(0, 0) is not None:
             self.activeAnnotationController.delete_selected()
 
-    @Property("QVariantMap", constant=True)
+    @Property("QVariantMap", notify=preferencesChanged)
     def crosshairStyle(self) -> dict:
         return {
             "centerGap": 0,

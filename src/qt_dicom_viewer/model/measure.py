@@ -21,6 +21,7 @@ class LinePointIndex(IntEnum):
 
 class MeasurementKind(StrEnum):
     LENGTH = "length"
+    ARROW = "arrow"
     ANGLE = "angle"
     RECT = "rect"
     ELLIPSE = "ellipse"
@@ -80,6 +81,7 @@ class LengthMeasurementDraft:
     slice_index: int
     points: list[ImagePoint]
     length_mm: float
+    kind: MeasurementKind = MeasurementKind.LENGTH
 
 
 @dataclass(slots=True)
@@ -133,6 +135,7 @@ class LengthMeasurement:
     slice_index: int
     points: tuple[ImagePoint, ...]
     length_mm: float
+    kind: MeasurementKind = MeasurementKind.LENGTH
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,191 +1,54 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import "../../../theme"
 
-pragma ComponentBehavior: Bound
-
 Item {
-    id: viewportOverlay
-
+    id: root
     required property var viewportController
+    readonly property var overlay: viewportController ? viewportController.overlayInfo : ({})
+    readonly property var cursorInfo: viewportController ? viewportController.cursorController.cursorInfo : ({})
+    readonly property var options: viewportController?.settingsController.values.corners ?? ({})
+    readonly property color backgroundColor: viewportController?.canvasBackgroundColor ?? "#000000"
+    readonly property bool lightBackground: backgroundColor.r * 0.299 + backgroundColor.g * 0.587 + backgroundColor.b * 0.114 > 0.6
+    readonly property color textColor: options.colorMode === "custom" ? options.color : lightBackground ? "#182334" : Theme.overlayText
+    visible: options.enabled !== false
 
-    readonly property int overlayMargin: 2
-    readonly property var overlay:
-        viewportController ? viewportController.overlayInfo : ({})
-    readonly property var cursorInfo:
-        viewportController
-            ? viewportController.cursorController.cursorInfo
-            : ({})
-
-    component OverlayText: Text {
-        visible: viewportOverlay.viewportController !== null
-            && text.length > 0
-        color: Theme.overlayText
-        font.pixelSize: 12
+    function value(key) { return String(overlay[key] ?? "").trim() }
+    function label(key, title, unit = "") { const text = value(key); return text ? title + text + unit : "" }
+    function field(key) {
+        switch (key) {
+        case "viewPosition": return value("viewPosition") || value("viewType").toUpperCase()
+        case "slice": return label("sliceIndex", "Slice: ") + (value("sliceCount") ? " / " + value("sliceCount") : "")
+        case "patientName": return label("patientName", "Patient: ")
+        case "patientId": return label("patientId", "ID: ")
+        case "exposure": return [label("kvp", "kV: "), label("tubeCurrentMa", "mA: ")].filter(Boolean).join("   ")
+        case "sliceThickness": return label("sliceThickness", "Thickness: ", " mm")
+        case "window": return [label("windowCenter", "WL: "), label("windowWidth", "WW: ")].filter(Boolean).join("   ")
+        case "cursor": return "X: " + (cursorInfo.x ?? "--") + "   Y: " + (cursorInfo.y ?? "--")
+            + "\n" + (value("modality") === "CT" ? "CT: " : "Value: ") + (cursorInfo.value ?? "--") + (cursorInfo.unit ?? "")
+        case "zoom": return label("zoom", "Zoom: ")
+        case "matrix": return [value("rows"), value("columns")].filter(Boolean).join(" × ")
+        case "spacing": return value("pixelSpacingX") && value("pixelSpacingY") ? value("pixelSpacingX") + " × " + value("pixelSpacingY") + " mm" : ""
+        default: return value(key)
+        }
+    }
+    function lines(corner) { return (options[corner] ?? []).map(key => field(key)).filter(Boolean).join("\n") }
+    component CornerText: Text {
+        color: root.textColor
+        font.pixelSize: root.options.fontSize ?? 12
         font.weight: Font.DemiBold
-        font.letterSpacing: 0.15
-        lineHeight: 1.28
+        lineHeight: root.options.lineHeight ?? 1.2
         style: Text.Outline
-        styleColor: Theme.overlayOutline
+        styleColor: root.lightBackground ? "#99ffffff" : Theme.overlayOutline
+        textFormat: Text.PlainText
         wrapMode: Text.Wrap
-        z: 2
+        width: Math.min(implicitWidth, root.width * 0.46)
+        maximumLineCount: 12
+        elide: Text.ElideRight
+        visible: root.viewportController !== null && text.length > 0
     }
-
-    function displayValue(value, showPlaceholder) {
-        if (value === undefined || value === null)
-            return showPlaceholder ? "--" : ""
-
-        const text = String(value).trim()
-        if (text.length === 0)
-            return showPlaceholder ? "--" : ""
-
-        return text
-    }
-
-    function overlayValue(key, showPlaceholder = false) {
-        return displayValue(overlay[key], showPlaceholder)
-    }
-
-    function cursorValue(key, showPlaceholder = false) {
-        return displayValue(cursorInfo[key], showPlaceholder)
-    }
-
-    function labeledPair(
-        leftLabel,
-        leftValue,
-        rightLabel,
-        rightValue
-    ) {
-        const values = []
-
-        if (leftValue !== "")
-            values.push(leftLabel + ": " + leftValue)
-
-        if (rightValue !== "")
-            values.push(rightLabel + ": " + rightValue)
-
-        return values.join("   ")
-    }
-
-    OverlayText {
-        id: topLeftText
-
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-
-        text: {
-            const lines = []
-            const manufacturer = overlayValue("manufacturer")
-            const seriesDescription = overlayValue("seriesDescription")
-            const viewType = overlayValue("viewType")
-            const viewPosition = overlayValue("viewPosition")
-            const sliceLocation = overlayValue("sliceLocation")
-            const sliceIndex = overlayValue("sliceIndex")
-            const sliceCount = overlayValue("sliceCount")
-
-            if (viewPosition !== "") {
-                lines.push(viewPosition)
-            } else {
-                if (viewType !== "")
-                    lines.push(viewType.toUpperCase())
-            }
-
-            if (manufacturer !== "")
-                lines.push(manufacturer)
-
-            if (seriesDescription !== "")
-                lines.push(seriesDescription)
-
-            if (viewPosition === "") {
-                if (sliceLocation !== "")
-                    lines.push("Location: " + sliceLocation)
-            }
-
-            if (sliceIndex !== "" && sliceCount !== "") {
-                lines.push("Slice: " + sliceIndex + " / " + sliceCount)
-            } else if (sliceIndex !== "") {
-                lines.push("Slice: " + sliceIndex)
-            }
-
-            return lines.join("\n")
-        }
-    }
-
-    OverlayText {
-        id: topRightText
-
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-        horizontalAlignment: Text.AlignRight
-
-        text: {
-            const lines = []
-            const patientName = overlayValue("patientName")
-            const patientId = overlayValue("patientId")
-
-            if (patientName !== "")
-                lines.push("Patient: " + patientName)
-
-            if (patientId !== "")
-                lines.push("ID: " + patientId)
-
-            return lines.join("\n")
-        }
-    }
-
-    OverlayText {
-        id: bottomLeftText
-
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-
-        text: {
-            const lines = []
-            const exposure = labeledPair(
-                "kV",
-                overlayValue("kvp"),
-                "mA",
-                overlayValue("tubeCurrentMa")
-            )
-            const sliceThickness = overlayValue("sliceThickness")
-            const window = labeledPair(
-                "WL",
-                overlayValue("windowCenter"),
-                "WW",
-                overlayValue("windowWidth")
-            )
-
-            if (exposure !== "")
-                lines.push(exposure)
-
-            if (sliceThickness !== "")
-                lines.push("Thickness: " + sliceThickness + " mm")
-
-            if (window !== "")
-                lines.push(window)
-
-            return lines.join("\n")
-        }
-    }
-
-    OverlayText {
-        id: bottomRightText
-
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: viewportOverlay.overlayMargin
-        width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
-        horizontalAlignment: Text.AlignRight
-
-        text: "X: " + cursorValue("x", true)
-            + "   Y: " + cursorValue("y", true)
-            + "\nCT: " + cursorValue("value", true)
-            + cursorValue("unit")
-    }
+    CornerText { objectName: "overlay-topLeft"; anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 2; text: root.lines("topLeft") }
+    CornerText { objectName: "overlay-topRight"; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 2; horizontalAlignment: Text.AlignRight; text: root.lines("topRight") }
+    CornerText { objectName: "overlay-bottomLeft"; anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 2; text: root.lines("bottomLeft") }
+    CornerText { objectName: "overlay-bottomRight"; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 2; horizontalAlignment: Text.AlignRight; text: root.lines("bottomRight") }
 }

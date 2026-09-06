@@ -45,6 +45,13 @@ class WorkspaceController(QObject):
         self._open_utility(TabType.SETTINGS, "设置")
 
     @Slot()
+    def openDataSources(self):
+        settings = getattr(self.parent(), "_settings_controller", None)
+        if settings is not None:
+            settings.selectCategory("sources")
+        self.openSettings()
+
+    @Slot()
     def openPacs(self):
         self._open_utility(TabType.PACS, "PACS 浏览器")
 

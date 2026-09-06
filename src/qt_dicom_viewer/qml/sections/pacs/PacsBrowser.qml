@@ -45,7 +45,7 @@ Rectangle {
             Components.AppButton {
                 objectName: "pacsManageSources"
                 text: "管理数据源"
-                onClicked: browser.workspaceController.openSettings()
+                onClicked: browser.workspaceController.openDataSources()
             }
         }
         Rectangle {
@@ -483,7 +483,7 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     text: "配置 PACS 数据源"
                     normalColor: Theme.primaryButtonBackground
-                    onClicked: browser.workspaceController.openSettings()
+                    onClicked: browser.workspaceController.openDataSources()
                 }
             }
         }

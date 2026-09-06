@@ -2,6 +2,7 @@ import QtQuick
 
 Item {
     id: root
+    objectName: "mprCrosshairLayer"
     clip: true
 
     required property var crosshairStyle
@@ -12,6 +13,8 @@ Item {
 
     property real centerGap: root.crosshairStyle.centerGap
     property real lineWidth: root.crosshairStyle.lineWidth
+    property real horizontalWidth: root.crosshairStyle.horizontalWidth ?? lineWidth
+    property real verticalWidth: root.crosshairStyle.verticalWidth ?? lineWidth
     property color horizontalColor: root.crosshairStyle.horizontalColor
     property color verticalColor: root.crosshairStyle.verticalColor
     property real armLength: 2 * Math.hypot(root.width, root.height)
@@ -27,32 +30,32 @@ Item {
 
         Rectangle {
             x: root.centerX - root.centerGap / 2 - root.armLength
-            y: root.centerY - root.lineWidth / 2
+            y: root.centerY - root.horizontalWidth / 2
             width: root.armLength
-            height: root.lineWidth
+            height: root.horizontalWidth
             color: root.horizontalColor
         }
 
         Rectangle {
             x: root.centerX + root.centerGap / 2
-            y: root.centerY - root.lineWidth / 2
+            y: root.centerY - root.horizontalWidth / 2
             width: root.armLength
-            height: root.lineWidth
+            height: root.horizontalWidth
             color: root.horizontalColor
         }
 
         Rectangle {
-            x: root.centerX - root.lineWidth / 2
+            x: root.centerX - root.verticalWidth / 2
             y: root.centerY - root.centerGap / 2 - root.armLength
-            width: root.lineWidth
+            width: root.verticalWidth
             height: root.armLength
             color: root.verticalColor
         }
 
         Rectangle {
-            x: root.centerX - root.lineWidth / 2
+            x: root.centerX - root.verticalWidth / 2
             y: root.centerY + root.centerGap / 2
-            width: root.lineWidth
+            width: root.verticalWidth
             height: root.armLength
             color: root.verticalColor
         }

@@ -20,14 +20,20 @@ class DicomImageProvider(QQuickImageProvider):
             dtype=np.uint8,
         )
 
-        height, width = pixels.shape
+        height, width = pixels.shape[:2]
+        if pixels.ndim == 2:
+            image_format = QImage.Format_Grayscale8
+        elif pixels.ndim == 3 and pixels.shape[2] in (3, 4):
+            image_format = QImage.Format_RGB888 if pixels.shape[2] == 3 else QImage.Format_RGBA8888
+        else:
+            raise ValueError("Unsupported image array shape")
 
         image = QImage(
             pixels.data,
             width,
             height,
             pixels.strides[0],
-            QImage.Format_Grayscale8,
+            image_format,
         )
 
         # 必须 copy，让 QImage 脱离 NumPy 内存生命周期

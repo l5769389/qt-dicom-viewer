@@ -5,6 +5,9 @@ import "../../../../theme"
 Item {
     id: root
 
+    property var preferences: ({})
+    readonly property var styleSettings: preferences.measurement ?? ({})
+    readonly property bool dashed: isDraft || isSelected ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
 
     required property var isDraft
@@ -16,9 +19,9 @@ Item {
     ]
 
     readonly property color measurementColor:
-        isDraft || isSelected
-            ? Theme.measurementSelected
-            : Theme.measurementPrimary
+        measurement.type === "arrow" ? (styleSettings.annotationColor ?? "#ffd166") : isDraft || isSelected
+            ? (styleSettings.editingColor ?? Theme.measurementSelected)
+            : (styleSettings.completedColor ?? Theme.measurementPrimary)
 
     readonly property real startX:
         mappedPoints.length > 0 ? mappedPoints[0].x : 0
@@ -37,9 +40,9 @@ Item {
 
         ShapePath {
             strokeColor: root.measurementColor
-            strokeWidth: 1.5
+            strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: "transparent"
-            strokeStyle: root.isDraft
+            strokeStyle: root.dashed
                 ? ShapePath.DashLine
                 : ShapePath.SolidLine
             dashPattern: [4, 2]
@@ -50,6 +53,24 @@ Item {
                 x: root.endX
                 y: root.endY
             }
+        }
+    }
+
+    Shape {
+        id: arrowHead
+        anchors.fill: parent
+        visible: root.measurement.type === "arrow"
+        readonly property real angle: Math.atan2(root.endY - root.startY, root.endX - root.startX)
+        readonly property real headSize: root.styleSettings.annotationSize ?? 14
+        ShapePath {
+            strokeColor: root.measurementColor
+            strokeWidth: root.styleSettings.lineWidth ?? 1.5
+            fillColor: root.measurementColor
+            startX: root.endX
+            startY: root.endY
+            PathLine { x: root.endX - arrowHead.headSize * Math.cos(arrowHead.angle - 0.45); y: root.endY - arrowHead.headSize * Math.sin(arrowHead.angle - 0.45) }
+            PathLine { x: root.endX - arrowHead.headSize * Math.cos(arrowHead.angle + 0.45); y: root.endY - arrowHead.headSize * Math.sin(arrowHead.angle + 0.45) }
+            PathLine { x: root.endX; y: root.endY }
         }
     }
 
@@ -79,9 +100,10 @@ Item {
         x: (root.startX + root.endX) / 2 + 6
         y: (root.startY + root.endY) / 2 - height - 4
 
+        visible: root.measurement.type !== "arrow"
         text: root.measurement.label ?? "--"
         color:  root.measurementColor
-        font.pixelSize: 13
+        font.pixelSize: root.styleSettings.fontSize ?? 13
         font.bold: true
 
         style: Text.Outline

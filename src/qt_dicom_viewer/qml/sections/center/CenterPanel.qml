@@ -13,6 +13,7 @@ Rectangle {
     required property var workspaceController
     required property var panelController
     property var pacsController: null
+    property var settingsController: null
     required property var viewportController
     required property var currentTabAllViewports
 
@@ -54,7 +55,7 @@ Rectangle {
 
     Component {
         id: settingsComponent
-        Settings.SettingsPage { pacsController: centerPanel.pacsController }
+        Settings.SettingsPage { pacsController: centerPanel.pacsController; settingsController: centerPanel.settingsController }
     }
 
     Component {

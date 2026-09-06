@@ -185,9 +185,9 @@ class MeasurementController(QObject):
         item = {"measurementId": measurement.measurement_id,
                 "points": [{"column": p.column, "row": p.row} for p in measurement.points]}
         if isinstance(measurement, (LengthMeasurement, LengthMeasurementDraft)):
-            item.update(type="length", startColumn=measurement.points[0].column,
+            item.update(type=measurement.kind.value, startColumn=measurement.points[0].column,
                         startRow=measurement.points[0].row, endColumn=measurement.points[1].column,
-                        endRow=measurement.points[1].row, label=f"{measurement.length_mm:.1f} mm")
+                        endRow=measurement.points[1].row, label="" if measurement.kind == MeasurementKind.ARROW else f"{measurement.length_mm:.1f} mm")
         elif isinstance(measurement, (AngleMeasurement, AngleMeasurementDraft)):
             label = f"{measurement.angle:.1f}°" if math.isfinite(measurement.angle) else "—°"
             item.update(type="angle", label=label)
@@ -347,6 +347,15 @@ class MeasurementController(QObject):
         self.activeTransactionChanged.emit()
         self.selectionChanged.emit()
 
+    def clear_kind(self, *, arrows: bool) -> None:
+        self.cancel_transaction()
+        self.clear_selection()
+        for key, measurement in list(self._measurements.items()):
+            if (getattr(measurement, "kind", None) == MeasurementKind.ARROW) == arrows:
+                del self._measurements[key]
+                self._measurement_frames.pop(key, None)
+        self.measurementsChanged.emit()
+
     def delete_selected(self) -> None:
         self.cancel_transaction()
         if self._selected_measurement_id is not None:
@@ -463,6 +472,7 @@ class MeasurementController(QObject):
 
     def _begin_create_transaction(self, *, point: ImagePoint, context: MeasureContext) -> None:
         operations = {MeasurementKind.LENGTH: self._length_operation,
+                      MeasurementKind.ARROW: self._length_operation,
                       MeasurementKind.ANGLE: self._angle_operation,
                       MeasurementKind.RECT: self._roi_operation,
                       MeasurementKind.ELLIPSE: self._roi_operation}

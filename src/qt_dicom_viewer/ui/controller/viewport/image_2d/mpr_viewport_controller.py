@@ -52,12 +52,6 @@ _CROSSHAIR_STYLES = {
     MprPlane.SAGITTAL: CrosshairColor("red", "green"),
 }
 
-_MPR_PLANE_COLORS = {
-    MprPlane.AXIAL: "red",
-    MprPlane.CORONAL: "green",
-    MprPlane.SAGITTAL: "blue",
-}
-
 
 class MprViewportController(Image2DViewportController):
     crosshairCenterChangeRequested = Signal(object)
@@ -87,6 +81,7 @@ class MprViewportController(Image2DViewportController):
         self._crosshair_style = CrosshairStyle(
             _CROSSHAIR_STYLES[viewport_config.viewport_type]
         )
+        self.preferencesChanged.connect(self.mprSlabGuidesChanged.emit)
         self._tool_controller.mprProjectionChanged.connect(
             self.mprSlabGuidesChanged.emit
         )
@@ -119,6 +114,7 @@ class MprViewportController(Image2DViewportController):
                 series_uid=self.viewport_config.series_uid,
                 window=None if initial else state.window,
                 inverted=False if initial else state.inverted,
+                color_map=state.display_style.color_map,
                 plane=self.viewport_config.viewport_type,
                 mpr_frame=mpr_frame,
                 phase_identifier=phase_identifier,
@@ -397,15 +393,20 @@ class MprViewportController(Image2DViewportController):
         )
         self.crosshairCenterChangeRequested.emit(center_patient)
 
-    @Property("QVariantMap", constant=True)
+    @Property("QVariantMap", notify=Image2DViewportController.preferencesChanged)
     def crosshairStyle(self) -> dict:
-        style = self._crosshair_style
-        return {
-            "centerGap": style.centerGap,
-            "lineWidth": style.lineWidth,
-            "horizontalColor": style.color.horizontal,
-            "verticalColor": style.color.vertical,
-        }
+        settings = self._settings_controller.section("crosshair")
+        horizontal, vertical = {
+            MprPlane.AXIAL: ("coronal", "sagittal"),
+            MprPlane.CORONAL: ("axial", "sagittal"),
+            MprPlane.SAGITTAL: ("axial", "coronal"),
+        }[self.viewport_config.viewport_type]
+        return {"centerGap": self._crosshair_style.centerGap,
+                "lineWidth": self._crosshair_style.lineWidth,
+                "horizontalWidth": settings[horizontal + "Width"],
+                "verticalWidth": settings[vertical + "Width"],
+                "horizontalColor": settings[horizontal + "Color"],
+                "verticalColor": settings[vertical + "Color"]}
 
     @Property(
         QPointF,
@@ -498,7 +499,7 @@ class MprViewportController(Image2DViewportController):
                 )
                 guides.append({
                     "plane": slab_plane.value,
-                    "color": _MPR_PLANE_COLORS[slab_plane],
+                    "color": self._settings_controller.section("crosshair")[slab_plane.value + "Color"],
                     "anchorColumn": float(anchor_index[2]),
                     "anchorRow": float(anchor_index[1]),
                     "directionColumn": float(
