@@ -143,6 +143,23 @@ TOOL_DEFINITIONS: dict[ToolType, ToolDefinition] = {
     for definition in TOOL_CATALOG
 }
 
+
+@dataclass(frozen=True, slots=True)
+class PlaceholderToolDefinition:
+    """仅用于展示的规划入口，不注册为可执行工具。"""
+
+    key: str
+    label: str
+    supported_tab_types: frozenset[TabType]
+
+
+PLACEHOLDER_TOOLS = (
+    PlaceholderToolDefinition("pseudocolor", "伪彩", frozenset((TabType.TWO_D, TabType.MPR, TabType.FOUR_D))),
+    PlaceholderToolDefinition("segmentation", "分割", frozenset((TabType.MPR,))),
+    PlaceholderToolDefinition("voi", "VOI", frozenset((TabType.MPR, TabType.THREE_D))),
+    PlaceholderToolDefinition("remove-bed", "去床板", frozenset((TabType.THREE_D,))),
+)
+
 @dataclass(frozen=True, slots=True)
 class ToolActionDefinition:
     action: str

@@ -157,6 +157,9 @@ def phantom_series(tmp_path, series_index, patient_id, study_uid, date):
         ds.SeriesNumber = series_index
         ds.SeriesDescription = ["胸部 · 薄层重建", "胸部 · 复查", "腹部 · 轴位"][series_index - 1]
         ds.Rows = ds.Columns = 96
+        ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
+        ds.ImagePositionPatient = [0, 0, index * 2]
+        ds.SliceThickness = 2
         ds.NumberOfFrames = 1
         ds.PixelData = np.roll(pixels, index, axis=0).tobytes()
         ds.save_as(path, enforce_file_format=True)
@@ -332,24 +335,34 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
     panel = app.panelController
     workspace = app.workspaceController
     first_uid = records[0].series_instance_uid
-    button_names = [
-        "sidebarOpenFolder", "openView-2d", "openView-mpr",
-        "openView-3d", "openView-4d", "openView-tag",
+    top_button_names = [
+        "sidebarOpenFolder", "openView-2d", "openView-mpr", "openView-3d",
     ]
+    bottom_button_names = ["openView-tile", "openView-4d", "openView-tag", "openView-fusion"]
+    button_names = top_button_names + bottom_button_names
 
     for width in [200, 300, 350]:
         drag_width(window, width)
         buttons = [find(window, name) for name in button_names]
-        assert all(button.property("baseBorderWidth") == 1 for button in buttons)
-        bounds = [
-            (
-                button.mapToScene(QPointF(0, 0)).x(),
-                button.mapToScene(QPointF(button.width(), 0)).x(),
-            )
-            for button in buttons
+        assert all(button.property("baseBorderWidth") == 0 for button in buttons)
+        assert all(button.property("text") == "" for button in buttons)
+        rows = [
+            [find(window, name) for name in top_button_names],
+            [find(window, name) for name in bottom_button_names],
         ]
-        assert all(right + 3 <= next_left
-                   for (_, right), (next_left, _) in zip(bounds, bounds[1:]))
+        for row in rows:
+            bounds = [
+                (
+                    button.mapToScene(QPointF(0, 0)).x(),
+                    button.mapToScene(QPointF(button.width(), 0)).x(),
+                )
+                for button in row
+            ]
+            assert all(right + 3 <= next_left
+                       for (_, right), (next_left, _) in zip(bounds, bounds[1:]))
+        assert rows[1][0].mapToScene(QPointF(0, 0)).y() > rows[0][0].mapToScene(QPointF(0, 0)).y()
+        assert not find(window, "openView-tile").isEnabled()
+        assert not find(window, "openView-fusion").isEnabled()
 
     window.resize(1000, 600)
     QTest.qWait(40)
@@ -357,6 +370,7 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
     assert panel.activeSeriesUid == first_uid
     action_codes = ["2d", "tile", "mpr", "3d", "4d", "tag", "directory", "deidentify", "remove"]
     actions = {code: find(window, "seriesContextAction-" + code) for code in action_codes}
+    assert all(action.height() <= 32 for action in actions.values())
     assert all(actions[code].property("actionEnabled")
                for code in ["2d", "mpr", "3d", "tag", "directory", "remove"])
     assert all(not actions[code].property("actionEnabled")

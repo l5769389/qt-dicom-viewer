@@ -40,7 +40,7 @@ Item {
                 sourceSize.width: 30
                 sourceSize.height: 30
                 source: Qt.resolvedUrl(
-                    "../../assets/icons/open-folder.svg"
+                    "../../assets/icons/nav-load-file.png"
                 )
                 fillMode: Image.PreserveAspectFit
                 opacity: emptyState.scanning ? 0.55 : 0.9
@@ -108,7 +108,7 @@ Item {
             enabled: !emptyState.scanning
             text: emptyState.scanning ? "正在扫描…" : "打开 DICOM 文件夹"
             icon.source: Qt.resolvedUrl(
-                "../../assets/icons/open-folder.svg"
+                "../../assets/icons/nav-load-file.png"
             )
             iconSize: 17
             normalColor: Theme.primaryButtonBackground

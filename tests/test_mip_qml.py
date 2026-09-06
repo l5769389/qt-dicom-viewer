@@ -84,10 +84,14 @@ def test_mip_panel_updates_mode_enablement_and_live_thickness(
 ) -> None:
     view, controller, warnings = mip_panel
 
-    mip_icon = _find(view, "tintedRasterToolIcon")
+    mip_button = _find(view, "primaryTool-mip")
+    mip_icon = next(item for item in _visual_children(mip_button)
+                    if item.objectName() == "tintedRasterToolIcon" and item.isVisible())
     inactive_color = mip_icon.property("tintColor")
-    assert mip_icon.width() == pytest.approx(22)
-    assert mip_icon.height() == pytest.approx(22)
+    origin = mip_icon.mapToItem(mip_button, QPointF())
+    corner = mip_icon.mapToItem(mip_button, QPointF(mip_icon.width(), mip_icon.height()))
+    assert corner.x() - origin.x() == pytest.approx(24)
+    assert corner.y() - origin.y() == pytest.approx(24)
 
     _click(view, _find(view, "primaryTool-mip"))
     assert _find(view, "mipPanel") is not None

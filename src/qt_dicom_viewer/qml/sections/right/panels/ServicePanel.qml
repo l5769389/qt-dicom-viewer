@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../components" as Controls
 
@@ -32,20 +33,27 @@ Item {
                 model: servicePanel.toolController
                     ? servicePanel.toolController.serviceActions : []
 
-                delegate: Controls.ToolActionButton {
-                    id: serviceButton
+                delegate: Item {
+                    id: serviceEntry
                     required property var modelData
-
-                    objectName: "serviceEntry-" + serviceButton.modelData.iconName
                     Layout.fillWidth: true
                     Layout.preferredWidth: 1
                     implicitHeight: 44
-                    iconSize: 24
-                    iconName: serviceButton.modelData.iconName
-                    label: serviceButton.modelData.label
-                    checked: servicePanel.selectedService === serviceButton.modelData.action
-
-                    onClicked: servicePanel.actionTriggered(serviceButton.modelData.action)
+                    Controls.ToolActionButton {
+                        anchors.fill: parent
+                        objectName: "serviceEntry-" + serviceEntry.modelData.iconName
+                        iconSize: 24
+                        iconName: serviceEntry.modelData.iconName
+                        label: serviceEntry.modelData.label
+                        placeholder: serviceEntry.modelData.action === "service:qa"
+                        checked: !placeholder && servicePanel.selectedService === serviceEntry.modelData.action
+                        onClicked: servicePanel.actionTriggered(serviceEntry.modelData.action)
+                    }
+                    HoverHandler { id: serviceHover }
+                    Basic.ToolTip.visible: serviceHover.hovered
+                    Basic.ToolTip.delay: 400
+                    Basic.ToolTip.text: serviceEntry.modelData.label
+                        + (serviceEntry.modelData.action === "service:qa" ? " · 待实现" : "")
                 }
             }
         }

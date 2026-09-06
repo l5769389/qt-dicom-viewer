@@ -44,7 +44,7 @@ QtObject {
     readonly property color textSecondary: "#c5d0da"
     readonly property color textMuted: "#8d9baa"
     readonly property color textSubtle: "#6f7e8d"
-    readonly property color textDisabled: "#53616e"
+    readonly property color textDisabled: "#7b8b99"
     readonly property color textOnPrimary: "#f8fbff"
     readonly property color overlayText: "#eaf3fb"
     readonly property color overlayOutline: "#cc000000"
@@ -62,9 +62,18 @@ QtObject {
     readonly property color selectionHover: "#1d4058"
     readonly property color selectionBorder: "#3f91bd"
     readonly property color activeIndicator: primaryColor
-    readonly property color iconDefault: "#96a6b5"
+    readonly property color iconDefault: "#b0bfcc"
+    readonly property color iconDisabled: "#7b8b99"
     readonly property color iconHover: "#dce8f1"
     readonly property color iconActive: primaryColor
+
+    // 两侧工具栏共享视觉尺寸和可读文字，不叠加透明度弱化禁用态。
+    readonly property int toolbarIconSize: 24
+    readonly property int navigationIconSize: 28
+    readonly property int toolbarLabelSize: 11
+    readonly property int toolbarButtonHeight: 58
+    readonly property int controlRadius: 6
+    readonly property int bodyFontSize: 13
 
     // Primary command buttons, such as "Open DICOM folder".
     readonly property color primaryButtonBackground: "#21698f"

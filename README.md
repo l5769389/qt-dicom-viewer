@@ -147,6 +147,16 @@ series 不会启用「4D」入口。
 `measurementController.hoverHit` 提供悬停命中的 `measurementId` / `kind` / `index`；
 `hoverCursorKind` 只在已选中图形的可移动部位返回 `pan`。离开、开始编辑、切换工具或切面时清除悬停状态。
 
+## macOS / Windows 安装包
+
+安装包界面与脚本已加入项目（完整说明见 [打包与安装](docs/packaging.md)）：
+
+- macOS：运行 `bash scripts/build_macos.sh`，生成 `.app` 和带 Applications 拖拽入口的 DMG。
+- Windows：安装 uv 和 Inno Setup 6.6+ 后，在 PowerShell 运行 `./scripts/build_windows.ps1`，生成中英文安装向导 EXE。
+- 成品输出到 `dist/installers/`；版本号读取 `pyproject.toml`。构建环境与开发环境隔离。
+- GitHub Actions 的 **Build native installers** 可手动构建两个平台，不会自动发布。
+- 默认构建未使用商业签名证书；正式分发前需要签名、公证（macOS）及目标机安装验收。
+
 ## Windows 单文件 EXE
 
 在 **Windows x64** 上安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)，

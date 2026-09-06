@@ -1,0 +1,133 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import QtQuick.Controls.Basic as Basic
+import "../theme"
+
+Item {
+    id: action
+
+    required property string label
+    required property string iconName
+    required property string buttonObjectName
+    property string shortLabel: label
+    property bool actionEnabled: true
+    property bool placeholder: false
+    property bool checked: false
+    property bool resetAction: false
+    property real iconSize: Theme.toolbarIconSize
+    property string directionFace: ""
+    property color directionColor: Theme.iconDefault
+    property string tooltipText: label + (placeholder ? " · 待实现" : "")
+    readonly property bool hovered: hover.hovered
+    readonly property bool tooltipVisible: tooltip.visible
+    signal triggered()
+
+    implicitWidth: 46
+    implicitHeight: Theme.toolbarButtonHeight
+
+    // 放在可用的容器上，确保禁用按钮也能解释不可用的原因。
+    HoverHandler { id: hover }
+
+    AppButton {
+        id: button
+        objectName: action.buttonObjectName
+        anchors.fill: parent
+        enabled: action.actionEnabled && !action.placeholder
+        checked: action.checked && enabled
+        compact: true
+        leftPadding: 2
+        rightPadding: 2
+        momentary: true
+        minimumButtonWidth: 0
+        normalColor: action.resetAction ? Theme.resetActionSurface : "transparent"
+        disabledColor: "transparent"
+        hoverColor: action.resetAction ? Theme.resetActionHover : Theme.controlHover
+        pressedColor: action.resetAction ? Theme.resetActionPressed : Theme.controlPressed
+        Accessible.name: action.label
+        Accessible.description: action.tooltipText
+        onClicked: action.triggered()
+
+        contentItem: Item {
+            Column {
+                anchors.centerIn: parent
+                spacing: 3
+                width: parent.width
+
+                Item {
+                    width: parent.width
+                    height: action.iconSize
+                    AppIcon {
+                        objectName: "toolbarGlyph"
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: action.directionFace === ""
+                        iconName: action.iconName
+                        iconSize: action.iconSize
+                        iconColor: !button.enabled ? Theme.iconDisabled
+                            : action.resetAction ? Theme.resetActionColor
+                            : button.checked ? Theme.iconActive
+                            : button.hovered ? Theme.iconHover : Theme.iconDefault
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        visible: action.directionFace !== ""
+                        width: action.iconSize
+                        height: width
+                        radius: 4
+                        color: button.enabled ? action.directionColor : Theme.controlDisabled
+                        Text {
+                            objectName: "currentVolumeFace"
+                            anchors.centerIn: parent
+                            text: action.directionFace
+                            color: button.enabled ? Theme.textOnPrimary : Theme.textDisabled
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+                    }
+                }
+
+                Text {
+                    objectName: "toolbarLabel"
+                    width: parent.width
+                    text: action.shortLabel
+                    horizontalAlignment: Text.AlignHCenter
+                    color: !button.enabled ? Theme.textDisabled
+                        : action.resetAction ? Theme.resetActionColor
+                        : button.checked ? Theme.textPrimary : Theme.textSecondary
+                    font.pixelSize: Theme.toolbarLabelSize
+                    elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
+    Text {
+        objectName: "placeholderBadge"
+        visible: action.placeholder
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 2
+        text: "待"
+        color: Theme.textMuted
+        font.pixelSize: 9
+    }
+
+    Basic.ToolTip {
+        id: tooltip
+        objectName: "toolbarTooltip"
+        visible: action.hovered || button.activeFocus
+        delay: 400
+        text: action.tooltipText
+        font.pixelSize: Theme.bodyFontSize
+        contentItem: Text {
+            text: action.tooltipText
+            color: Theme.textPrimary
+            font.pixelSize: Theme.bodyFontSize
+        }
+        background: Rectangle {
+            color: Theme.elevatedBackground
+            border.color: Theme.borderStrong
+            radius: Theme.controlRadius
+        }
+    }
+}

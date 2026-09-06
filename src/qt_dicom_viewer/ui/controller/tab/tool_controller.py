@@ -15,6 +15,7 @@ from qt_dicom_viewer.model import (
 )
 from qt_dicom_viewer.model.tool_catalog import (
     MEASURE_ACTIONS,
+    PLACEHOLDER_TOOLS,
     ROTATE_ACTIONS,
     SERVICE_ACTIONS,
     TOOL_CATALOG,
@@ -359,16 +360,26 @@ def build_window_presets() -> list[dict]:
 def build_tool_items(
         tab_type: TabType | None = None,
 ) -> list[dict]:
-    return [
+    items = [
         {
             "toolType": definition.tool_type.value,
             "label": definition.label,
             "iconName": definition.icon_name,
             "behavior": definition.behavior.value,
+            "available": definition.tool_type != ToolType.ANNOTATE,
         }
         for definition in TOOL_CATALOG
         if tool_available(definition.tool_type, tab_type)
     ]
+    placeholders = [
+        {"toolType": item.key, "label": item.label, "iconName": item.key,
+         "behavior": "placeholder", "available": False}
+        for item in PLACEHOLDER_TOOLS if tab_type in item.supported_tab_types
+    ]
+    # 重置始终位于最后；未实现入口不会改变工具控制器的状态或触发命令。
+    reset_index = next((i for i, item in enumerate(items)
+                        if item["toolType"] == "reset"), len(items))
+    return items[:reset_index] + placeholders + items[reset_index:]
 
 
 def tool_available(tool: ToolType, tab_type: TabType | None) -> bool:

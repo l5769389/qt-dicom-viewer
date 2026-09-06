@@ -99,6 +99,8 @@ Basic.Button {
 
                 source: control.icon.source
                 fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
                 opacity: control.enabled ? 1 : 0.45
             }
 

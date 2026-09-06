@@ -23,6 +23,7 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
+        anchors.margins: 1
         spacing: 0
         visible: rightPanel.toolVisible
 

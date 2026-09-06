@@ -9,6 +9,7 @@ wheels/
 # Virtual environments
 .venv
 .venv-build-windows/
+.venv-build-macos/
 
 # macOS and IDE metadata
 .DS_Store

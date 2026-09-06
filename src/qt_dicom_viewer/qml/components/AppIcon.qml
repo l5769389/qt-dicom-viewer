@@ -2,22 +2,39 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Shapes
+import QtQuick.Window
+import "../theme"
 
 Item {
     id: appIcon
 
     required property string iconName
     property real iconSize: 20
-    property color iconColor: "#b8c3cf"
+    property color iconColor: Theme.iconDefault
+    readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
 
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
-    readonly property bool isTintableRasterIcon: appIcon.iconName === "mip"
-    // 复杂图标直接使用生成的 PNG，不再通过矢量路径重绘。
+    readonly property bool isTintableRasterIcon: appIcon.rasterSource !== ""
+    // 独立透明 PNG，统一跟随工具栏的默认、选中、悬停与禁用颜色。
     readonly property var rasterSourceMap: ({
-        "service": "../assets/icons/service.png",
-        "mtf": "../assets/icons/mtf.png",
-        "qa": "../assets/icons/qa.png",
-        "mip": "../assets/icons/mip.png"
+        "service": "../assets/icons/tool-service.png",
+        "mtf": "../assets/icons/tool-mtf.png",
+        "qa": "../assets/icons/tool-qa.png",
+        "mip": "../assets/icons/tool-mip.png",
+        "measure": "../assets/icons/tool-measure.png",
+        "pseudocolor": "../assets/icons/tool-pseudocolor.png",
+        "pseudocolor-gray": "../assets/icons/tool-pseudocolor.png",
+        "fusion": "../assets/icons/tool-fusion.png",
+        "remove-bed": "../assets/icons/tool-remove-bed.png",
+        "segmentation": "../assets/icons/tool-segmentation.png",
+        "voi": "../assets/icons/tool-voi.png",
+        "nav-load-file": "../assets/icons/nav-load-file.png",
+        "nav-view-2d": "../assets/icons/nav-view-2d.png",
+        "nav-view-mpr": "../assets/icons/nav-view-mpr.png",
+        "nav-view-3d": "../assets/icons/nav-view-3d.png",
+        "nav-view-tile": "../assets/icons/nav-view-tile.png",
+        "nav-view-4d": "../assets/icons/nav-view-4d.png",
+        "nav-view-tag": "../assets/icons/nav-view-tag.png"
     })
     readonly property string rasterSource: appIcon.rasterSourceMap[appIcon.iconName] ?? ""
     readonly property var mdiPathMap: ({
@@ -45,6 +62,10 @@ Item {
         "measure-rect": "M4,6V19H20V6H4M18,17H6V8H18V17Z",
         "measure-ellipse": "M12,6C16.41,6 20,8.69 20,12C20,15.31 16.41,18 12,18C7.59,18 4,15.31 4,12C4,8.69 7.59,6 12,6M12,4C6.5,4 2,7.58 2,12C2,16.42 6.5,20 12,20C17.5,20 22,16.42 22,12C22,7.58 17.5,4 12,4Z",
         "annotate": "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z",
+        "view-tile": "M3,3H10V10H3V3M14,3H21V10H14V3M3,14H10V21H3V14M14,14H21V21H14V14Z",
+        "folder": "M10,4H2C0.89,4 0,4.89 0,6V18C0,19.1 0.9,20 2,20H22C23.1,20 24,19.1 24,18V8C24,6.89 23.1,6 22,6H12L10,4Z",
+        "shield": "M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,3.18L19,6.3V11C19,15.52 16.02,19.69 12,20.93C7.98,19.69 5,15.52 5,11V6.3L12,3.18Z",
+        "close": "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
         "help": "M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"
     })
     readonly property string pathData: appIcon.mdiPathMap[appIcon.iconName]
@@ -91,10 +112,17 @@ Item {
         id: tintedRasterIcon
         objectName: "tintedRasterToolIcon"
 
-        anchors.fill: parent
+        // 用屏幕像素密度绘制，再映射回逻辑尺寸，避免高 DPI 下放大低分辨率画布。
+        width: appIcon.width * appIcon.pixelRatio
+        height: appIcon.height * appIcon.pixelRatio
+        scale: 1 / appIcon.pixelRatio
+        transformOrigin: Item.TopLeft
         visible: appIcon.rasterSource !== ""
             && appIcon.isTintableRasterIcon
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
         readonly property color tintColor: appIcon.iconColor
+        readonly property string imageSource: appIcon.rasterSource
         // 原始 PNG 留有透明安全边距，轻微放大后可与 24x24
         // MDI 图标在同一个 22px 容器内保持一致的视觉尺寸。
         readonly property real rasterScale: 1.14
@@ -134,6 +162,11 @@ Item {
         Connections {
             target: appIcon
 
+            function onRasterSourceChanged() {
+                tintedRasterIcon.ensureImageLoaded()
+                tintedRasterIcon.requestPaint()
+            }
+
             function onIconColorChanged() {
                 tintedRasterIcon.requestPaint()
             }
@@ -151,8 +184,13 @@ Item {
     Canvas {
         id: windowLevelCanvas
 
-        anchors.fill: parent
+        width: appIcon.width * appIcon.pixelRatio
+        height: appIcon.height * appIcon.pixelRatio
+        scale: 1 / appIcon.pixelRatio
+        transformOrigin: Item.TopLeft
         visible: appIcon.isWindowLevelIcon
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
 
         onPaint: {
             const context = getContext("2d")

@@ -31,12 +31,14 @@ ColumnLayout {
             anchors.rightMargin: 10
 
             Text {
+                font.pixelSize: Theme.bodyFontSize
                 Layout.fillWidth: true
                 text: "预设"
                 color: Theme.textMuted
             }
 
             Text {
+                font.pixelSize: Theme.bodyFontSize
                 Layout.preferredWidth: 55
                 text: "WL"
                 color: Theme.textMuted
@@ -44,6 +46,7 @@ ColumnLayout {
             }
 
             Text {
+                font.pixelSize: Theme.bodyFontSize
                 Layout.preferredWidth: 55
                 text: "WW"
                 color: Theme.textMuted
@@ -85,6 +88,7 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
+                    font.pixelSize: Theme.bodyFontSize
                     Layout.fillWidth: true
                     text: presetItem.modelData.label
                     color: Theme.textPrimary
@@ -92,6 +96,7 @@ ColumnLayout {
                 }
 
                 Text {
+                    font.pixelSize: Theme.bodyFontSize
                     Layout.preferredWidth: 55
                     text: presetItem.modelData.center
                     color: Theme.textSecondary
@@ -99,6 +104,7 @@ ColumnLayout {
                 }
 
                 Text {
+                    font.pixelSize: Theme.bodyFontSize
                     Layout.preferredWidth: 55
                     text: presetItem.modelData.width
                     color: Theme.textSecondary

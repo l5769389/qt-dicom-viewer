@@ -11,7 +11,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def pyinstaller_command(root: Path, *, console: bool = False) -> list[str]:
+def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = False) -> list[str]:
     """集中声明打包参数，资源位置不依赖调用者的工作目录。"""
     root = root.resolve()
     qml_directory = root / "src" / "qt_dicom_viewer" / "qml"
@@ -25,12 +25,12 @@ def pyinstaller_command(root: Path, *, console: bool = False) -> list[str]:
         "-m", "PyInstaller",
         "--noconfirm",
         "--clean",
-        "--onefile",
+        "--onedir" if installer else "--onefile",
         "--console" if console else "--windowed",
         # 不使用 UPX 压缩 Qt DLL，避免插件损坏和额外的工具依赖。
         "--noupx",
         "--name", name,
-        "--distpath", str(root / "dist"),
+        "--distpath", str(root / "dist" / "windows" if installer else root / "dist"),
         "--workpath", str(root / "build" / "windows" / name),
         "--specpath", str(root / "build" / "windows"),
         "--paths", str(root / "src"),

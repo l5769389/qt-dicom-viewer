@@ -13,6 +13,7 @@ Rectangle {
 
     implicitHeight: 62
     color: Theme.panelBackgroundStrong
+    radius: Theme.controlRadius
 
     Rectangle {
         anchors.left: parent.left

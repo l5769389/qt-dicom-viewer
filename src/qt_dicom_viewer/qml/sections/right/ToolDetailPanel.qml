@@ -23,7 +23,7 @@ Rectangle {
             : ""
 
     implicitHeight: loadedPanel
-        ? loadedPanel.implicitHeight + 80
+        ? loadedPanel.implicitHeight + 24
         : 64
     color: Theme.panelBackgroundSoft
 

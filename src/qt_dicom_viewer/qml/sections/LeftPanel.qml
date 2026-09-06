@@ -11,23 +11,17 @@ Rectangle {
     objectName: "leftPanel"
     required property var panelController
     readonly property string activeSeriesUid: panelController.activeSeriesUid
-    readonly property var viewTypes: [
-        {label: "2D", type: "2d", supported: true},
-        {label: "MPR", type: "mpr", supported: true},
-        {label: "3D", type: "3d", supported: true},
-        {label: "4D", type: "4d", supported: true},
-        {label: "Tag", type: "tag", supported: true}
+    readonly property var primaryActions: [
+        {label: "加载文件", shortLabel: "文件", type: "file", icon: "nav-load-file", supported: true},
+        {label: "2D 视图", shortLabel: "2D", type: "2d", icon: "nav-view-2d", supported: true},
+        {label: "MPR 视图", shortLabel: "MPR", type: "mpr", icon: "nav-view-mpr", supported: true},
+        {label: "3D 视图", shortLabel: "3D", type: "3d", icon: "nav-view-3d", supported: true}
     ]
-    readonly property var contextActions: [
-        {code: "2d", badge: "2D", label: "快速浏览", description: "二维浏览", supported: true, danger: false, separatorBefore: false},
-        {code: "tile", badge: "平铺", label: "序列平铺", description: "连续显示全部二维切片", supported: false, danger: false, separatorBefore: false},
-        {code: "mpr", badge: "MPR", label: "MPR", description: "多平面重建", supported: true, danger: false, separatorBefore: false},
-        {code: "3d", badge: "3D", label: "3D", description: "体渲染", supported: true, danger: false, separatorBefore: false},
-        {code: "4d", badge: "4D", label: "4D", description: "呼吸相位播放", supported: true, danger: false, separatorBefore: false},
-        {code: "tag", badge: "TAG", label: "TAG", description: "DICOM 标签", supported: true, danger: false, separatorBefore: false},
-        {code: "directory", badge: "DIR", label: "在资源管理器中打开", description: "打开此序列的来源目录", supported: true, danger: false, separatorBefore: true},
-        {code: "deidentify", badge: "DEID", label: "脱敏导出", description: "生成脱敏 DICOM 副本", supported: false, danger: false, separatorBefore: false},
-        {code: "remove", badge: "DEL", label: "从列表中移除序列", description: "", supported: true, danger: true, separatorBefore: true}
+    readonly property var secondaryActions: [
+        {label: "平铺视图", shortLabel: "平铺", type: "tile", icon: "nav-view-tile", supported: false},
+        {label: "4D 视图", shortLabel: "4D", type: "4d", icon: "nav-view-4d", supported: true},
+        {label: "DICOM Tag", shortLabel: "Tag", type: "tag", icon: "nav-view-tag", supported: true},
+        {label: "融合视图", shortLabel: "融合", type: "fusion", icon: "fusion", supported: false}
     ]
     property string lastQuery: ""
     color: Theme.panelBackground
@@ -52,6 +46,55 @@ Rectangle {
         function onSidebarItemsChanged() { leftPanel.refreshRows() }
     }
 
+    component NavigationActionButton: Components.ToolbarAction {
+        id: navigationAction
+
+        required property var actionData
+        readonly property bool isFileAction: actionData.type === "file"
+
+        buttonObjectName: isFileAction
+            ? "sidebarOpenFolder"
+            : "openView-" + actionData.type
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.preferredWidth: 1
+        Layout.minimumWidth: 0
+        label: actionData.label
+        shortLabel: actionData.shortLabel
+        iconSize: Theme.navigationIconSize
+        iconName: actionData.icon
+        placeholder: !actionData.supported
+        actionEnabled: isFileAction
+            ? !leftPanel.panelController.scanning
+            : leftPanel.activeSeriesUid !== ""
+                && actionData.supported
+                && (
+                    actionData.type !== "4d"
+                    || leftPanel.panelController.activeSeriesSupportsFourD
+                )
+
+        onTriggered: {
+            if (isFileAction)
+                leftPanel.panelController.openFolderDialog()
+            else
+                leftPanel.panelController.openSeriesView(
+                    leftPanel.activeSeriesUid,
+                    actionData.type
+                )
+        }
+
+        tooltipText: !actionData.supported
+            ? actionData.label + " · 待实现"
+            : !isFileAction && leftPanel.activeSeriesUid === ""
+                ? actionData.label + " · 请先选择影像序列"
+            : actionData.type === "4d"
+                && !leftPanel.panelController.activeSeriesSupportsFourD
+                ? "所选 Series 不包含可用的 4D 相位"
+                : isFileAction
+                    ? "打开 DICOM 文件夹"
+                    : "以 " + actionData.label + "方式打开"
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.topMargin: 12
@@ -64,66 +107,38 @@ Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: 10
             Layout.rightMargin: 10
-            Layout.preferredHeight: 40
+            Layout.preferredHeight: Theme.toolbarButtonHeight * 2 + 4
             color: "transparent"
-            RowLayout {
+
+            ColumnLayout {
                 anchors.fill: parent
                 spacing: 4
-                Components.AppButton {
-                    objectName: "sidebarOpenFolder"
-                    Layout.preferredWidth: leftPanel.width < 230 ? 30 : 34
+
+                RowLayout {
+                    Layout.fillWidth: true
                     Layout.fillHeight: true
-                    compact: true
-                    momentary: true
-                    minimumButtonWidth: leftPanel.width < 230 ? 30 : 34
-                    iconSize: 19
-                    icon.source: Qt.resolvedUrl("../assets/icons/open-folder.svg")
-                    normalColor: Theme.controlBackground
-                    hoverColor: Theme.controlHover
-                    pressedColor: Theme.controlPressed
-                    baseBorderWidth: 1
-                    baseBorderColor: Theme.borderDefault
-                    enabled: !leftPanel.panelController.scanning
-                    onClicked: leftPanel.panelController.openFolderDialog()
-                    Basic.ToolTip.visible: hovered
-                    Basic.ToolTip.delay: 450
-                    Basic.ToolTip.text: "打开 DICOM 文件夹"
+                    spacing: 4
+
+                    Repeater {
+                        model: leftPanel.primaryActions
+                        delegate: NavigationActionButton {
+                            required property var modelData
+                            actionData: modelData
+                        }
+                    }
                 }
-                Repeater {
-                    model: leftPanel.viewTypes
-                    delegate: Components.AppButton {
-                        required property var modelData
-                        objectName: "openView-" + modelData.type
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        compact: true
-                        momentary: true
-                        minimumButtonWidth: 0
-                        text: modelData.label
-                        fontPixelSize: leftPanel.width < 230 ? 10 : modelData.type === "mpr" ? 11 : 12
-                        leftPadding: leftPanel.width < 230 ? 3 : 6
-                        rightPadding: leftPadding
-                        normalColor: Theme.controlBackground
-                        disabledColor: Theme.canvasBackground
-                        baseBorderWidth: 1
-                        baseBorderColor: Theme.borderDefault
-                        enabled: leftPanel.activeSeriesUid !== ""
-                            && modelData.supported
-                            && (
-                                modelData.type !== "4d"
-                                || leftPanel.panelController.activeSeriesSupportsFourD
-                            )
-                        onClicked: leftPanel.panelController.openSeriesView(leftPanel.activeSeriesUid, modelData.type)
-                        Basic.ToolTip.visible: hovered
-                        Basic.ToolTip.delay: 450
-                        Basic.ToolTip.text: !modelData.supported
-                            ? modelData.label + " 暂未实现"
-                            : modelData.type === "4d"
-                                && !leftPanel.panelController.activeSeriesSupportsFourD
-                                ? "所选 Series 不包含可用的 4D 相位"
-                                : "以 " + modelData.label + " 方式打开"
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 4
+
+                    Repeater {
+                        model: leftPanel.secondaryActions
+                        delegate: NavigationActionButton {
+                            required property var modelData
+                            actionData: modelData
+                        }
                     }
                 }
             }
@@ -301,16 +316,90 @@ Rectangle {
         }
     }
 
-    Basic.Popup {
+    component SeriesMenuItem: Basic.MenuItem {
+        id: seriesMenuItem
+
+        required property string actionCode
+        required property string iconName
+        property bool actionEnabled: true
+        property bool danger: false
+
+        objectName: "seriesContextAction-" + actionCode
+        enabled: actionEnabled
+        implicitWidth: 244
+        implicitHeight: 30
+        leftPadding: 9
+        rightPadding: 10
+        topPadding: 5
+        bottomPadding: 5
+        hoverEnabled: true
+
+        contentItem: RowLayout {
+            spacing: 9
+
+            Components.AppIcon {
+                Layout.preferredWidth: 16
+                Layout.preferredHeight: 16
+                iconName: seriesMenuItem.iconName
+                iconSize: 16
+                iconColor: !seriesMenuItem.enabled
+                    ? Theme.textDisabled
+                    : seriesMenuItem.danger
+                        ? Theme.dangerColor
+                        : seriesMenuItem.highlighted
+                            ? Theme.iconHover
+                            : Theme.iconDefault
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: seriesMenuItem.text
+                color: !seriesMenuItem.enabled
+                    ? Theme.textDisabled
+                    : seriesMenuItem.danger
+                        ? Theme.dangerColor
+                        : Theme.textPrimary
+                font.pixelSize: 12
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+        }
+
+        background: Rectangle {
+            radius: 2
+            color: seriesMenuItem.enabled && seriesMenuItem.highlighted
+                ? seriesMenuItem.danger
+                    ? Theme.dangerSurface
+                    : Theme.controlHover
+                : "transparent"
+        }
+
+        onTriggered: seriesContextMenu.triggerAction(actionCode)
+
+        Basic.ToolTip.visible: hovered && !actionEnabled
+        Basic.ToolTip.delay: 350
+        Basic.ToolTip.text: "暂未实现"
+    }
+
+    component SeriesMenuSeparator: Basic.MenuSeparator {
+        implicitHeight: 7
+        topPadding: 3
+        bottomPadding: 3
+        contentItem: Rectangle {
+            implicitHeight: 1
+            color: Theme.dividerColor
+        }
+    }
+
+    Basic.Menu {
         id: seriesContextMenu
         objectName: "seriesContextMenu"
         parent: Basic.Overlay.overlay
         property string contextSeriesUid: ""
         property real requestedSceneX: 0
         property real requestedSceneY: 0
-        width: Math.min(360, parent.width - 16)
-        height: menuContent.implicitHeight + topPadding + bottomPadding
-        padding: 7
+        width: Math.min(252, parent.width - 16)
+        padding: 4
         modal: false
         focus: true
         closePolicy: Basic.Popup.CloseOnEscape | Basic.Popup.CloseOnPressOutside
@@ -349,112 +438,68 @@ Rectangle {
         }
 
         background: Rectangle {
-            color: Theme.panelBackgroundStrong
-            border.color: Theme.borderDefault
+            color: Theme.elevatedBackground
+            border.color: Theme.borderStrong
             border.width: 1
-            radius: 8
+            radius: 3
         }
 
-        contentItem: Column {
-            id: menuContent
-            spacing: 2
+        SeriesMenuItem {
+            actionCode: "2d"
+            iconName: "scroll"
+            text: "快速浏览"
+        }
+        SeriesMenuItem {
+            actionCode: "tile"
+            iconName: "view-tile"
+            text: "序列平铺"
+            actionEnabled: false
+        }
+        SeriesMenuItem {
+            actionCode: "mpr"
+            iconName: "rotate-3d"
+            text: "多平面重建 (MPR)"
+        }
+        SeriesMenuItem {
+            actionCode: "3d"
+            iconName: "rotate-3d-variant"
+            text: "3D 体渲染"
+        }
+        SeriesMenuItem {
+            actionCode: "4d"
+            iconName: "cine-play"
+            text: "4D 相位播放"
+            actionEnabled: leftPanel.panelController.seriesSupportsFourD(
+                seriesContextMenu.contextSeriesUid
+            )
+        }
+        SeriesMenuItem {
+            actionCode: "tag"
+            iconName: "annotate"
+            text: "DICOM 标签"
+        }
 
-            Repeater {
-                model: leftPanel.contextActions
-                delegate: Item {
-                    id: menuAction
-                    required property var modelData
-                    readonly property bool actionEnabled:
-                        modelData.supported
-                        && (
-                            modelData.code !== "4d"
-                            || leftPanel.panelController.seriesSupportsFourD(
-                                seriesContextMenu.contextSeriesUid
-                            )
-                        )
-                    objectName: "seriesContextAction-" + modelData.code
-                    width: menuContent.width
-                    height: modelData.separatorBefore ? 58 : 52
+        SeriesMenuSeparator { }
 
-                    Rectangle {
-                        visible: menuAction.modelData.separatorBefore
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        height: 1
-                        color: Theme.borderSubtle
-                    }
+        SeriesMenuItem {
+            actionCode: "directory"
+            iconName: "folder"
+            text: "在资源管理器中打开"
+        }
+        SeriesMenuItem {
+            actionCode: "deidentify"
+            iconName: "shield"
+            text: "脱敏导出"
+            actionEnabled: false
+        }
 
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 52
-                        radius: 6
-                        color: menuAction.actionEnabled && menuHover.hovered
-                            ? Theme.cardBackgroundHover : Theme.cardBackground
-                        border.color: menuAction.modelData.danger
-                            ? Theme.dangerSurface : Theme.borderSubtle
-                        opacity: menuAction.actionEnabled ? 1 : 0.45
+        SeriesMenuSeparator { }
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            spacing: 10
-
-                            Rectangle {
-                                Layout.preferredWidth: menuAction.modelData.badge.length > 3 ? 54 : 46
-                                Layout.preferredHeight: 26
-                                radius: 13
-                                color: menuAction.modelData.danger ? Theme.dangerSurface : Theme.secondarySoft
-                                border.color: menuAction.modelData.danger ? Theme.dangerColor : Theme.borderStrong
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: menuAction.modelData.badge
-                                    color: menuAction.modelData.danger ? Theme.dangerColor : Theme.textPrimary
-                                    font.pixelSize: menuAction.modelData.badge.length > 3 ? 9 : 10
-                                    font.weight: Font.DemiBold
-                                    font.letterSpacing: 1.2
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 1
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: menuAction.modelData.label
-                                    color: menuAction.modelData.danger ? Theme.dangerColor : Theme.textPrimary
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    visible: text !== ""
-                                    text: menuAction.modelData.description
-                                    color: Theme.textMuted
-                                    font.pixelSize: 10
-                                    elide: Text.ElideRight
-                                }
-                            }
-                        }
-                    }
-
-                    HoverHandler {
-                        id: menuHover
-                        cursorShape: menuAction.actionEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    }
-                    TapHandler {
-                        enabled: menuAction.actionEnabled
-                        onTapped: seriesContextMenu.triggerAction(menuAction.modelData.code)
-                    }
-                    Basic.ToolTip.visible: menuHover.hovered && !menuAction.actionEnabled
-                    Basic.ToolTip.delay: 350
-                    Basic.ToolTip.text: "暂未实现"
-                }
-            }
+        SeriesMenuItem {
+            actionCode: "remove"
+            iconName: "close"
+            text: "从列表中移除序列"
+            danger: true
         }
     }
 

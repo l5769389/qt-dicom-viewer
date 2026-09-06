@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../theme"
+import "../../components" as Components
 
 Basic.TabBar {
     id: workspaceTabs
@@ -98,26 +99,24 @@ Basic.TabBar {
 
                 Basic.ToolButton {
                     id: closeButton
-                    text: "×"
+                    Accessible.name: "关闭 " + tabButton.modelData.tabLabel
                     implicitWidth: 24
                     implicitHeight: 24
                     opacity: tabButton.checked
                         || tabButton.hovered
-                        || closeButton.hovered ? 1 : 0
-                    enabled: opacity > 0.5
+                        || closeButton.hovered || closeButton.activeFocus ? 1 : 0
 
                     Behavior on opacity {
                         NumberAnimation { duration: 100 }
                     }
 
-                    contentItem: Text {
-                        text: closeButton.text
-                        color: closeButton.hovered
-                            ? Theme.textPrimary
-                            : Theme.textSubtle
-                        font.pixelSize: 16
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    contentItem: Item {
+                        Components.AppIcon {
+                            anchors.centerIn: parent
+                            iconName: "close"
+                            iconSize: 16
+                            iconColor: closeButton.hovered ? Theme.iconHover : Theme.iconDefault
+                        }
                     }
 
                     background: Rectangle {
@@ -125,6 +124,8 @@ Basic.TabBar {
                             ? Theme.controlHover
                             : "transparent"
                         radius: 4
+                        border.width: closeButton.activeFocus ? 1 : 0
+                        border.color: Theme.focusBorder
                     }
 
                     onClicked: {

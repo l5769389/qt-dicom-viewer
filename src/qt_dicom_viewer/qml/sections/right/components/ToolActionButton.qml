@@ -12,8 +12,12 @@ Basic.Button {
     required property string iconName
     required property string label
     property real iconSize: 20
+    property bool placeholder: false
 
     implicitHeight: 40
+    enabled: !placeholder
+    Accessible.name: label
+    Accessible.description: label + (placeholder ? " · 待实现" : "")
 
     contentItem: RowLayout {
         spacing: 10
@@ -21,7 +25,7 @@ Basic.Button {
         Components.AppIcon {
             iconName: actionButton.iconName
             iconSize: actionButton.iconSize
-            iconColor: actionButton.checked
+            iconColor: !actionButton.enabled ? Theme.iconDisabled : actionButton.checked
                 ? Theme.iconActive
                 : actionButton.hovered
                     ? Theme.iconHover
@@ -30,26 +34,27 @@ Basic.Button {
 
         Text {
             Layout.fillWidth: true
-            text: actionButton.label
-            color: actionButton.checked
+            text: actionButton.label + (actionButton.placeholder ? " · 待" : "")
+            color: !actionButton.enabled ? Theme.textDisabled : actionButton.checked
                 ? Theme.textPrimary
                 : actionButton.hovered
                     ? Theme.textPrimary
                     : Theme.textSecondary
             font.pixelSize: 12
+            elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
         }
     }
 
     background: Rectangle {
-        color: actionButton.pressed
+        color: !actionButton.enabled ? Theme.controlDisabled : actionButton.pressed
             ? Theme.controlPressed
             : actionButton.checked
                 ? Theme.selectionBackground
                 : actionButton.hovered
                     ? Theme.controlHover
                     : Theme.controlBackground
-        border.color: actionButton.checked
+        border.color: actionButton.activeFocus ? Theme.focusBorder : actionButton.checked
             ? Theme.selectionBorder
             : actionButton.hovered
                 ? Theme.controlHoverBorder

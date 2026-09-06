@@ -57,7 +57,7 @@ def _assert_service_panel_has_only_top_aligned_buttons(view):
     panel = _find(view, "servicePanel")
     visible_texts = {item.property("text") for item in _visual_children(panel)
                      if item.isVisible() and item.property("text")}
-    assert {"MTF", "QA"} <= visible_texts
+    assert {"MTF", "QA · 待"} <= visible_texts
     assert not any("预留" in text or "待实现" in text or text == "服务" for text in visible_texts)
     assert not any(item.objectName() == "serviceEntryStatus"
                    for item in _visual_children(panel))
@@ -76,7 +76,7 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
     assert controller.activePanel == "service"
     _assert_service_panel_has_only_top_aligned_buttons(view)
 
-    for entry in ["mtf", "qa"]:
+    for entry in ["mtf"]:
         button = _find(view, "serviceEntry-" + entry)
         _click(view, button)
         assert controller.activeService == "service:" + entry
@@ -86,12 +86,24 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
         other = _find(view, "serviceEntry-" + ("qa" if entry == "mtf" else "mtf"))
         assert not other.property("checked")
 
-    images = [item for item in _visual_children(view.rootObject())
-              if item.objectName() == "rasterToolIcon" and item.isVisible()]
-    assert len(images) == 3  # 一级服务按钮、MTF 与 QA，不再有面板标题图标。
-    for image in images:
-        assert image.property("source").toString().endswith(".png")
-        assert image.property("paintedWidth") > 0
+    qa = _find(view, "serviceEntry-qa")
+    assert not qa.isEnabled()
+    _click(view, qa)
+    assert controller.activeService == "service:mtf"
+    assert controller.activeInteraction == "service:mtf"
+    assert not qa.property("checked")
+
+    for button_name, icon_name in [("primaryTool-service", "service"),
+                                    ("serviceEntry-mtf", "mtf"),
+                                    ("serviceEntry-qa", "qa")]:
+        button = _find(view, button_name)
+        images = [item for item in _visual_children(button)
+                  if item.objectName() == "tintedRasterToolIcon" and item.isVisible()]
+        assert len(images) == 1
+        image = images[0]
+        assert image.property("imageSource").endswith(f"tool-{icon_name}.png")
+        assert image.width() > 0
+        assert image.property("tintColor") == image.parentItem().property("iconColor")
     assert not warnings, warnings
     assert commands == []
 
