@@ -281,10 +281,10 @@ def test_tag_tab_restores_scroll_query_and_image_toolbar(scene):
         background for tab_id, background in tab_backgrounds.items()
         if tab_id != workspace.activeTabId
     )
-    assert active_background.property("color").name() == "#173449"
-    assert active_background.property("visualBorderColor").name() == "#3b5b70"
-    assert inactive_background.property("color").name() == "#081019"
-    assert inactive_background.property("visualBorderColor").name() == "#1c2935"
+    assert active_background.property("color").name() == "#203b4c"
+    assert active_background.property("visualBorderColor").name() == "#758b9d"
+    assert inactive_background.property("color").name() == "#14191f"
+    assert inactive_background.property("visualBorderColor").name() == "#29313a"
     type_text(window, find(window, "tagSearch"), "PatientName")
     click(window, find(window, "openView-mpr"))
     assert workspace.activeTabType == "mpr" and find(window, "rightPanel").isVisible()

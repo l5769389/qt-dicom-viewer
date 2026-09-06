@@ -66,6 +66,9 @@ Rectangle {
         label: actionData.label
         shortLabel: actionData.shortLabel
         iconSize: Theme.navigationIconSize
+        prominent: isFileAction
+        normalIconColor: isFileAction ? Theme.folderAccent : Theme.iconDefault
+        disabledIconColor: normalIconColor
         iconName: actionData.icon
         placeholder: !actionData.supported
         actionEnabled: isFileAction
@@ -99,6 +102,8 @@ Rectangle {
             : actionData.type === "4d"
                 && !leftPanel.panelController.activeSeriesSupportsFourD
                 ? "所选 Series 不包含可用的 4D 相位"
+                : leftPanel.activeSeriesModality === "PT" && !["2d", "tag", "mpr", "fusion"].includes(actionData.type)
+                    ? actionData.label + " · 当前 PET 序列不支持此视图"
                 : isFileAction
                     ? "打开 DICOM 文件夹"
                     : "以 " + actionData.label + "方式打开"
@@ -153,7 +158,7 @@ Rectangle {
             }
         }
 
-        Basic.TextField {
+        Components.AppTextField {
             objectName: "sidebarPatientSearch"
             Layout.fillWidth: true
             Layout.leftMargin: 10
@@ -167,11 +172,6 @@ Rectangle {
             selectionColor: Theme.selectionBackground
             font.pixelSize: 13
             leftPadding: 10
-            background: Rectangle {
-                color: Theme.canvasBackground
-                border.color: parent.activeFocus ? Theme.focusBorder : Theme.borderDefault
-                radius: 6
-            }
         }
 
         Text {
@@ -343,14 +343,18 @@ Rectangle {
             }
         }
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.dividerColor }
-        Components.AppButton {
-            objectName: "sidebarSettings"
-            Layout.fillWidth: true
+        Components.ToolbarAction {
+            buttonObjectName: "sidebarSettings"
+            Layout.preferredWidth: 36
+            Layout.preferredHeight: 36
             Layout.leftMargin: 10
-            Layout.rightMargin: 10
-            text: "⚙  设置"
+            label: "工作区设置"
+            tooltipText: "工作区设置"
+            iconName: "settings"
+            iconSize: 20
+            checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
             visible: leftPanel.workspaceController !== null
-            onClicked: leftPanel.workspaceController.openSettings()
+            onTriggered: leftPanel.workspaceController.openSettings()
         }
     }
 

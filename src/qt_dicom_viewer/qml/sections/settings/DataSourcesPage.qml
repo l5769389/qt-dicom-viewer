@@ -10,23 +10,25 @@ Basic.ScrollView {
     required property var pacsController
     objectName: "settingsScroll"
     contentWidth: availableWidth
+    rightPadding: 12
     clip: true
+    Basic.ScrollBar.vertical: Components.AppScrollBar {}
     ColumnLayout {
         width: parent.width
-        spacing: 18
+        spacing: 12
         Text {
             Layout.fillWidth: true
-            Layout.margins: 22
+            Layout.margins: 16
             Layout.bottomMargin: 0
             text: "PACS 数据源"
             color: Theme.textPrimary
-            font.pixelSize: 25
+            font.pixelSize: 18
             font.bold: true
         }
         Text {
             Layout.fillWidth: true
-            Layout.leftMargin: 22
-            Layout.rightMargin: 22
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
             text: "管理影像来源与 DICOMweb 连接"
             color: Theme.textMuted
             font.pixelSize: 13
@@ -34,21 +36,21 @@ Basic.ScrollView {
         }
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: 22
-            Layout.rightMargin: 22
-            implicitHeight: sourceContent.implicitHeight + 32
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
+            implicitHeight: sourceContent.implicitHeight + 24
             color: Theme.cardBackground
             border.color: Theme.borderSubtle
-            radius: 10
+            radius: Theme.controlRadius
             ColumnLayout {
                 id: sourceContent
                 anchors.fill: parent
-                anchors.margins: 16
+                anchors.margins: 12
                 spacing: 12
                 Text {
                     text: "数据源模式"
                     color: Theme.textPrimary
-                    font.pixelSize: 16
+                    font.pixelSize: 14
                     font.bold: true
                 }
                 Text {
@@ -76,13 +78,13 @@ Basic.ScrollView {
         }
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 22
-            Layout.rightMargin: 22
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
             Text {
                 Layout.fillWidth: true
                 text: "PACS 配置"
                 color: Theme.textPrimary
-                font.pixelSize: 17
+                font.pixelSize: 14
                 font.bold: true
             }
             Components.AppButton {
@@ -95,8 +97,8 @@ Basic.ScrollView {
         }
         Text {
             Layout.fillWidth: true
-            Layout.leftMargin: 22
-            Layout.rightMargin: 22
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
             text: "当前默认：" + page.pacsController.defaultName
             color: Theme.textMuted
             font.pixelSize: 12
@@ -108,12 +110,12 @@ Basic.ScrollView {
                 id: card
                 required property var modelData
                 Layout.fillWidth: true
-                Layout.leftMargin: 22
-                Layout.rightMargin: 22
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
                 implicitHeight: cardContent.implicitHeight + 28
                 color: Theme.cardBackground
                 border.color: modelData.isDefault ? Theme.borderStrong : Theme.borderSubtle
-                radius: 8
+                radius: Theme.controlRadius
                 ColumnLayout {
                     id: cardContent
                     anchors.fill: parent
@@ -196,12 +198,12 @@ Basic.ScrollView {
         Rectangle {
             visible: page.pacsController.profiles.length === 0
             Layout.fillWidth: true
-            Layout.leftMargin: 22
-            Layout.rightMargin: 22
-            implicitHeight: 115
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
+            implicitHeight: 88
             color: Theme.cardBackground
             border.color: Theme.borderSubtle
-            radius: 8
+            radius: Theme.controlRadius
             Text {
                 anchors.centerIn: parent
                 width: parent.width - 32
@@ -216,7 +218,7 @@ Basic.ScrollView {
         Text {
             objectName: "pacsSettingsMessage"
             Layout.fillWidth: true
-            Layout.margins: 22
+            Layout.margins: 16
             visible: page.pacsController.message !== ""
             text: page.pacsController.message
             color: page.pacsController.isError ? Theme.dangerColor : Theme.successColor
@@ -244,7 +246,7 @@ Basic.ScrollView {
             radius: 9
         }
         contentItem: ColumnLayout {
-            spacing: 18
+            spacing: 12
             Text {
                 Layout.fillWidth: true
                 text: "删除配置“" + deleteDialog.profileName + "”？"

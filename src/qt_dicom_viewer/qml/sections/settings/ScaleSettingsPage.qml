@@ -13,7 +13,7 @@ ColumnLayout {
         Components.AppCheckBox { objectName: "setting-scale-enabled"; text: "显示比例尺"; checked: root.values.enabled; onClicked: root.settingsController.setValue("scale", "enabled", checked) }
         SettingColor { Layout.fillWidth: true; title: "比例尺颜色"; settingName: "scale-color"; value: root.values.color; onEdited: color => root.settingsController.setValue("scale", "color", color) }
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 180
+            Layout.fillWidth: true; Layout.preferredHeight: 120
             color: Theme.canvasBackground; radius: 5
             Views.ScaleBar { anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; calibrated: true; pixelsPerMm: 2; options: root.values }
         }

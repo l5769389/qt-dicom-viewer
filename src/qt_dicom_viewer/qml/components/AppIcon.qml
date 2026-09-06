@@ -11,6 +11,7 @@ Item {
     required property string iconName
     property real iconSize: 20
     property color iconColor: Theme.iconDefault
+    property color detailColor: "transparent"
     readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
 
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
@@ -41,6 +42,9 @@ Item {
     })
     readonly property string rasterSource: appIcon.rasterSourceMap[appIcon.iconName] ?? ""
     readonly property var mdiPathMap: ({
+        "chevron-down": "M6,9L12,15L18,9L16.6,7.6L12,12.2L7.4,7.6Z",
+        "check": "M9,16.2L4.8,12L3.4,13.4L9,19L21,7L19.6,5.6Z",
+        "settings": "M19.4,13A7.6,7.6 0 0,0 19.4,11L21.5,9.4L19.5,6L17,7A7.6,7.6 0 0,0 15.3,6L15,3H9L8.7,6A7.6,7.6 0 0,0 7,7L4.5,6L2.5,9.4L4.6,11A7.6,7.6 0 0,0 4.6,13L2.5,14.6L4.5,18L7,17A7.6,7.6 0 0,0 8.7,18L9,21H15L15.3,18A7.6,7.6 0 0,0 17,17L19.5,18L21.5,14.6ZM12,8A4,4 0 1,1 12,16A4,4 0 1,1 12,8Z",
         "volume-crop": "M6,2H8V16H22V18H18V22H16V18H6V8H2V6H6V2M10,6H18V14H16V8H10V6Z",
         "volume-bed": "M3,4H5V13H21V15H5V19H3V4M7,8H11V11H7V8M13,7H19A2,2 0 0,1 21,9V11H13V7M8,18H21V20H8V18Z",
         "palette": "M12,3C7.03,3 3,7.03 3,12C3,16.97 7.03,21 12,21H13.5C14.88,21 16,19.88 16,18.5C16,17.87 15.76,17.3 15.38,16.86C15.13,16.58 15,16.26 15,16C15,15.45 15.45,15 16,15H18C20.21,15 22,13.21 22,11C22,6.58 17.52,3 12,3M7,13A1.5,1.5 0 1,1 7,10A1.5,1.5 0 1,1 7,13M9.5,8.5A1.5,1.5 0 1,1 9.5,5.5A1.5,1.5 0 1,1 9.5,8.5M14,8A1.5,1.5 0 1,1 14,5A1.5,1.5 0 1,1 14,8M18,11A1.5,1.5 0 1,1 18,8A1.5,1.5 0 1,1 18,11Z",
@@ -199,7 +203,7 @@ Item {
         readonly property string imageSource: appIcon.rasterSource
         // 原始 PNG 留有透明安全边距，轻微放大后可与 24x24
         // MDI 图标在同一个 22px 容器内保持一致的视觉尺寸。
-        readonly property real rasterScale: 1.14
+        readonly property real rasterScale: appIcon.iconName === "nav-view-mpr" ? 1.0 : 1.14
 
         function ensureImageLoaded() {
             if (visible && appIcon.rasterSource !== "")
@@ -230,6 +234,13 @@ Item {
             context.globalCompositeOperation = "source-in"
             context.fillStyle = appIcon.iconColor
             context.fillRect(0, 0, width, height)
+            if (appIcon.iconName === "fusion" && appIcon.detailColor.a > 0) {
+                context.globalCompositeOperation = "source-atop"
+                context.fillStyle = appIcon.detailColor
+                context.fillRect((width - drawWidth) / 2 + drawWidth * 0.35,
+                    (height - drawHeight) / 2 + drawHeight * 0.345,
+                    drawWidth * 0.315, drawHeight * 0.305)
+            }
             context.globalCompositeOperation = "source-over"
         }
 
@@ -240,6 +251,8 @@ Item {
                 tintedRasterIcon.ensureImageLoaded()
                 tintedRasterIcon.requestPaint()
             }
+
+            function onDetailColorChanged() { tintedRasterIcon.requestPaint() }
 
             function onIconColorChanged() {
                 tintedRasterIcon.requestPaint()

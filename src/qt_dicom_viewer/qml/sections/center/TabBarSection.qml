@@ -65,25 +65,32 @@ Basic.TabBar {
                     Layout.preferredHeight: 22
                     radius: 5
                     color: tabButton.checked
-                        ? Theme.primaryStrong
+                        ? Theme.selectionBackground
                         : Theme.secondarySoft
                     border.color: tabButton.checked
                         ? "transparent"
                         : "transparent"
                     border.width: 0
 
+                    Components.AppIcon {
+                        anchors.centerIn: parent
+                        visible: String(tabButton.modelData.tabType).toLowerCase() === "settings"
+                        iconName: "settings"
+                        iconSize: 14
+                        iconColor: tabButton.checked ? Theme.primaryColor : Theme.iconDefault
+                    }
                     Text {
                         id: tabTypeLabel
 
                         anchors.centerIn: parent
                         font.pixelSize: 11
-                        text: String(tabButton.modelData.tabType).toLowerCase() === "settings" ? "⚙" : String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
+                        text: String(tabButton.modelData.tabType).toLowerCase() === "settings" ? "" : String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
                             tabButton.modelData.tabType
                         ).toUpperCase()
                         font.weight: tabButton.checked
                             ? Font.DemiBold : Font.Normal
                         color: tabButton.checked
-                            ? Theme.textOnPrimary
+                            ? Theme.primaryColor
                             : Theme.textMuted
                     }
                 }
@@ -150,7 +157,17 @@ Basic.TabBar {
                     : tabButton.hovered
                         ? Theme.controlHover
                         : Theme.panelBackgroundSoft
-                border.color: visualBorderColor
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: 6
+                    anchors.rightMargin: 6
+                    height: 2
+                    visible: tabButton.checked
+                    color: Theme.activeIndicator
+                }
+                border.color: tabButton.activeFocus ? Theme.focusBorder : visualBorderColor
                 border.width: 1
             }
         }

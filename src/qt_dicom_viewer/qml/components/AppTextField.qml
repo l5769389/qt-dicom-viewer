@@ -1,21 +1,28 @@
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
 import "../theme"
 
 Basic.TextField {
     id: control
-    implicitHeight: 38
-    leftPadding: 12
-    rightPadding: 12
+    Layout.minimumWidth: 0
+    property bool compact: false
+    implicitHeight: compact ? Theme.compactControlHeight : Theme.controlHeight
+    leftPadding: 10
+    rightPadding: 10
+    hoverEnabled: true
     color: enabled ? Theme.textPrimary : Theme.textDisabled
     placeholderTextColor: Theme.textSubtle
-    font.pixelSize: 13
+    font.pixelSize: Theme.bodyFontSize
     selectByMouse: true
     selectionColor: Theme.selectionBackground
     selectedTextColor: Theme.textPrimary
     background: Rectangle {
-        radius: 7
-        color: Theme.controlBackground
-        border.color: control.activeFocus ? Theme.focusBorder : Theme.borderDefault
+        radius: Theme.controlRadius
+        color: control.enabled ? Theme.controlBackground : Theme.controlDisabled
+        border.width: control.activeFocus ? 2 : 1
+        border.color: !control.enabled ? Theme.controlBorder
+            : control.activeFocus ? Theme.focusBorder
+            : control.hovered ? Theme.controlHoverBorder : Theme.inputBorder
     }
 }

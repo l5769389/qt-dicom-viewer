@@ -49,12 +49,11 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             Text { text: "WL"; color: Theme.textMuted }
-            Basic.TextField {
+            Components.AppTextField {
                 objectName: "fusionCtCenter"
                 Layout.fillWidth: true
                 text: Number(panel.controller.ctCenter).toFixed(1)
                 color: Theme.textPrimary
-                background: Rectangle { color: Theme.panelBackgroundStrong; border.color: Theme.borderDefault; radius: 5 }
                 validator: DoubleValidator {}
                 onEditingFinished: {
                     panel.controller.setCtWindow(Number(text), panel.controller.ctWidth)
@@ -62,12 +61,11 @@ ColumnLayout {
                 }
             }
             Text { text: "WW"; color: Theme.textMuted }
-            Basic.TextField {
+            Components.AppTextField {
                 objectName: "fusionCtWidth"
                 Layout.fillWidth: true
                 text: Number(panel.controller.ctWidth).toFixed(1)
                 color: Theme.textPrimary
-                background: Rectangle { color: Theme.panelBackgroundStrong; border.color: Theme.borderDefault; radius: 5 }
                 validator: DoubleValidator { bottom: 1 }
                 onEditingFinished: {
                     panel.controller.setCtWindow(panel.controller.ctCenter, Number(text))
@@ -120,7 +118,7 @@ ColumnLayout {
             }
         }
         Text { text: "PET 叠加比例 " + Math.round(panel.controller.opacity * 100) + "%"; color: Theme.textPrimary }
-        Basic.Slider {
+        Components.AppSlider {
             objectName: "fusionOpacity"
             Layout.fillWidth: true
             from: 0; to: 1
@@ -160,11 +158,10 @@ ColumnLayout {
                     required property int index
                     Layout.fillWidth: true
                     Text { text: parent.modelData; color: Theme.textMuted; font.pixelSize: 11 }
-                    Basic.TextField {
+                    Components.AppTextField {
                         objectName: "registrationParameter-" + parent.index
                         Layout.fillWidth: true
                         color: Theme.textPrimary
-                        background: Rectangle { color: Theme.panelBackgroundStrong; border.color: Theme.borderDefault; radius: 5 }
                         text: Number(panel.controller.registrationParameters[parent.index]).toFixed(2)
                         validator: DoubleValidator {}
                         onEditingFinished: {

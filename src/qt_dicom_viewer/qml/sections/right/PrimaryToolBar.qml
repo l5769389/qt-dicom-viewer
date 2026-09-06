@@ -27,7 +27,7 @@ Rectangle {
 
     Flow {
         id: toolFlow
-        readonly property real availableWidth: Math.max(0, toolBar.width - 16)
+        readonly property real availableWidth: Math.max(0, toolBar.width - 12)
         readonly property int columns: Math.max(1, Math.min(5,
             Math.floor((availableWidth + spacing) / (44 + spacing))))
         readonly property int rows: Math.ceil(toolBar.tools.length / columns)
@@ -38,7 +38,7 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         width: availableWidth
         height: rows * Theme.toolbarButtonHeight + Math.max(0, rows - 1) * spacing
-        spacing: 6
+        spacing: 4
 
         Repeater {
             model: toolBar.tools

@@ -4,28 +4,40 @@ import "../theme"
 
 Basic.CheckBox {
     id: control
-    implicitHeight: 30
+    implicitHeight: Theme.controlHeight
     spacing: 8
+    padding: 4
+    hoverEnabled: true
     indicator: Rectangle {
-        implicitWidth: 17
-        implicitHeight: 17
+        implicitWidth: 18
+        implicitHeight: 18
         x: control.leftPadding
         y: (control.height - height) / 2
         radius: 4
-        color: control.checked ? Theme.primaryButtonBackground : Theme.controlBackground
-        border.color: control.checked ? Theme.selectionBorder : Theme.borderStrong
-        Text {
+        color: !control.enabled ? Theme.controlDisabled
+            : control.checked ? Theme.selectionBackground : Theme.controlBackground
+        border.color: !control.enabled ? Theme.controlBorder
+            : control.checked ? Theme.selectionBorder : Theme.inputBorder
+        AppIcon {
             anchors.centerIn: parent
-            text: control.checked ? "✓" : ""
-            color: Theme.textPrimary
-            font.pixelSize: 13
+            iconName: "check"
+            iconSize: 14
+            visible: control.checked
+            iconColor: control.enabled ? Theme.primaryColor : Theme.iconDisabled
         }
     }
     contentItem: Text {
         text: control.text
         color: control.enabled ? Theme.textSecondary : Theme.textDisabled
-        font.pixelSize: 13
+        font.pixelSize: Theme.bodyFontSize
         verticalAlignment: Text.AlignVCenter
         leftPadding: control.indicator.width + control.spacing
+        elide: Text.ElideRight
+    }
+    background: Rectangle {
+        radius: Theme.controlRadius
+        color: control.enabled && control.hovered ? Theme.controlHover : "transparent"
+        border.width: control.activeFocus ? 2 : 0
+        border.color: Theme.focusBorder
     }
 }

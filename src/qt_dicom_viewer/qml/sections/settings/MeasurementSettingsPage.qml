@@ -8,14 +8,15 @@ ColumnLayout {
     id: root
     required property var settingsController
     readonly property var values: settingsController.values.measurement
-    spacing: 18
+    spacing: 12
     SettingsCard {
         Layout.fillWidth: true
-        Text { text: "测量样式"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+        Text { text: "测量样式"; color: Theme.textPrimary; font.pixelSize: 14; font.bold: true }
         GridLayout {
             Layout.fillWidth: true
-            columns: root.width > 550 ? 2 : 1
-            columnSpacing: 24; rowSpacing: 20
+            columns: root.width > 420 ? 2 : 1
+            uniformCellWidths: true
+            columnSpacing: 16; rowSpacing: 10
             SettingColor { Layout.fillWidth: true; title: "编辑 / 选中颜色"; settingName: "measurement-editingColor"; value: root.values.editingColor; onEdited: color => root.settingsController.setValue("measurement", "editingColor", color) }
             SettingColor { Layout.fillWidth: true; title: "完成后颜色"; settingName: "measurement-completedColor"; value: root.values.completedColor; onEdited: color => root.settingsController.setValue("measurement", "completedColor", color) }
             Components.AppCheckBox { objectName: "setting-measurement-editingDash"; text: "编辑 / 选中时使用虚线"; checked: root.values.editingDash; onClicked: root.settingsController.setValue("measurement", "editingDash", checked) }
@@ -46,11 +47,12 @@ ColumnLayout {
     }
     SettingsCard {
         Layout.fillWidth: true
-        Text { text: "箭头标注"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+        Text { text: "箭头标注"; color: Theme.textPrimary; font.pixelSize: 14; font.bold: true }
         GridLayout {
             Layout.fillWidth: true
-            columns: root.width > 550 ? 2 : 1
-            columnSpacing: 24; rowSpacing: 18
+            columns: root.width > 420 ? 2 : 1
+            uniformCellWidths: true
+            columnSpacing: 16; rowSpacing: 10
             SettingColor { Layout.fillWidth: true; title: "箭头颜色"; settingName: "measurement-annotationColor"; value: root.values.annotationColor; onEdited: color => root.settingsController.setValue("measurement", "annotationColor", color) }
             SettingSlider { Layout.fillWidth: true; title: "箭头大小"; settingName: "measurement-annotationSize"; from: 8; to: 28; stepSize: 1; value: root.values.annotationSize; onEdited: value => root.settingsController.setValue("measurement", "annotationSize", value) }
         }

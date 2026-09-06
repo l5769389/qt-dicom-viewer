@@ -16,6 +16,9 @@ Item {
     property bool checked: false
     property bool resetAction: false
     property real iconSize: Theme.toolbarIconSize
+    property color normalIconColor: Theme.iconDefault
+    property color disabledIconColor: Theme.iconDisabled
+    property bool prominent: false
     property string directionFace: ""
     property color directionColor: Theme.iconDefault
     property string tooltipText: label + (placeholder ? " · 待实现" : "")
@@ -40,7 +43,7 @@ Item {
         rightPadding: 2
         momentary: true
         minimumButtonWidth: 0
-        normalColor: action.resetAction ? Theme.resetActionSurface : "transparent"
+        normalColor: action.prominent ? Theme.folderSurface : "transparent"
         disabledColor: "transparent"
         hoverColor: action.resetAction ? Theme.resetActionHover : Theme.controlHover
         pressedColor: action.resetAction ? Theme.resetActionPressed : Theme.controlPressed
@@ -63,10 +66,11 @@ Item {
                         visible: action.directionFace === ""
                         iconName: action.iconName
                         iconSize: action.iconSize
-                        iconColor: !button.enabled ? Theme.iconDisabled
-                            : action.resetAction ? Theme.resetActionColor
+                        detailColor: action.iconName === "fusion" ? Theme.fusionAccent : "transparent"
+                        iconColor: !button.enabled ? action.disabledIconColor
+                            : action.resetAction && button.hovered ? Theme.resetActionColor
                             : button.checked ? Theme.iconActive
-                            : button.hovered ? Theme.iconHover : Theme.iconDefault
+                            : button.hovered ? Theme.iconHover : action.normalIconColor
                     }
                     Rectangle {
                         anchors.centerIn: parent
@@ -88,11 +92,12 @@ Item {
 
                 Text {
                     objectName: "toolbarLabel"
+                    visible: false
                     width: parent.width
                     text: action.shortLabel
                     horizontalAlignment: Text.AlignHCenter
                     color: !button.enabled ? Theme.textDisabled
-                        : action.resetAction ? Theme.resetActionColor
+                        : action.resetAction && button.hovered ? Theme.resetActionColor
                         : button.checked ? Theme.textPrimary : Theme.textSecondary
                     font.pixelSize: Theme.toolbarLabelSize
                     elide: Text.ElideRight
@@ -107,9 +112,9 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: 2
-        text: "待"
+        text: "·"
         color: Theme.textMuted
-        font.pixelSize: 9
+        font.pixelSize: 18
     }
 
     Basic.ToolTip {

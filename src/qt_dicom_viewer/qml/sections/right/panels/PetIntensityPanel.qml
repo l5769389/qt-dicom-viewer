@@ -58,7 +58,7 @@ ColumnLayout {
                     font.pixelSize: 12
                 }
 
-                Basic.TextField {
+                Components.AppTextField {
                     id: displayUpperInput
                     objectName: "petDisplayUpperInput"
                     Layout.preferredWidth: 92
@@ -81,12 +81,6 @@ ColumnLayout {
                         if (Number.isFinite(parsed))
                             petPanel.viewportController.setPetDisplayUpper(parsed)
                         text = Qt.binding(() => petPanel.formatValue(petPanel.viewportController.petDisplayUpper))
-                    }
-                    background: Rectangle {
-                        color: Theme.panelBackgroundStrong
-                        border.color: parent.activeFocus
-                            ? Theme.focusBorder : Theme.borderDefault
-                        radius: 6
                     }
                 }
             }
@@ -148,7 +142,7 @@ ColumnLayout {
                     font.pixelSize: 12
                 }
 
-                Basic.TextField {
+                Components.AppTextField {
                     objectName: "petControlUpperInput"
                     Layout.preferredWidth: 92
                     implicitHeight: 32
@@ -168,17 +162,12 @@ ColumnLayout {
                             petPanel.viewportController.setPetControlUpper(value)
                         text = Qt.binding(() => petPanel.formatValue(petPanel.viewportController.petControlUpper))
                     }
-                    background: Rectangle {
-                        color: Theme.panelBackgroundStrong
-                        border.color: Theme.borderDefault
-                        radius: 6
-                    }
                 }
             }
 
             GridLayout {
                 Layout.fillWidth: true
-                columns: 5
+                columns: petPanel.width < 240 ? 4 : 5
                 columnSpacing: 6
                 rowSpacing: 6
 
@@ -241,7 +230,7 @@ ColumnLayout {
 
             GridLayout {
                 Layout.fillWidth: true
-                columns: 2
+                columns: petPanel.width < 260 ? 1 : 2
                 columnSpacing: 8
                 rowSpacing: 8
 

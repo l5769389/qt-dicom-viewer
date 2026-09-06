@@ -1,13 +1,17 @@
+pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
 import "../theme"
 
 Basic.ComboBox {
     id: control
-    implicitHeight: 38
-    leftPadding: 12
-    rightPadding: 28
-    font.pixelSize: 13
+    Layout.minimumWidth: 0
+    implicitHeight: Theme.controlHeight
+    leftPadding: 10
+    rightPadding: 30
+    font.pixelSize: Theme.bodyFontSize
+    hoverEnabled: true
     contentItem: Text {
         text: control.displayText
         color: control.enabled ? Theme.textPrimary : Theme.textDisabled
@@ -15,31 +19,50 @@ Basic.ComboBox {
         elide: Text.ElideRight
         font: control.font
     }
-    indicator: Text {
-        x: control.width - 23
-        anchors.verticalCenter: parent.verticalCenter
-        text: "⌄"
-        color: Theme.textMuted
+    indicator: AppIcon {
+        x: control.width - width - 10
+        y: (control.height - height) / 2
+        iconName: "chevron-down"
+        iconSize: 14
+        iconColor: control.enabled ? Theme.iconDefault : Theme.iconDisabled
+        rotation: control.popup.visible ? 180 : 0
     }
     background: Rectangle {
-        color: Theme.controlBackground
-        border.color: control.activeFocus ? Theme.focusBorder : Theme.borderDefault
-        radius: 7
+        color: control.enabled ? (control.hovered ? Theme.controlHover : Theme.controlBackground) : Theme.controlDisabled
+        border.width: control.activeFocus ? 2 : 1
+        border.color: !control.enabled ? Theme.controlBorder : control.activeFocus ? Theme.focusBorder
+            : control.hovered ? Theme.controlHoverBorder : Theme.inputBorder
+        radius: Theme.controlRadius
     }
     delegate: Basic.ItemDelegate {
+        id: option
         required property int index
         required property var modelData
-        width: control.width
+        width: control.width - 8
+        implicitHeight: 34
+        leftPadding: 10
+        rightPadding: 30
         text: control.textRole ? modelData[control.textRole] : modelData
         highlighted: control.highlightedIndex === index
         contentItem: Text {
-            text: parent.text
+            text: option.text
             color: Theme.textPrimary
+            verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
-            font.pixelSize: 13
+            font.pixelSize: Theme.bodyFontSize
+        }
+        AppIcon {
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            iconName: "check"
+            iconSize: 14
+            iconColor: Theme.primaryColor
+            visible: control.currentIndex === option.index
         }
         background: Rectangle {
-            color: parent.highlighted ? Theme.selectionBackground : Theme.cardBackground
+            radius: 4
+            color: option.highlighted ? Theme.selectionBackground : Theme.cardBackground
         }
     }
     popup: Basic.Popup {
@@ -52,12 +75,13 @@ Basic.ComboBox {
             implicitHeight: contentHeight
             model: control.popup.visible ? control.delegateModel : null
             currentIndex: control.highlightedIndex
-            Basic.ScrollBar.vertical: Basic.ScrollBar {}
+            boundsBehavior: Flickable.StopAtBounds
+            Basic.ScrollBar.vertical: AppScrollBar {}
         }
         background: Rectangle {
             color: Theme.cardBackground
             border.color: Theme.borderStrong
-            radius: 7
+            radius: Theme.controlRadius
         }
     }
 }

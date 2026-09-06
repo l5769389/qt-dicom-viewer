@@ -169,6 +169,9 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
             Text {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                wrapMode: Text.Wrap
                 text: setting.modelData.label
                 color: Theme.textSecondary
                 font.pixelSize: 12
@@ -178,7 +181,6 @@ ColumnLayout {
                 title: setting.modelData.label
                 detail: setting.modelData.hint
             }
-            Item { Layout.fillWidth: true }
             Basic.SpinBox {
                 id: number
                 objectName: "waterQaSetting-" + setting.modelData.field
@@ -223,7 +225,7 @@ ColumnLayout {
                     radius: 5
                     color: Theme.controlBackground
                     border.width: 1
-                    border.color: Theme.controlBorder
+                    border.color: number.activeFocus ? Theme.focusBorder : Theme.inputBorder
                 }
             }
         }
@@ -241,7 +243,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: text.length > 0
         text: panel.controller ? panel.controller.error : ""
-        color: "#f6bf66"
+        color: Theme.warningColor
         wrapMode: Text.Wrap
         font.pixelSize: 12
     }
@@ -272,6 +274,9 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
                     Text {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.Wrap
                         text: metric.modelData.label
                         color: Theme.textSecondary
                         font.pixelSize: 12

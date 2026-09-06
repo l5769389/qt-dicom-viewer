@@ -11,7 +11,7 @@ Rectangle {
 
     required property var toolController
 
-    implicitHeight: 62
+    implicitHeight: 52
     color: Theme.panelBackgroundStrong
     radius: Theme.controlRadius
 
@@ -55,7 +55,7 @@ Rectangle {
                     ? resetBar.toolController.resetLabel
                     : "暂无可重置内容"
                 color: resetButton.enabled
-                    ? Theme.resetActionColor
+                    ? Theme.textSecondary
                     : Theme.textDisabled
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -72,10 +72,10 @@ Rectangle {
                     ? Theme.resetActionPressed
                     : resetButton.hovered
                         ? Theme.resetActionHover
-                        : Theme.resetActionSurface
-            border.width: 1
+                        : Theme.controlBackground
+            border.width: resetButton.activeFocus ? 2 : 1
             border.color: resetButton.enabled
-                ? Theme.resetActionBorder
+                ? (resetButton.activeFocus ? Theme.focusBorder : Theme.controlBorder)
                 : Theme.controlBorder
         }
     }

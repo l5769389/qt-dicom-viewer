@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../theme"
+import "../../../components" as Components
 
 ColumnLayout {
     id: settingsPanel
@@ -54,7 +55,7 @@ ColumnLayout {
                 color: Theme.dividerColor
             }
 
-            Basic.CheckBox {
+            Components.AppCheckBox {
                 id: settingCheckBox
                 objectName: "viewportSetting-" + settingRow.modelData.code
                 Layout.fillWidth: true
@@ -66,42 +67,8 @@ ColumnLayout {
                     checked
                 )
 
-                indicator: Rectangle {
-                    implicitWidth: 18
-                    implicitHeight: 18
-                    x: 4
-                    y: (settingCheckBox.height - height) / 2
-                    radius: 4
-                    color: settingCheckBox.checked
-                        ? Theme.selectionBackground : Theme.controlBackground
-                    border.color: settingCheckBox.checked
-                        ? Theme.selectionBorder : Theme.controlBorder
-                    border.width: 1
 
-                    Text {
-                        anchors.centerIn: parent
-                        visible: settingCheckBox.checked
-                        text: "✓"
-                        color: Theme.iconActive
-                        font.pixelSize: 14
-                        font.bold: true
-                    }
-                }
 
-                contentItem: Text {
-                    leftPadding: settingCheckBox.indicator.width + 12
-                    text: settingCheckBox.text
-                    color: settingCheckBox.hovered
-                        ? Theme.textPrimary : Theme.textSecondary
-                    font.pixelSize: 12
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                background: Rectangle {
-                    color: settingCheckBox.hovered
-                        ? Theme.controlHover : "transparent"
-                    radius: 5
-                }
             }
         }
     }

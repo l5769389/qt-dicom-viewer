@@ -3,16 +3,16 @@ import QtQuick.Layouts
 import "../../theme"
 Rectangle {
     default property alias contents: content.data
-    implicitHeight: content.implicitHeight + 32
-    color: Theme.controlBackground
+    implicitHeight: content.implicitHeight + 24
+    color: Theme.panelBackground
     border.color: Theme.borderDefault
-    radius: 7
+    radius: Theme.controlRadius
     ColumnLayout {
         id: content
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 16
-        spacing: 16
+        anchors.margins: 12
+        spacing: 10
     }
 }

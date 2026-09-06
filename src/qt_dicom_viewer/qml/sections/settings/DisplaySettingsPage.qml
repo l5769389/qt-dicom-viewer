@@ -12,12 +12,12 @@ Item {
     required property string title
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: page.width < 600 ? 16 : 24
-        spacing: 16
+        anchors.margins: 16
+        spacing: 10
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: page.title; color: Theme.textPrimary; font.pixelSize: 22; font.bold: true }
-            Components.AppButton { objectName: "resetDisplaySettings"; text: "恢复默认"; onClicked: page.settingsController.resetSection(page.category) }
+            Text { Layout.fillWidth: true; text: page.title; color: Theme.textPrimary; font.pixelSize: 18; font.bold: true }
+            Components.AppButton { objectName: "resetDisplaySettings"; text: "恢复默认"; compact: true; normalColor: "transparent"; baseBorderWidth: 1; onClicked: page.settingsController.resetSection(page.category) }
         }
         Text {
             Layout.fillWidth: true
@@ -40,7 +40,9 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: availableWidth
+            rightPadding: 12
             clip: true
+            Basic.ScrollBar.vertical: Components.AppScrollBar {}
             Loader {
                 id: content
                 width: scroll.availableWidth

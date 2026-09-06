@@ -75,7 +75,7 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
         if item.objectName().startswith("primaryTool-") and item.isVisible()
     ]
     assert primary_buttons
-    assert {button.height() for button in primary_buttons} == {58.0}
+    assert {button.height() for button in primary_buttons} == {48.0}
 
     _click(view, _find(root, "primaryTool-annotate"))
     _find(root, "annotatePanel")

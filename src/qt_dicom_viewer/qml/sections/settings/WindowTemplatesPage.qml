@@ -7,10 +7,10 @@ ColumnLayout {
     id: root
     required property var settingsController
     property string editingId: ""
-    spacing: 18
+    spacing: 12
     SettingsCard {
         Layout.fillWidth: true
-        Text { text: "窗模板"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+        Text { text: "窗模板"; color: Theme.textPrimary; font.pixelSize: 14; font.bold: true }
         Text { Layout.fillWidth: true; text: "勾选的模板显示在调窗面板中。系统模板可以启停，自定义模板可以编辑和删除。"; color: Theme.textMuted; font.pixelSize: 12; wrapMode: Text.Wrap }
         Repeater {
             model: root.settingsController.windowTemplates
@@ -52,7 +52,7 @@ ColumnLayout {
     }
     SettingsCard {
         Layout.fillWidth: true
-        Text { text: root.editingId ? "编辑自定义模板" : "新增自定义模板"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+        Text { text: root.editingId ? "编辑自定义模板" : "新增自定义模板"; color: Theme.textPrimary; font.pixelSize: 14; font.bold: true }
         Components.AppTextField { id: name; objectName: "windowTemplateName"; Layout.fillWidth: true; placeholderText: "模板名称"; maximumLength: 40 }
         RowLayout {
             Layout.fillWidth: true

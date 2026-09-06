@@ -53,47 +53,55 @@ ColumnLayout {
         font.weight: Font.DemiBold
     }
 
-    Basic.TextArea {
-        id: annotationEditor
-        objectName: "annotationTextEditor"
+    Basic.ScrollView {
         Layout.fillWidth: true
-        Layout.preferredHeight: 72
-        text: annotatePanel.controller
-            ? annotatePanel.controller.annotationText : ""
-        color: Theme.textPrimary
-        placeholderText: "请输入标注内容"
-        placeholderTextColor: Theme.textDisabled
-        wrapMode: TextEdit.Wrap
-        selectByMouse: true
-        font.pixelSize: 13
-        leftPadding: 9
-        rightPadding: 9
-        topPadding: 7
-        bottomPadding: 7
+        Layout.minimumWidth: 0
+        Layout.preferredHeight: 84
+        contentWidth: availableWidth
+        clip: true
+        Basic.ScrollBar.vertical: Components.AppScrollBar {}
+        Basic.ScrollBar.horizontal.policy: Basic.ScrollBar.AlwaysOff
+        Basic.TextArea {
+            id: annotationEditor
+            objectName: "annotationTextEditor"
+            text: annotatePanel.controller
+                ? annotatePanel.controller.annotationText : ""
+            color: Theme.textPrimary
+            placeholderText: "请输入标注内容"
+            placeholderTextColor: Theme.textDisabled
+            wrapMode: TextEdit.Wrap
+            selectByMouse: true
+            font.pixelSize: 13
+            leftPadding: 9
+            rightPadding: 9
+            topPadding: 7
+            bottomPadding: 7
 
-        onTextChanged: {
-            if (activeFocus && annotatePanel.controller) {
-                annotatePanel.viewportController.setAnnotationMode(true)
-                annotatePanel.controller.setAnnotationText(text)
+            onTextChanged: {
+                if (activeFocus && annotatePanel.controller) {
+                    annotatePanel.viewportController.setAnnotationMode(true)
+                    annotatePanel.controller.setAnnotationText(text)
+                }
             }
-        }
 
-        background: Rectangle {
-            color: Theme.controlBackground
-            border.color: annotationEditor.activeFocus
-                ? Theme.focusBorder : Theme.controlBorder
-            radius: 5
-        }
+            background: Rectangle {
+                color: Theme.controlBackground
+                border.color: annotationEditor.activeFocus
+                    ? Theme.focusBorder : Theme.inputBorder
+                radius: Theme.controlRadius
+            }
 
-        Connections {
-            target: annotatePanel.controller
-            function onEditorChanged() {
-                if (annotationEditor.text
-                        !== annotatePanel.controller.annotationText) {
-                    annotationEditor.text = annotatePanel.controller.annotationText
+            Connections {
+                target: annotatePanel.controller
+                function onEditorChanged() {
+                    if (annotationEditor.text
+                            !== annotatePanel.controller.annotationText) {
+                        annotationEditor.text = annotatePanel.controller.annotationText
+                    }
                 }
             }
         }
+
     }
 
     Text {
@@ -103,9 +111,10 @@ ColumnLayout {
         font.weight: Font.DemiBold
     }
 
-    RowLayout {
+    Flow {
         Layout.fillWidth: true
-        spacing: 7
+        Layout.minimumWidth: 0
+        spacing: 6
 
         Repeater {
             model: [
@@ -117,8 +126,9 @@ ColumnLayout {
                 id: colorButton
                 required property string modelData
                 objectName: "annotationColor-" + modelData.slice(1)
-                Layout.preferredWidth: 27
-                Layout.preferredHeight: 27
+                width: 28
+                height: 28
+                Accessible.name: "标注颜色 " + modelData
                 checked: annotatePanel.controller
                     && annotatePanel.controller.annotationColor === modelData
                 onClicked: annotatePanel.controller?.setAnnotationColor(modelData)
@@ -132,7 +142,6 @@ ColumnLayout {
                 }
             }
         }
-        Item { Layout.fillWidth: true }
     }
 
     RowLayout {
@@ -146,7 +155,7 @@ ColumnLayout {
             font.weight: Font.DemiBold
         }
 
-        Basic.Slider {
+        Components.AppSlider {
             id: fontSizeSlider
             objectName: "annotationFontSize"
             Layout.fillWidth: true
@@ -222,7 +231,7 @@ ColumnLayout {
                         ? Theme.selectionBackground : Theme.controlBackground
                     border.color: annotationItem.checked
                         ? Theme.selectionBorder : Theme.controlBorder
-                    radius: 5
+                    radius: Theme.controlRadius
                 }
             }
         }
@@ -260,7 +269,7 @@ ColumnLayout {
                 color: deleteAnnotationButton.hovered
                     ? Theme.controlHover : Theme.controlBackground
                 border.color: Theme.controlBorder
-                radius: 5
+                radius: Theme.controlRadius
             }
         }
 
@@ -283,7 +292,7 @@ ColumnLayout {
                 color: clearAnnotationsButton.hovered
                     ? Theme.controlHover : Theme.controlBackground
                 border.color: Theme.controlBorder
-                radius: 5
+                radius: Theme.controlRadius
             }
         }
     }

@@ -1,18 +1,20 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import "../theme"
 
 Basic.Button {
     id: control
+    Layout.minimumWidth: 0
 
     property bool compact: false
     property bool momentary: false
     property real iconSize: 18
     property real minimumButtonWidth: 40
-    property real cornerRadius: 6
+    property real cornerRadius: Theme.controlRadius
     property real fontPixelSize: 13
     property int fontWeight: Font.Normal
 
@@ -49,7 +51,7 @@ Basic.Button {
         contentRow.implicitWidth + leftPadding + rightPadding
     )
 
-    implicitHeight: compact ? 34 : 38
+    implicitHeight: compact ? Theme.compactControlHeight : Theme.controlHeight
 
     background: Rectangle {
         radius: control.cornerRadius
@@ -68,10 +70,10 @@ Basic.Button {
 
         border.width: Math.max(
             control.baseBorderWidth,
-            control.activeFocus || control.checked ? 1 : 0
+            control.activeFocus ? 2 : control.checked ? 1 : 0
         )
-        border.color: control.checked ? control.activeBorderColor
-            : control.activeFocus ? control.focusBorderColor
+        border.color: control.activeFocus ? control.focusBorderColor
+            : control.checked ? control.activeBorderColor
             : control.baseBorderColor
 
         Behavior on color {

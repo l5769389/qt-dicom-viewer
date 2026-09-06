@@ -48,7 +48,8 @@ def test_toolbar_placeholders_hover_but_cannot_activate(service_panel, tmp_path)
             assert 0 <= start.y() < end.y() <= view.height()
             label = next(item for item in _visual_children(button)
                          if item.objectName() == "toolbarLabel")
-            assert not label.property("truncated"), definition["toolType"]
+            assert not label.isVisible(), definition["toolType"]
+            assert button.parentItem().property("tooltipText")
             if not definition["available"]:
                 assert not button.isEnabled()
                 _click(view, button)

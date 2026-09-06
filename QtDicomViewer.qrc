@@ -26,6 +26,8 @@
         <file>src/qt_dicom_viewer/qml/assets/icons/tool-qa.png</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/tool-mip.png</file>
         <file>src/qt_dicom_viewer/qml/components/AppButton.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/AppSlider.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/AppScrollBar.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/components/ToolbarAction.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/LeftPanel.qml</file>

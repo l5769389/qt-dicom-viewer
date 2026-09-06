@@ -61,12 +61,14 @@ Item {
 
         MtfResults {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             visible: servicePanel.selectedService === "service:mtf"
             controller: servicePanel.viewportController?.mtfController ?? null
         }
 
         WaterQaResults {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             visible: servicePanel.selectedService === "service:qa"
             controller: servicePanel.viewportController?.qaController ?? null
         }

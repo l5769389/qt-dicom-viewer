@@ -45,7 +45,7 @@ Rectangle {
         function onModelReset() { panel.restoreScroll() }
     }
 
-    component Field: Basic.TextField {
+    component Field: Components.AppTextField {
         color: Theme.textPrimary
         placeholderTextColor: Theme.textSubtle
         selectionColor: Theme.selectionBackground
@@ -54,11 +54,6 @@ Rectangle {
         implicitHeight: 36
         leftPadding: 10
         rightPadding: 10
-        background: Rectangle {
-            color: Theme.canvasBackground
-            border.color: parent.activeFocus ? Theme.focusBorder : Theme.controlBorder
-            radius: 5
-        }
     }
 
     ColumnLayout {

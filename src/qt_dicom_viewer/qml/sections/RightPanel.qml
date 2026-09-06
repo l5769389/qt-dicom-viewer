@@ -5,6 +5,7 @@ import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "right" as Right
 import "../theme"
+import "../components" as Components
 
 Rectangle {
     id: rightPanel
@@ -86,7 +87,7 @@ Rectangle {
                 tabController: rightPanel.tabController
             }
 
-            Basic.ScrollBar.vertical: Basic.ScrollBar {
+            Basic.ScrollBar.vertical: Components.AppScrollBar {
                 policy: detailFlickable.contentHeight
                     > detailFlickable.height
                     ? Basic.ScrollBar.AsNeeded

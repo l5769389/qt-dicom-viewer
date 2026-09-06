@@ -40,6 +40,7 @@ Rectangle {
             id: contentLoader
 
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             Layout.alignment: Qt.AlignTop
             Layout.preferredHeight: detailPanel.loadedPanel
                 ? detailPanel.loadedPanel.implicitHeight

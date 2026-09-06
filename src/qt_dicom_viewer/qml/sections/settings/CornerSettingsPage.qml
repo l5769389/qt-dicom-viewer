@@ -10,7 +10,7 @@ ColumnLayout {
     readonly property var fields: settingsController.cornerFields
     property string fieldSearch: ""
     readonly property var availableFields: fields.filter(item => (item.label + item.key).toLowerCase().indexOf(fieldSearch.toLowerCase()) >= 0)
-    spacing: 18
+    spacing: 12
     function fieldLabel(key) { return fields.find(item => item.key === key)?.label ?? key }
     SettingsCard {
         Layout.fillWidth: true
@@ -18,7 +18,7 @@ ColumnLayout {
         GridLayout {
             Layout.fillWidth: true
             columns: root.width > 650 ? 2 : 1
-            columnSpacing: 24; rowSpacing: 18
+            columnSpacing: 16; rowSpacing: 10
             SettingSlider { Layout.fillWidth: true; title: "文字大小"; settingName: "corners-fontSize"; from: 10; to: 20; stepSize: 1; value: root.values.fontSize; onEdited: value => root.settingsController.setValue("corners", "fontSize", value) }
             SettingSlider { Layout.fillWidth: true; title: "行间距"; settingName: "corners-lineHeight"; from: 1; to: 1.8; stepSize: 0.1; suffix: " 倍"; value: root.values.lineHeight; onEdited: value => root.settingsController.setValue("corners", "lineHeight", value) }
             ColumnLayout {
@@ -36,7 +36,7 @@ ColumnLayout {
             SettingColor { Layout.fillWidth: true; enabled: root.values.colorMode === "custom"; title: "自定义颜色"; settingName: "corners-color"; value: root.values.color; onEdited: color => root.settingsController.setValue("corners", "color", color) }
         }
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 100
+            Layout.fillWidth: true; Layout.preferredHeight: Math.max(100, root.values.fontSize * root.values.lineHeight * 3 + 24)
             color: Theme.canvasBackground; radius: 5
             Text {
                 anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 12
@@ -53,7 +53,7 @@ ColumnLayout {
             }
         }
     }
-    Text { text: "显示内容与顺序"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+    Text { text: "显示内容与顺序"; color: Theme.textPrimary; font.pixelSize: 14; font.bold: true }
     Components.AppTextField { objectName: "cornerFieldSearch"; Layout.fillWidth: true; placeholderText: "筛选可添加的信息项"; onTextEdited: root.fieldSearch = text }
     GridLayout {
         Layout.fillWidth: true

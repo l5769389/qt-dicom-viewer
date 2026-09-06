@@ -29,7 +29,8 @@ ColumnLayout {
             required property var modelData
             objectName: "colorMap-" + modelData.colorMap
             Layout.fillWidth: true
-            implicitHeight: 38
+            implicitHeight: Math.max(38, contentItem.implicitHeight + 12)
+            Layout.minimumWidth: 0
             checked: pseudoColorPanel.viewportController
                 && pseudoColorPanel.viewportController.activeColorMap
                     === modelData.colorMap
@@ -42,7 +43,7 @@ ColumnLayout {
 
                 Canvas {
                     id: gradientPreview
-                    Layout.preferredWidth: 104
+                    Layout.preferredWidth: Math.min(80, colorMapButton.width * 0.3)
                     Layout.preferredHeight: 16
 
                     onPaint: {
@@ -63,6 +64,8 @@ ColumnLayout {
                     text: colorMapButton.modelData.label
                     color: colorMapButton.checked
                         ? Theme.textPrimary : Theme.textSecondary
+                    Layout.minimumWidth: 0
+                    wrapMode: Text.Wrap
                     font.pixelSize: 12
                     font.weight: colorMapButton.checked
                         ? Font.DemiBold : Font.Normal

@@ -26,15 +26,14 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
         Rectangle {
-            Layout.preferredWidth: page.width < 800 ? 152 : 192
+            Layout.preferredWidth: 152
             Layout.fillHeight: true
             color: Theme.panelBackground
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 12
-                spacing: 12
-                Text { text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 18; font.bold: true; Layout.topMargin: 12 }
-                Text { text: "DICOMVision"; color: Theme.textSubtle; font.pixelSize: 11 }
+                spacing: 10
+                Text { text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true; Layout.topMargin: 4 }
                 Components.AppTextField {
                     id: search
                     objectName: "settingsSearch"
@@ -48,7 +47,7 @@ Rectangle {
                     clip: true
                     ColumnLayout {
                         width: parent.width
-                        spacing: 6
+                        spacing: 4
                         Repeater {
                             model: page.categories
                             delegate: Components.AppButton {
@@ -56,17 +55,20 @@ Rectangle {
                                 required property var modelData
                                 objectName: "settingsCategory-" + modelData.key
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 56
+                                Layout.preferredHeight: 44
+                                topPadding: 5
+                                bottomPadding: 5
                                 visible: !search.text || (modelData.title + modelData.subtitle).toLowerCase().indexOf(search.text.toLowerCase()) >= 0
                                 checkable: true
-                        autoExclusive: true
+                                autoExclusive: true
                                 checked: page.selectedCategory === modelData.key
                                 onClicked: page.settingsController.selectCategory(modelData.key)
-                                baseBorderWidth: 1
+                                normalColor: "transparent"
+                                baseBorderWidth: 0
                                 contentItem: Column {
-                                    spacing: 5
+                                    spacing: 2
                                     Text { text: category.modelData.title; color: Theme.textPrimary; font.pixelSize: 13; font.bold: category.checked }
-                                    Text { text: category.modelData.subtitle; color: Theme.textMuted; font.pixelSize: 10 }
+                                    Text { text: category.modelData.subtitle; color: Theme.textMuted; font.pixelSize: 11 }
                                 }
                             }
                         }
