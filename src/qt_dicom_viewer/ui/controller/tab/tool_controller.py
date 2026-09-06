@@ -174,7 +174,7 @@ class ToolController(QObject):
                     else definition.default_interaction)
                 self._set_active_panel(definition.tool_type)
 
-            case ToolBehavior.COMMAND:
+            case ToolBehavior.COMMAND | ToolBehavior.TOGGLE:
                 if definition.command is not None:
                     self.commandRequested.emit(definition.command)
 
@@ -190,6 +190,7 @@ class ToolController(QObject):
 
         if self._tab_type == TabType.THREE_D and interaction not in (
             InteractionType.PAN, InteractionType.ZOOM, InteractionType.VOLUME_ROTATE, InteractionType.WINDOW,
+            InteractionType.VOLUME_CROP,
         ):
             return
         if interaction == InteractionType.SERVICE_MTF:
@@ -374,6 +375,7 @@ def build_tool_items(
 def tool_available(tool: ToolType, tab_type: TabType | None) -> bool:
     if tab_type == TabType.THREE_D:
         return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
-                        ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)
+                        ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.VOLUME_BED,
+                        ToolType.VOLUME_CROP, ToolType.RESET)
     supported = TOOL_DEFINITIONS[tool].supported_tab_types
     return tab_type is None or supported is None or tab_type in supported

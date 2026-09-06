@@ -11,6 +11,7 @@ from shiboken6 import delete
 from qt_dicom_viewer.core.volume_view import VolumeViewState
 from test_measurement_qml import _visual_children, qt_app
 from test_volume_display import loaded_tab, volume
+from test_volume_edit import draw, wait_edit
 
 
 @pytest.fixture
@@ -109,4 +110,34 @@ def test_ct_templates_are_disabled_in_mr_panel(panel):
         assert find(view, "volumePreset-"+preset).isEnabled()
         click(view, "volumePreset-"+preset)
         assert controller.currentPresetId == preset
+    assert not warnings, warnings
+
+
+def test_freehand_crop_actions_and_bottom_reset(panel, qt_app, tmp_path):
+    view, controller, tools, warnings = panel
+    click(view, "primaryTool-volume-crop")
+    assert tools.activePanel == "volume-crop" and tools.activeInteraction == "volume:crop"
+    assert not find(view, "volumeCrop-inside").isEnabled()
+    assert not find(view, "volumeCrop-outside").isEnabled()
+    draw(controller)
+    qt_app.processEvents()
+    assert find(view, "volumeCrop-inside").isEnabled()
+    assert find(view, "volumeCrop-outside").isEnabled()
+    assert view.grabWindow().save(str(tmp_path/"volume-crop-panel.png"))
+    click(view, "volumeCrop-outside")
+    wait_edit(qt_app, controller)
+    assert controller.hasCrop and not controller.hasCropSelection
+    click(view, "activeToolReset")
+    assert not controller.hasCrop
+    draw(controller)
+    qt_app.processEvents()
+    click(view, "volumeCrop-clear")
+    assert not controller.hasCropSelection
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("panel", ["MR"], indirect=True)
+def test_bed_toggle_is_disabled_for_non_ct(panel):
+    view, controller, tools, warnings = panel
+    assert not find(view, "primaryTool-volume-bed").isEnabled()
     assert not warnings, warnings

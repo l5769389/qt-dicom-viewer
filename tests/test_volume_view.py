@@ -146,6 +146,7 @@ def test_3d_tools_and_scoped_resets_are_independent_per_tab(volume):
     view, tools = tab.activeViewport, tab.toolController
     assert {t["toolType"] for t in tools.tools} == {
         "pan", "zoom", "volume-rotate", "volume-direction", "volume-preset", "window", "reset",
+        "volume-bed", "volume-crop",
     }
     assert tools.activeInteraction == "volume:rotate"
     assert tools.activePanel == ""

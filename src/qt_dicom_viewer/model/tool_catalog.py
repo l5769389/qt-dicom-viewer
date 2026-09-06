@@ -110,6 +110,23 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         reset_label="重置模板",
     ),
     ToolDefinition(
+        tool_type=ToolType.VOLUME_BED,
+        label="去床板",
+        icon_name="volume-bed",
+        behavior=ToolBehavior.TOGGLE,
+        command="volume:toggle-bed",
+        supported_tab_types=frozenset((TabType.THREE_D,)),
+    ),
+    ToolDefinition(
+        tool_type=ToolType.VOLUME_CROP,
+        label="裁剪",
+        icon_name="volume-crop",
+        behavior=ToolBehavior.INTERACTION_PANEL,
+        default_interaction=InteractionType.VOLUME_CROP,
+        supported_tab_types=frozenset((TabType.THREE_D,)),
+        reset_label="重置裁剪",
+    ),
+    ToolDefinition(
         tool_type=ToolType.ANNOTATE,
         label="标注",
         icon_name="annotate",

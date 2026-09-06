@@ -255,6 +255,11 @@ class TabController(QObject):
 
     @Slot(str)
     def _handle_tool_command(self, command: str) -> None:
+        if command == "volume:toggle-bed":
+            viewport = self.activeViewport
+            if isinstance(viewport, VolumeViewportController):
+                viewport.setBedRemovalEnabled(not viewport.bedRemovalEnabled)
+            return
         if command != "viewport:reset":
             logger.warning("Unknown tool command: %s", command)
             return

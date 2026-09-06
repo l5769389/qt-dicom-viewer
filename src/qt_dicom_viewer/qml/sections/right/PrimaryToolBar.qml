@@ -51,7 +51,9 @@ Rectangle {
             return toolFlow.maxColumnsByWidth
         }
         readonly property int rows: Math.ceil(toolBar.tools.length / toolFlow.columns)
-        readonly property real buttonWidth: Math.min(toolFlow.buttonMaxWidth, Math.max(toolFlow.buttonMinWidth, (toolFlow.availableWidth - (toolFlow.columns - 1) * toolFlow.spacing) / toolFlow.columns))
+        // Integral widths prevent floating-point overflow from wrapping the last
+        // button into an extra row outside the toolbar's calculated height.
+        readonly property real buttonWidth: Math.floor(Math.min(toolFlow.buttonMaxWidth, Math.max(toolFlow.buttonMinWidth, (toolFlow.availableWidth - (toolFlow.columns - 1) * toolFlow.spacing) / toolFlow.columns)))
 
         anchors.top: parent.top
         anchors.topMargin: 8
@@ -70,7 +72,10 @@ Rectangle {
                 required property var modelData
                 objectName: "primaryTool-" + primaryButton.modelData.toolType
                 readonly property bool feedbackActive: primaryButton.modelData.toolType === toolBar.feedbackTool
-                readonly property bool toolActive: toolBar.toolController ? primaryButton.modelData.toolType === toolBar.toolController.activeTool : false
+                readonly property bool bedAction: primaryButton.modelData.toolType === "volume-bed"
+                readonly property bool toolActive: bedAction
+                    ? !!toolBar.volumeController && toolBar.volumeController.bedRemovalEnabled
+                    : toolBar.toolController ? primaryButton.modelData.toolType === toolBar.toolController.activeTool : false
                 readonly property bool resetAction:
                     primaryButton.modelData.toolType === "reset"
                 readonly property bool directionAction:
@@ -78,8 +83,9 @@ Rectangle {
 
                 width: toolFlow.buttonWidth
                 height: toolFlow.buttonHeight
-                enabled: !toolBar.playbackActive
-                    || primaryButton.modelData.toolType === "play"
+                enabled: (!toolBar.playbackActive || primaryButton.modelData.toolType === "play")
+                    && (!bedAction || (toolBar.volumeController
+                        && toolBar.volumeController.bedRemovalAvailable && !toolBar.volumeController.editBusy))
                 opacity: enabled ? 1 : 0.38
                 checked: primaryButton.toolActive || primaryButton.feedbackActive
 
@@ -93,9 +99,13 @@ Rectangle {
 
                 Basic.ToolTip.visible: primaryButton.hovered
                 Basic.ToolTip.delay: 400
-                Basic.ToolTip.text: primaryButton.modelData.label + (primaryButton.directionAction
+                Basic.ToolTip.text: primaryButton.bedAction
+                    ? "去床板（CT） · " + (primaryButton.toolActive ? "已启用，点击关闭" : "点击启用")
+                    : primaryButton.modelData.label + (primaryButton.directionAction
                     && toolBar.volumeController ? " · " + toolBar.volumeController.currentFace : "")
                 Accessible.name: primaryButton.modelData.label
+                Accessible.checkable: primaryButton.bedAction
+                Accessible.checked: primaryButton.bedAction && primaryButton.toolActive
 
                 contentItem: Item {
                     Components.AppIcon {

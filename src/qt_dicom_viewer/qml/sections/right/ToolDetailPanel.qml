@@ -52,10 +52,18 @@ Rectangle {
                     "service": serviceComponent,
                     "volume-direction": volumeDirectionComponent,
                     "volume-preset": volumePresetComponent,
+                    "volume-crop": volumeCropComponent,
                     "play": playbackComponent
                 }
                 return map[detailPanel.activePanel] ?? null
             }
+        }
+    }
+
+    Component {
+        id: volumeCropComponent
+        Panels.VolumeCropPanel {
+            viewportController: detailPanel.viewportController
         }
     }
 

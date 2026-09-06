@@ -33,6 +33,7 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        self.host.controller.viewport_resized()
         self.host.request_render()
 
     def mousePressEvent(self, event):
@@ -61,7 +62,7 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.host.controller.end_drag()
+            self.host.controller.cancel_drag()
         else:
             QWidget.keyPressEvent(self, event)
 
@@ -69,7 +70,12 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
         QWidget.keyReleaseEvent(self, event)
 
     def focusOutEvent(self, event):
-        self.host.controller.end_drag()
+        # Clicking a crop action transfers focus to QML; keep a completed
+        # selection, but never finalize a stroke interrupted by focus loss.
+        if self.host.controller._drawing:
+            self.host.controller.cancel_drag()
+        else:
+            self.host.controller.end_drag()
         super().focusOutEvent(event)
 
 
@@ -117,14 +123,23 @@ class VolumeViewportHost(QWidget):
         self.vtk_widget.windowHandle().installEventFilter(self)
         controller.stateChanged.connect(self._state_changed)
         controller.displayStateChanged.connect(self._state_changed)
+        controller.maskChanged.connect(self._state_changed)
+        controller.selectionChanged.connect(self._selection_changed)
         controller.loadStateChanged.connect(self.sync_status)
         controller.activeInteractionChanged.connect(self._update_cursor)
         self._update_cursor()
 
     def _update_cursor(self):
-        shape = {"pan": Qt.SizeAllCursor, "zoom": Qt.SizeVerCursor, "window": Qt.CrossCursor}.get(
+        shape = {"pan": Qt.SizeAllCursor, "zoom": Qt.SizeVerCursor, "window": Qt.CrossCursor,
+                 "volume:crop": Qt.CrossCursor}.get(
             self.controller.activeInteraction, Qt.OpenHandCursor)
         self.vtk_widget.setCursor(shape)
+
+    def _selection_changed(self):
+        if self._disposed:
+            return
+        self.backend.set_selection(self.controller.selection_points, self.controller._selection_size)
+        self.request_render()
 
     def _state_changed(self):
         self.request_render(True)
@@ -178,7 +193,8 @@ class VolumeViewportHost(QWidget):
             return
         self._dirty = False
         try:
-            self.backend.render(self.controller.state, self._interactive, self.controller.display_state)
+            self.backend.render(self.controller.state, self._interactive, self.controller.display_state,
+                                self.controller.visible_mask)
         except Exception as error:
             logger.exception("VTK rendering failed")
             self.controller.render_failed(str(error))
@@ -196,6 +212,8 @@ class VolumeViewportHost(QWidget):
         self._settle.stop()
         self.controller.stateChanged.disconnect(self._state_changed)
         self.controller.displayStateChanged.disconnect(self._state_changed)
+        self.controller.maskChanged.disconnect(self._state_changed)
+        self.controller.selectionChanged.disconnect(self._selection_changed)
         self.controller.loadStateChanged.disconnect(self.sync_status)
         self.controller.activeInteractionChanged.disconnect(self._update_cursor)
         self.vtk_widget.DestroyTimer(None, None)

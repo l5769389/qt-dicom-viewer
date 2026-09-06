@@ -68,6 +68,20 @@ def _assert_service_panel_has_only_top_aligned_buttons(view):
     assert second.mapToItem(panel, QPointF(0, 0)).x() == pytest.approx(first.width() + 8)
 
 
+@pytest.mark.parametrize("service_panel", [None], indirect=True)
+def test_expanded_tool_catalog_fits_toolbar_at_fractional_column_width(service_panel):
+    view, controller, warnings = service_panel
+    view.resize(264, 560)
+    QTest.qWait(50)
+    for button in _visual_children(view.rootObject()):
+        if button.objectName().startswith("primaryTool-"):
+            assert button.y()+button.height() <= button.parentItem().height()
+    _click(view, _find(view, "primaryTool-service"))
+    assert controller.activePanel == "service"
+    assert _find(view, "serviceEntry-mtf").isEnabled()
+    assert not warnings, warnings
+
+
 def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(service_panel, tmp_path):
     view, controller, warnings = service_panel
     commands = []

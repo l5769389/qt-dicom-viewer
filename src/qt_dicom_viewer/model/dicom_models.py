@@ -47,6 +47,8 @@ class ToolType(StrEnum):
     VOLUME_ROTATE = "volume-rotate"
     VOLUME_DIRECTION = "volume-direction"
     VOLUME_PRESET = "volume-preset"
+    VOLUME_BED = "volume-bed"
+    VOLUME_CROP = "volume-crop"
     PLAY = "play"
     SERVICE = "service"
     RESET = "reset"
