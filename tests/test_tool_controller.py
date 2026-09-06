@@ -247,7 +247,7 @@ def test_service_selection_restores_corresponding_interaction_without_commands(a
 
     assert controller.activeTool == controller.activePanel == "service"
     assert controller.activeService == action
-    expected = InteractionType.SERVICE_MTF if action == "service:mtf" else InteractionType.NONE
+    expected = InteractionType(action)
     assert controller.active_interaction is expected
     assert selections == [action]
     assert commands == []

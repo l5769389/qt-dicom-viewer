@@ -136,7 +136,8 @@ def detect_water_phantom(pixels, spacing):
     return candidates[0]
 
 
-def measure_water_phantom(pixels, spacing, phantom, settings=WaterQaSettings()):
+def measure_water_phantom(pixels, spacing, phantom, settings=WaterQaSettings(), *, centers=None):
+    """Sample five ROIs, optionally at manually adjusted (column, row) centers."""
     array, spacing = _validate_input(pixels, spacing)
     diameter, clearance = settings.roi_diameter_mm, settings.edge_clearance_mm
     if not (math.isfinite(diameter) and 2 <= diameter <= 100
@@ -144,14 +145,28 @@ def measure_water_phantom(pixels, spacing, phantom, settings=WaterQaSettings()):
         raise ValueError("VOI 直径应为 2–100 mm，距边缘距离应为 0–100 mm")
     radius = diameter/2
     offset = phantom.radius_mm-radius-clearance
-    if offset < diameter:
+    if centers is None and offset < diameter:
         raise ValueError("水模尺寸不足以放置 5 个互不重叠的 VOI，请减小直径或距边缘距离")
     placements = (("center", "中心", 0, 0), ("left", "左", -offset, 0),
                   ("right", "右", offset, 0), ("top", "上", 0, -offset),
                   ("bottom", "下", 0, offset))
+    if centers is None:
+        centers = [(phantom.column+dx/spacing[1], phantom.row+dy/spacing[0])
+                   for _, _, dx, dy in placements]
+    else:
+        centers = np.asarray(centers, dtype=float)
+        if centers.shape != (5, 2) or not np.all(np.isfinite(centers)):
+            raise ValueError("需要 5 个有效的 ROI 中心")
+        physical = (centers - (phantom.column, phantom.row)) * (spacing[1], spacing[0])
+        if np.any(np.linalg.norm(physical, axis=1)+radius > phantom.radius_mm+1e-6):
+            raise ValueError("ROI 应位于水模内部")
+        for index, point in enumerate(physical):
+            if np.any(np.linalg.norm(physical[index+1:]-point, axis=1) < diameter-1e-6):
+                raise ValueError("ROI 不能重叠，请重新调整位置")
     rois = []
-    for key, label, dx, dy in placements:
-        column, row = phantom.column+dx/spacing[1], phantom.row+dy/spacing[0]
+    for (key, label, _, _), (column, row) in zip(placements, centers):
+        # QML QVariant maps need Python floats, not NumPy scalar wrappers.
+        column, row = float(column), float(row)
         rx, ry = radius/spacing[1], radius/spacing[0]
         x0, x1 = math.ceil(column-rx), math.floor(column+rx)+1
         y0, y1 = math.ceil(row-ry), math.floor(row+ry)+1

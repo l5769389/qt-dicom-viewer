@@ -48,8 +48,9 @@ Item {
                 anchors.fill: parent
                 ShapePath {
                     strokeColor: roi.modelData.color
-                    strokeWidth: 1.5
-                    fillColor: "transparent"
+                    strokeWidth: roi.modelData.editing || roi.modelData.hovered ? 2.5 : 1.5
+                    fillColor: roi.modelData.editing || roi.modelData.hovered
+                        ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
                     PathSvg { path: roi.outlinePath }
                 }
             }
@@ -66,8 +67,9 @@ Item {
                     id: label
                     objectName: "waterQaVoiLabel-" + roi.modelData.key
                     anchors.centerIn: parent
-                    text: roi.modelData.label + "  " + Number(roi.modelData.meanHu).toFixed(2) + " HU\n"
-                        + "SD  " + Number(roi.modelData.stdHu).toFixed(2) + " HU"
+                    text: roi.modelData.editing ? roi.modelData.label + " · 拖动中"
+                        : roi.modelData.label + "  " + Number(roi.modelData.meanHu).toFixed(2) + " HU\n"
+                            + "SD  " + Number(roi.modelData.stdHu).toFixed(2) + " HU"
                     color: Theme.overlayText
                     font.pixelSize: 10
                     lineHeight: 1.15

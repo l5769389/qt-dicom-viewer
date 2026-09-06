@@ -340,6 +340,10 @@ class Image2DViewportController(ViewportController):
             self._active_drag_operation, context = specific_interaction
         else:
             match self._tool_controller.active_interaction:
+                case InteractionType.SERVICE_QA:
+                    if self._qa_controller is not None and buttons & 1:
+                        self._qa_controller.begin_drag(column, row)
+                    return
                 case InteractionType.WINDOW:
                     self._active_drag_operation = self._window_level_operation
                     context = WindowLevelContext(
@@ -423,6 +427,9 @@ class Image2DViewportController(ViewportController):
             column: float,
             row: float,
     ) -> None:
+        if self._qa_controller is not None and self._qa_controller.dragging:
+            self._qa_controller.update_drag(column, row)
+            return
         operation = self._active_drag_operation
         start_position = self._active_drag_start_position
 
@@ -463,6 +470,9 @@ class Image2DViewportController(ViewportController):
             column: float,
             row: float,
     ) -> None:
+        if self._qa_controller is not None and self._qa_controller.dragging:
+            self._qa_controller.end_drag(column, row)
+            return
         operation = self._active_drag_operation
 
         self._active_drag_operation = None
@@ -497,7 +507,7 @@ class Image2DViewportController(ViewportController):
             line_tolerance: float,
     ) -> None:
         # UI 已拦截按住鼠标的 hover；这里再防御拖动期间的晚到事件。
-        if self._active_drag_operation is not None:
+        if self._active_drag_operation is not None or (self._qa_controller is not None and self._qa_controller.dragging):
             return
         if self._tool_controller.active_interaction == InteractionType.MEASURE_ANGLE:
             preview = ImagePoint(column, row) if isfinite(column) and isfinite(row) else None
@@ -538,6 +548,9 @@ class Image2DViewportController(ViewportController):
                                point_tolerance: float, line_tolerance: float) -> None:
         """只刷新测量命中；点击或拖动结束后使用它，不额外触发 XY/CT 采样。"""
         if self._active_drag_operation is not None:
+            return
+        if self._tool_controller.active_interaction == InteractionType.SERVICE_QA and self._qa_controller is not None:
+            self._qa_controller.update_hover(column, row)
             return
         context = self._measurement_context(point_tolerance, line_tolerance)
         if context is None:
@@ -999,6 +1012,9 @@ class Image2DViewportController(ViewportController):
     @Slot()
     def cancelMeasurement(self) -> None:
         self._measure_controller.cancel_transaction()
+        if self._qa_controller is not None:
+            self._qa_controller.cancel_drag()
+            self._qa_controller.clearHover()
         if self._mtf_controller is not None:
             self._mtf_controller.roiController.cancel_transaction()
         if isinstance(self._active_drag_operation, MeasurementController):

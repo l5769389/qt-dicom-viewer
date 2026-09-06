@@ -165,12 +165,17 @@ Item {
                 : ""
         measurementCursorKind:
             viewportRoot.viewportController
-                ? viewportRoot.viewportController.activeAnnotationController.hoverCursorKind
+                ? (activeInteraction === "service:qa" && viewportRoot.viewportController.qaController
+                    ? viewportRoot.viewportController.qaController.hoverCursorKind
+                    : viewportRoot.viewportController.activeAnnotationController.hoverCursorKind)
                 : ""
 
         onPointerExited: {
-            if (viewportRoot.viewportController)
+            if (viewportRoot.viewportController) {
                 viewportRoot.viewportController.activeAnnotationController.clearHover()
+                if (viewportRoot.viewportController.qaController)
+                    viewportRoot.viewportController.qaController.clearHover()
+            }
         }
 
         onTapped: position => {

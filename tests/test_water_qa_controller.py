@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 import pytest
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QPointF, QThread
 
 from qt_dicom_viewer.core.water_qa import analyze_water_phantom
 from qt_dicom_viewer.model import PixelSpacing, ToolType, WindowLevel
@@ -69,7 +69,7 @@ def test_service_activation_runs_worker_and_returns_five_rois_on_gui_thread(qa_v
     wait_qa(qt_app, qa)
     assert qa.enabled and len(qa.roiItems) == 5
     assert qa.currentResult["noise_hu"] == pytest.approx(5, abs=1)
-    assert tools.activeInteraction == ""
+    assert tools.activeInteraction == "service:qa"
     assert tools.resetLabel == "重置水模 QA"
     assert view.measurementController.measurementItems == []
     assert view.mtfController.roiController.measurementItems == []
@@ -226,3 +226,81 @@ def test_snapshots_independent_viewports_and_shutdown_ignore_callbacks(qa_view, 
     mr.activate()
     assert not mr.available and not mr.enabled
     mr.shutdown()
+
+
+def drag_qa(view, index=0, dx=8, dy=6, commit=True):
+    roi = view.qaController.currentResult["rois"][index]
+    column, row = roi["column"], roi["row"]
+    view.beginInteraction(100, 100, 1, True, column, row, 3, 2)
+    view.updateInteraction(QPointF(100, 100), QPointF(108, 106), QPointF(8, 6),
+                           QPointF(8, 6), True, column+dx, row+dy)
+    if commit:
+        view.endInteraction(108, 106, True, column+dx, row+dy)
+
+
+def test_manual_drag_remeasures_and_caches_each_slice_without_detection(qa_view, qt_app, monkeypatch):
+    view, frame = qa_view
+    qa, tools = view.qaController, view._tool_controller
+    tools.selectService("service:qa")
+    wait_qa(qt_app, qa)
+    original = qa.currentResult
+    def unexpected_detection(*args):
+        pytest.fail("Dragging must not redetect or replace other ROI positions")
+    monkeypatch.setattr(qa, "_submit", unexpected_detection)
+    for index in range(5):
+        before = qa.currentResult["rois"]
+        drag_qa(view, index)
+        after = qa.currentResult["rois"]
+        assert not qa.dragging and qa.status == "ready" and not qa.error
+        for j in range(5):
+            assert after[j]["column"] == pytest.approx(before[j]["column"]+(8 if index == j else 0))
+            assert after[j]["row"] == pytest.approx(before[j]["row"]+(6 if index == j else 0))
+    saved = qa.currentResult
+    assert saved["water_ct_hu"] != original["water_ct_hu"]
+    tools.activateTool("pan")
+    drag_qa(view)
+    assert qa.currentResult == saved
+    tools.activateTool("service")
+    assert tools.activeInteraction == "service:qa"
+    view.apply_slice_index(1)
+    assert qa.currentResult == {}
+    view.apply_slice_index(0)
+    view.handleRenderResult(frame)
+    assert qa.currentResult == saved
+    view.applyTransformAction("rotate:mirror-h")
+    view.handleRenderResult(replace(frame, image=255-frame.image))
+    assert qa.currentResult == saved
+
+
+def test_drag_preview_cancel_overlap_and_bounds_keep_complete_results(qa_view, qt_app):
+    view, frame = qa_view
+    qa, tools = view.qaController, view._tool_controller
+    tools.selectService("service:qa")
+    wait_qa(qt_app, qa)
+    saved = qa.currentResult
+    for cancel in (view.cancelMeasurement, lambda: tools.activateTool("pan")):
+        drag_qa(view, commit=False)
+        assert qa.dragging and qa.roiItems[0]["editing"]
+        assert qa.roiItems[0]["column"] == pytest.approx(saved["rois"][0]["column"]+8)
+        assert qa.currentResult == saved
+        cancel()
+        assert not qa.dragging and qa.currentResult == saved
+        tools.activateTool("service")
+    center, left = saved["rois"][:2]
+    drag_qa(view, dx=left["column"]-center["column"], dy=0)
+    assert "重叠" in qa.error and qa.currentResult == saved
+    drag_qa(view, index=2, dx=10000, dy=4000)
+    assert not qa.error
+    roi, phantom = qa.currentResult["rois"][2], saved["phantom"]
+    distance = np.hypot(roi["column"]-phantom["column"], roi["row"]-phantom["row"])
+    assert distance+roi["radius_mm"] == pytest.approx(phantom["radius_mm"])
+    drag_qa(view, commit=False)
+    view.apply_slice_index(1)
+    assert not qa.dragging and qa.roiItems == []
+    view.endInteraction(0, 0, True, 0, 0)
+    view.apply_slice_index(0)
+    view.handleRenderResult(frame)
+    assert qa.currentResult["rois"][0] == saved["rois"][0]
+    qa.analyze()
+    wait_qa(qt_app, qa)
+    assert qa.currentResult == saved

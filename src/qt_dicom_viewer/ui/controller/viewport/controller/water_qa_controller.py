@@ -7,7 +7,7 @@ import math
 import numpy as np
 from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, Qt, Signal, Slot
 
-from qt_dicom_viewer.core.water_qa import analyze_water_phantom
+from qt_dicom_viewer.core.water_qa import analyze_water_phantom, measure_water_phantom
 from qt_dicom_viewer.model.water_qa import WaterQaSettings
 
 
@@ -49,6 +49,8 @@ class WaterQaController(QObject):
         self._enabled = False
         self._frame = self._pixels = self._key = None
         self._status, self._error, self._result = "empty", "", None
+        self._drag = self._draft_centers = None
+        self._hover_key = ""
 
     @Property(bool, constant=True)
     def available(self):
@@ -66,9 +68,17 @@ class WaterQaController(QObject):
     def statusText(self):
         if not self.available:
             return "水模 QA 仅支持 CT 影像"
-        return {"empty": "点击“自动识别”定位当前层水模", "waiting": "等待当前切片加载…",
-                "calculating": "正在识别水模并计算 5 个 VOI…", "error": "当前切片无法分析",
-                "ready": "当前层 · 中心、左、右、上、下共 5 个 VOI"}[self._status]
+        return {"empty": "待识别", "waiting": "切片加载中…",
+                "calculating": "识别中…", "error": "",
+                "ready": "拖动中 · 松开更新" if self.dragging else ""}[self._status]
+
+    @Property(bool, notify=stateChanged)
+    def dragging(self):
+        return self._drag is not None
+
+    @Property(str, notify=stateChanged)
+    def hoverCursorKind(self):
+        return "pan" if self._hover_key else ""
 
     @Property(str, notify=stateChanged)
     def error(self):
@@ -96,10 +106,86 @@ class WaterQaController(QObject):
             return []
         row_spacing, column_spacing = self._frame.instance_meta.pixel_spacing
         colors = ("#f6bf66", "#41cce5", "#41cce5", "#8de1b1", "#8de1b1")
-        return [dict(key=r.key, label=r.label, column=r.column, row=r.row,
+        centers = self._draft_centers or [(r.column, r.row) for r in self._result.rois]
+        return [dict(key=r.key, label=r.label, column=center[0], row=center[1],
                      radiusColumn=r.radius_mm/column_spacing, radiusRow=r.radius_mm/row_spacing,
-                     meanHu=r.mean_hu, stdHu=r.std_hu, color=color)
-                for r, color in zip(self._result.rois, colors)]
+                     meanHu=r.mean_hu, stdHu=r.std_hu, color=color,
+                     editing=self._drag is not None and self._drag[0] == index,
+                     hovered=r.key == self._hover_key)
+                for index, (r, color, center) in enumerate(zip(self._result.rois, colors, centers))]
+
+    def _hit_roi(self, column, row):
+        if (not self._enabled or self._status != "ready" or self._result is None
+                or not math.isfinite(column) or not math.isfinite(row)):
+            return None
+        sy, sx = self._frame.instance_meta.pixel_spacing
+        for index, roi in enumerate(self._result.rois):
+            if math.hypot((column-roi.column)*sx, (row-roi.row)*sy) <= roi.radius_mm:
+                return index
+        return None
+
+    def update_hover(self, column, row):
+        if self.dragging:
+            return
+        index = self._hit_roi(column, row)
+        key = "" if index is None else self._result.rois[index].key
+        if key != self._hover_key:
+            self._hover_key = key
+            self.stateChanged.emit()
+
+    @Slot()
+    def clearHover(self):
+        if self._hover_key:
+            self._hover_key = ""
+            self.stateChanged.emit()
+
+    def begin_drag(self, column, row):
+        self.cancel_drag()
+        index = self._hit_roi(column, row)
+        if index is None:
+            return
+        self._drag = (index, column, row)
+        self._draft_centers = [(r.column, r.row) for r in self._result.rois]
+        self._error = ""
+        self.stateChanged.emit()
+
+    def update_drag(self, column, row):
+        if not self.dragging or not math.isfinite(column) or not math.isfinite(row):
+            return
+        index, start_column, start_row = self._drag
+        roi, phantom = self._result.rois[index], self._result.phantom
+        sy, sx = self._frame.instance_meta.pixel_spacing
+        dx = (roi.column+column-start_column-phantom.column)*sx
+        dy = (roi.row+row-start_row-phantom.row)*sy
+        distance = math.hypot(dx, dy)
+        # Constrain the complete circle to the detected water region. Pointer
+        # displacement remains relative to the press, so the ROI never jumps.
+        scale = min(1.0, (phantom.radius_mm-roi.radius_mm)/max(distance, 1e-9))
+        center = (phantom.column+dx*scale/sx, phantom.row+dy*scale/sy)
+        if center != self._draft_centers[index]:
+            self._draft_centers[index] = center
+            self.stateChanged.emit()
+
+    def end_drag(self, column, row):
+        if not self.dragging:
+            return
+        self.update_drag(column, row)
+        centers = self._draft_centers
+        self._drag = self._draft_centers = None
+        try:
+            result = measure_water_phantom(self._pixels, self._frame.instance_meta.pixel_spacing,
+                                          self._result.phantom, self._settings, centers=centers)
+        except ValueError as exc:
+            self._error = str(exc)  # Keep the last complete, valid measurement.
+        else:
+            self._result, self._error = result, ""
+            self._cache[self._cache_key()] = (result, "")
+        self.stateChanged.emit()
+
+    def cancel_drag(self):
+        if self.dragging:
+            self._drag = self._draft_centers = None
+            self.stateChanged.emit()
 
     def set_frame(self, series_uid, frame, pixels):
         if self._closed:
@@ -129,6 +215,8 @@ class WaterQaController(QObject):
     def _invalidate(self):
         self._token += 1
         self._pending = None
+        self._drag = self._draft_centers = None
+        self._hover_key = ""
         self._status, self._error, self._result = "empty", "", None
 
     @Slot()
@@ -211,6 +299,7 @@ class WaterQaController(QObject):
         if settings == self._settings:
             return
         self._settings = settings
+        self._cache.clear()
         self.settingsChanged.emit()
         self._invalidate()
         if self._enabled:

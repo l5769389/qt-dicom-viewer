@@ -94,7 +94,7 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
         button = _find(view, "serviceEntry-" + entry)
         _click(view, button)
         assert controller.activeService == "service:" + entry
-        assert controller.activeInteraction == ("service:mtf" if entry == "mtf" else "")
+        assert controller.activeInteraction == "service:" + entry
         assert button.property("checked")
         _assert_service_panel_has_only_top_aligned_buttons(view)
         other = _find(view, "serviceEntry-" + ("qa" if entry == "mtf" else "mtf"))
@@ -142,7 +142,7 @@ def test_automatic_qa_cancels_draft_and_does_not_draw_manual_measurements(viewpo
     _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
     assert controller.measurementController.measurementItems == []
     assert not controller.measurementController.has_active_transaction
-    assert tools.activeInteraction == ""
+    assert tools.activeInteraction == "service:qa"
     assert not warnings, warnings
 
     # 切回普通测量后，原有矩形绘制功能仍可正常使用。

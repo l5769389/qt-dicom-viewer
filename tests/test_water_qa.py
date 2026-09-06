@@ -18,6 +18,51 @@ def water_image(shape=(320, 400), spacing=(1.0, 1.0), center=(204.2, 149.4),
     return pixels
 
 
+def test_manual_centers_sample_original_pixels_and_recompute_all_differences():
+    spacing = (.7, .5)
+    pixels = water_image((400, 512), spacing, (260, 190))
+    y, x = np.indices(pixels.shape)
+    pixels += (x*.04+y*.02).astype(np.float32)
+    original = analyze_water_phantom(pixels, spacing)
+    centers = [(r.column+7, r.row+5) for r in original.rois]
+    result = measure_water_phantom(pixels, spacing, original.phantom, centers=centers)
+    means, deviations = [], []
+    for roi, (column, row) in zip(result.rois, centers):
+        samples = pixels[((x-column)*spacing[1])**2+((y-row)*spacing[0])**2 <= 10**2].astype(float)
+        assert (roi.column, roi.row) == (column, row)
+        assert type(roi.column) is float and type(roi.row) is float
+        assert roi.mean_hu == pytest.approx(samples.mean())
+        assert roi.std_hu == pytest.approx(samples.std())
+        assert roi.pixel_count == len(samples)
+        means.append(samples.mean())
+        deviations.append(samples.std())
+    assert result.water_ct_hu == means[0] != original.water_ct_hu
+    assert result.noise_hu == deviations[0]
+    assert result.uniformity_hu == pytest.approx(max(abs(m-means[0]) for m in means[1:]))
+    assert result.consistency_range_hu == pytest.approx(max(means)-min(means))
+    assert result.horizontal_difference_hu == pytest.approx(abs(means[1]-means[2]))
+    assert result.vertical_difference_hu == pytest.approx(abs(means[3]-means[4]))
+    assert result.noise_range_hu == pytest.approx(max(deviations)-min(deviations))
+    assert [r.delta_center_hu for r in result.rois] == pytest.approx([m-means[0] for m in means])
+
+
+@pytest.mark.parametrize("invalid", ["count", "nan", "outside", "overlap"])
+def test_manual_centers_reject_incomplete_or_invalid_regions(invalid):
+    pixels = water_image()
+    result = analyze_water_phantom(pixels, (1, 1))
+    centers = [(r.column, r.row) for r in result.rois]
+    if invalid == "count":
+        centers.pop()
+    elif invalid == "nan":
+        centers[0] = (np.nan, centers[0][1])
+    elif invalid == "outside":
+        centers[0] = (result.phantom.column+result.phantom.radius_mm, result.phantom.row)
+    else:
+        centers[0] = centers[1]
+    with pytest.raises(ValueError):
+        measure_water_phantom(pixels, (1, 1), result.phantom, centers=centers)
+
+
 @pytest.mark.parametrize("spacing,shape,center", [
     ((1, 1), (320, 400), (204.2, 149.4)),
     ((.7, .5), (400, 512), (260.5, 190.7)),

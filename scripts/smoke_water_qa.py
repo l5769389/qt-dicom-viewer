@@ -119,8 +119,41 @@ def main():
             assert 5 < qa.currentResult["noise_hu"] < 7
             for key in ("center", "left", "right", "top", "bottom"):
                 assert find("waterQaVoi-"+key).isVisible()
+            pixels = find("dicomPixelLayer")
+            for index in range(5):
+                before = qa.currentResult["rois"]
+                roi = before[index]
+                start = pixels.mapToScene(QPointF(roi["column"]+.5, roi["row"]+.5)).toPoint()
+                end = pixels.mapToScene(QPointF(roi["column"]+8.5, roi["row"]+5.5)).toPoint()
+                QTest.mousePress(root, Qt.LeftButton, pos=start)
+                QTest.mouseMove(root, (start+end)/2, 20)
+                assert qa.dragging
+                QTest.mouseMove(root, end, 20)
+                QTest.mouseRelease(root, Qt.LeftButton, pos=end)
+                pump()
+                adjusted = qa.currentResult["rois"][index]
+                assert not qa.error and not qa.dragging
+                assert abs(adjusted["column"]-roi["column"]-8) < 1
+                assert abs(adjusted["row"]-roi["row"]-5) < 1
+                for region in qa.currentResult["rois"]:
+                    item = find("waterQaVoi-"+region["key"])
+                    expected_point = pixels.mapToItem(item, QPointF(region["column"]+.5, region["row"]+.5))
+                    actual_point = item.property("center")
+                    assert abs(actual_point.x()-expected_point.x()) < .01
+                    assert abs(actual_point.y()-expected_point.y()) < .01
+                y, x = np.indices(expected[0].shape)
+                mask = ((x-adjusted["column"])*.6)**2+((y-adjusted["row"])*.8)**2 <= adjusted["radius_mm"]**2
+                assert abs(adjusted["mean_hu"]-expected[0][mask].mean()) < 1e-6
+            QTest.mouseMove(root, QPointF(30, 30).toPoint())
+            pump()
             if len(sys.argv) > 1:
                 assert root.grabWindow().save(sys.argv[1])
+            click("waterQaInfo-uniformity_hu")
+            assert "最大绝对值" in find("waterQaInfoDetail").property("text")
+            if len(sys.argv) > 1:
+                path = Path(sys.argv[1])
+                assert root.grabWindow().save(str(path.with_stem(path.stem+"-info")))
+            click("waterQaInfoClose")
             saved, token = qa.currentResult, qa._token
             view.applyWindowPreset(200, 800)
             wait_for(lambda: view.current_window.center == 200)
@@ -142,8 +175,8 @@ def main():
             wait_for(lambda: qa.status == "ready")
             assert len(qa.roiItems) == 5
             assert not warnings, "\n".join(warnings)
-            print("PASS: rescaled HU DICOM loading, automatic five-ROI QA, per-slice analysis/cache, "
-                  "display transforms, scoped reset, no QML warnings", flush=True)
+            print("PASS: rescaled HU DICOM loading, automatic five-ROI QA, five mouse drags and HU resampling, "
+                  "clickable help, per-slice edited-position cache, display transforms, scoped reset, no QML warnings", flush=True)
         except BaseException:
             errors.append(traceback.format_exc())
             print(errors[-1], flush=True)

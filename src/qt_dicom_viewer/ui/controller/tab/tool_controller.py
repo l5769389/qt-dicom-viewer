@@ -172,8 +172,8 @@ class ToolController(QObject):
             case ToolBehavior.PANEL:
                 self._set_active_tool(definition.tool_type)
                 self._set_active_interaction(
-                    InteractionType.SERVICE_MTF
-                    if tool_type == ToolType.SERVICE and self._active_service == "service:mtf"
+                    InteractionType(self._active_service)
+                    if tool_type == ToolType.SERVICE and self._active_service in ("service:mtf", "service:qa")
                     else definition.default_interaction)
                 self._set_active_panel(definition.tool_type)
 
@@ -196,7 +196,7 @@ class ToolController(QObject):
             InteractionType.VOLUME_CROP,
         ):
             return
-        if interaction == InteractionType.SERVICE_MTF:
+        if interaction in (InteractionType.SERVICE_MTF, InteractionType.SERVICE_QA):
             self.selectService(interaction.value)
             return
         self._set_active_interaction(interaction)
@@ -206,7 +206,7 @@ class ToolController(QObject):
 
     @Slot(str)
     def selectService(self, action: str) -> None:
-        """MTF 使用矩形交互，QA 在选择入口时自动分析当前切片。"""
+        """MTF 绘制矩形，QA 自动识别并支持拖动已有 ROI。"""
         if action not in {item.action for item in SERVICE_ACTIONS}:
             logger.warning("Unknown service entry: %s", action)
             return
@@ -218,7 +218,7 @@ class ToolController(QObject):
         if action != self._active_service:
             self._active_service = action
             self.activeServiceChanged.emit()
-        self._set_active_interaction(InteractionType.SERVICE_MTF if action == "service:mtf"
+        self._set_active_interaction(InteractionType(action) if action in ("service:mtf", "service:qa")
                                      else InteractionType.NONE)
         self.serviceSelected.emit(action)
 

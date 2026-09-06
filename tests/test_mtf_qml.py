@@ -138,7 +138,7 @@ def test_real_service_roi_to_canvas_chart_and_metrics(workspace, tmp_path):
         QTest.qWait(20)
     saved = controller.mtfController.roiController.measurementItems
     _click(view, _find(view, "serviceEntry-qa"))
-    assert controller.activeInteraction == ""
+    assert controller.activeInteraction == "service:qa"
     assert controller._tool_controller.canResetActiveTool
     assert controller._tool_controller.resetLabel == "重置水模 QA"
     assert not [item for item in _visual_children(view.rootObject())
