@@ -8,6 +8,8 @@ class TabType(StrEnum):
     THREE_D = "3d"
     FOUR_D = "4d"
     TAG = "tag"
+    SETTINGS = "settings"
+    PACS = "pacs"
 
 
 class TwoDViewType(StrEnum):

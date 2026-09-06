@@ -9,6 +9,7 @@ ApplicationWindow {
     id: window
     readonly property var panelController: appController.panelController
     readonly property var workspaceController: appController.workspaceController
+    readonly property var pacsController: appController.pacsController ?? null
     readonly property bool hasTabs: workspaceController.tabs.length > 0
     readonly property var viewportController:
         workspaceController.activeViewport
@@ -34,6 +35,8 @@ ApplicationWindow {
             Layout.maximumWidth: implicitWidth
             Layout.fillHeight: true
             panelController: window.panelController
+            pacsController: window.pacsController
+            workspaceController: window.workspaceController
         }
 
         CenterSections.CenterPanel {
@@ -41,19 +44,20 @@ ApplicationWindow {
             Layout.fillHeight: true
             workspaceController: window.workspaceController
             panelController: window.panelController
+            pacsController: window.pacsController
             currentTabAllViewports: window.currentTabAllViewports
             viewportController: window.viewportController
         }
 
         Sections.RightPanel {
-            visible: window.hasTabs && window.workspaceController.activeTabType !== "tag"
+            visible: window.hasTabs && ["tag", "settings", "pacs"].indexOf(window.workspaceController.activeTabType) < 0
             Layout.minimumWidth: visible ? 220 : 0
             Layout.preferredWidth: visible ? 250 : 0
             Layout.maximumWidth: visible ? 280 : 0
             Layout.fillHeight: true
             toolController: window.toolController
             viewportController: window.viewportController
-            tabController: window.workspaceController.activeTab
+            tabController: visible ? window.workspaceController.activeTab : null
             toolVisible: visible
             // onRotationActionTriggered: action => {
             //     if (window.viewportController) {

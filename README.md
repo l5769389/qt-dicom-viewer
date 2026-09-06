@@ -8,6 +8,17 @@ A lightweight DICOM viewer built with PySide6 and QML.
 uv run qt-dicom-viewer
 ```
 
+## PACS 数据源
+
+左侧栏底部 **设置 → 数据源** 可新增、编辑、测试和管理 DICOMweb PACS 配置。
+通过首页 **从 PACS 导入序列** 或侧栏 **PACS 浏览器** 查询检查、选择序列并后台下载，
+完成后加入现有序列列表并打开 2D。支持多个配置、Basic/Bearer 认证、分页、多序列选择、
+进度和取消；密码/令牌只保留在当前会话。当前协议为 DICOMweb，尚不包含 DIMSE。
+
+配置地址、存储位置、使用步骤及验证范围见 [PACS 使用说明](docs/pacs.md)。
+使用 OrbStack / Docker 启动 Orthanc、dcm4chee 并验证完整导入流程，见
+[本地 PACS 联调环境](docs/pacs-lab.md)。
+
 ## Dev Auto-Restart
 
 ```bash

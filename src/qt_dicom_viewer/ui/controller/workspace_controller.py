@@ -17,6 +17,8 @@ from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.model.render_models import VolumeLoadResult
 
+from qt_dicom_viewer.ui.controller.utility_tab_controller import UtilityTabController
+
 logger = logging.getLogger(__name__)
 
 class WorkspaceController(QObject):
@@ -33,10 +35,25 @@ class WorkspaceController(QObject):
                  parent = None):
         super().__init__(parent)
         self._series_catalog = series_catalog
-        self._tab_dict:dict[str, TabController] = {}
+        self._tab_dict:dict[str, TabController | UtilityTabController] = {}
         self._active_tab_id: str | None = None
         self._image_provider = image_provider
         self._tag_read_service = TagReadService(self)
+
+    @Slot()
+    def openSettings(self):
+        self._open_utility(TabType.SETTINGS, "设置")
+
+    @Slot()
+    def openPacs(self):
+        self._open_utility(TabType.PACS, "PACS 浏览器")
+
+    def _open_utility(self, tab_type, label):
+        tab_id = f"workspace-{tab_type.value}"
+        if tab_id not in self._tab_dict:
+            self._tab_dict[tab_id] = UtilityTabController(tab_type, label, self)
+            self.tabsChanged.emit()
+        self.activateTabId(tab_id)
 
     @Slot(str)
     def closeTab(self, tab_id: str):
@@ -122,7 +139,7 @@ class WorkspaceController(QObject):
         return self._active_tab_id
 
     @Property(QObject,notify=activeTabChanged)
-    def activeTab(self) -> TabController | None:
+    def activeTab(self) -> TabController | UtilityTabController | None:
         return self._tab_dict.get(self._active_tab_id, None)
 
     @Property(str, notify=activeTabChanged)
@@ -140,6 +157,8 @@ class WorkspaceController(QObject):
                         tab_label: str,
                         tab_type: TabType
                    ):
+        if tab_type in (TabType.SETTINGS, TabType.PACS):
+            return
         tab_id = f'{series_uid}_{tab_type}'
         if tab_id == self._active_tab_id:
             return

@@ -197,6 +197,22 @@ class PanelController(QObject):
             self._scan_thread.quit()
             self._scan_thread.wait()
 
+    @Slot(object)
+    def acceptPacsImport(self, snapshot: DicomFolderScanSnapshot):
+        if self._closing:
+            return
+        for series in snapshot.series:
+            self._removed_series_uids.discard(series.series_instance_uid)
+        self.update_series_session(snapshot)
+        self._update_series_record(snapshot)
+        self.setPatientSearch("")
+        self._collapsed_groups.clear()
+        self.sidebarItemsChanged.emit()
+        if snapshot.series:
+            first_uid = snapshot.series[0].series_instance_uid
+            self.selectSeries(first_uid)
+            self.openSeriesView(first_uid, "2d")
+
     @Slot()
     def openFolderDialog(self) -> None:
         if self._scanning:

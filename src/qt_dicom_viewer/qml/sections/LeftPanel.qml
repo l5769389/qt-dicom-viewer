@@ -10,6 +10,8 @@ Rectangle {
     id: leftPanel
     objectName: "leftPanel"
     required property var panelController
+    property var pacsController: null
+    property var workspaceController: null
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property var viewTypes: [
         {label: "2D", type: "2d", supported: true},
@@ -71,6 +73,7 @@ Rectangle {
                 spacing: 4
                 Components.AppButton {
                     objectName: "sidebarOpenFolder"
+                    visible: !leftPanel.pacsController || leftPanel.pacsController.localEnabled
                     Layout.preferredWidth: leftPanel.width < 230 ? 30 : 34
                     Layout.fillHeight: true
                     compact: true
@@ -148,6 +151,17 @@ Rectangle {
                 border.color: parent.activeFocus ? Theme.focusBorder : Theme.borderDefault
                 radius: 6
             }
+        }
+
+        Components.AppButton {
+            objectName: "sidebarPacs"
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            visible: leftPanel.pacsController && leftPanel.pacsController.pacsEnabled
+            text: "PACS 浏览器"
+            baseBorderWidth: 1
+            onClicked: leftPanel.workspaceController.openPacs()
         }
 
         ListView {
@@ -298,6 +312,16 @@ Rectangle {
                 horizontalAlignment: Text.AlignHCenter
                 lineHeight: 1.4
             }
+        }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.dividerColor }
+        Components.AppButton {
+            objectName: "sidebarSettings"
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            text: "⚙  设置"
+            visible: leftPanel.workspaceController !== null
+            onClicked: leftPanel.workspaceController.openSettings()
         }
     }
 

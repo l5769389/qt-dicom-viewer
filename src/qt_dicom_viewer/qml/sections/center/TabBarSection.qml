@@ -72,9 +72,8 @@ Basic.TabBar {
                     Text {
                         anchors.centerIn: parent
                         font.pixelSize: 11
-                        text: String(
-                            tabButton.modelData.tabType
-                        ).toUpperCase()
+                        text: String(tabButton.modelData.tabType).toLowerCase() === "settings"
+                            ? "⚙" : String(tabButton.modelData.tabType).toUpperCase()
                         font.weight: tabButton.checked
                             ? Font.DemiBold : Font.Normal
                         color: tabButton.checked

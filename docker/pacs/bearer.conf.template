@@ -1,0 +1,19 @@
+map $http_authorization $pacs_token_valid {
+    default 0;
+    "Bearer ${PACS_LAB_BEARER_TOKEN}" 1;
+}
+
+server {
+    listen 8080;
+    server_name _;
+    client_max_body_size 256m;
+    resolver 127.0.0.11 valid=5s ipv6=off;
+    location / {
+        if ($pacs_token_valid = 0) { return 401; }
+        proxy_set_header Authorization "";
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        set $orthanc_upstream orthanc-open:8042;
+        proxy_pass http://$orthanc_upstream;
+    }
+}
