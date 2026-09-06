@@ -6,8 +6,10 @@ pragma ComponentBehavior: Bound
 
 Item {
     id: viewportOverlay
+    objectName: "viewportMetadataOverlay"
 
     required property var viewportController
+    property bool hideSensitiveInfo: false
 
     readonly property int overlayMargin: 2
     readonly property var overlay:
@@ -121,6 +123,7 @@ Item {
         anchors.margins: viewportOverlay.overlayMargin
         width: Math.min(implicitWidth, viewportOverlay.width * 0.46)
         horizontalAlignment: Text.AlignRight
+        visible: !viewportOverlay.hideSensitiveInfo
 
         text: {
             const lines = []

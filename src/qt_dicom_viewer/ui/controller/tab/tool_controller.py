@@ -391,7 +391,7 @@ def build_tool_items(
             "label": definition.label,
             "iconName": definition.icon_name,
             "behavior": definition.behavior.value,
-            "available": definition.enabled and definition.tool_type != ToolType.ANNOTATE,
+            "available": definition.enabled,
             "enabled": definition.enabled,
         }
         for definition in TOOL_CATALOG

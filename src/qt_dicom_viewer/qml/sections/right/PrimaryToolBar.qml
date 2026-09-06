@@ -15,7 +15,7 @@ Rectangle {
     property string feedbackTool: ""
     signal toolTriggered(var toolDefinition)
 
-    implicitHeight: toolFlow.height + 16
+    implicitHeight: toolFlow.childrenRect.height + 12
     color: Theme.panelBackgroundStrong
     radius: Theme.controlRadius
 
@@ -34,7 +34,7 @@ Rectangle {
         readonly property real buttonWidth: Math.max(0,
             (availableWidth - (columns - 1) * spacing) / columns)
         anchors.top: parent.top
-        anchors.topMargin: 8
+        anchors.topMargin: 6
         anchors.horizontalCenter: parent.horizontalCenter
         width: availableWidth
         height: rows * Theme.toolbarButtonHeight + Math.max(0, rows - 1) * spacing

@@ -75,18 +75,44 @@ def test_active_tool_exposes_and_requests_its_scoped_reset() -> None:
     assert resets == ["pan"]
 
 
-def test_tool_without_reset_content_disables_scoped_reset() -> None:
+def test_annotation_tool_exposes_scoped_reset() -> None:
     controller = ToolController()
     resets: list[str] = []
     controller.resetRequested.connect(resets.append)
     controller.activateTool("annotate")
 
-    assert controller.resetLabel == "暂无可重置内容"
-    assert controller.canResetActiveTool is False
+    assert controller.resetLabel == "重置标注"
+    assert controller.canResetActiveTool is True
 
     controller.resetActiveTool()
 
-    assert resets == []
+    assert resets == ["annotate"]
+
+
+def test_image_display_tools_are_panels_with_expected_interaction() -> None:
+    controller = ToolController(tab_type=TabType.TWO_D)
+    tools = {tool["toolType"]: tool for tool in controller.tools}
+
+    assert {"annotate", "pseudocolor", "viewport-settings"} <= tools.keys()
+
+    controller.activateTool("annotate")
+    assert controller.activePanel == "annotate"
+    assert controller.activeInteraction == "annotate:text"
+
+    controller.activateTool("pseudocolor")
+    assert controller.activePanel == "pseudocolor"
+    assert controller.activeInteraction == ""
+
+    controller.activateTool("viewport-settings")
+    assert controller.activePanel == "viewport-settings"
+    assert controller.activeInteraction == ""
+
+
+@pytest.mark.parametrize("tab_type", [TabType.THREE_D, TabType.TAG])
+def test_image_display_tools_are_hidden_outside_image_tabs(tab_type) -> None:
+    controller = ToolController(tab_type=tab_type)
+    tool_types = {tool["toolType"] for tool in controller.tools}
+    assert not {"annotate", "pseudocolor", "viewport-settings"} & tool_types
 
 
 def test_mpr_3d_rotation_is_a_primary_interaction_tool() -> None:

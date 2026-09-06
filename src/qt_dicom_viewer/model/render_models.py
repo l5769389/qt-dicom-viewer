@@ -50,6 +50,7 @@ class _RenderRequestBase:
     series_uid: str
     window: WindowLevel | None
     inverted: bool
+    color_map: str = "grayscale"
 
 
 @dataclass(

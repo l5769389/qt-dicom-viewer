@@ -43,6 +43,8 @@ class ToolType(StrEnum):
     SCROLL = "scroll"
     MEASURE = "measure"
     ANNOTATE = "annotate"
+    PSEUDOCOLOR = "pseudocolor"
+    VIEWPORT_SETTINGS = "viewport-settings"
     ROTATE = "rotate"
     MIP = "mip"
     INVERT = "invert"

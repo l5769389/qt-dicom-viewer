@@ -325,4 +325,3 @@ class WorkspaceController(QObject):
             return
         label = f'{series.patient_name}'
         self.createTab(series_uid,label,tab_type)
-

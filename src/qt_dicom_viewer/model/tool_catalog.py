@@ -123,6 +123,25 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         label="标注",
         icon_name="annotate",
         behavior=ToolBehavior.INTERACTION_PANEL,
+        default_interaction=InteractionType.ANNOTATE_TEXT,
+        supported_tab_types=frozenset((TabType.TWO_D, TabType.MPR, TabType.FOUR_D)),
+        reset_label="重置标注",
+    ),
+    ToolDefinition(
+        tool_type=ToolType.PSEUDOCOLOR,
+        label="伪彩",
+        icon_name="pseudocolor-gray",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.TWO_D, TabType.MPR, TabType.FOUR_D)),
+        reset_label="重置伪彩",
+    ),
+    ToolDefinition(
+        tool_type=ToolType.VIEWPORT_SETTINGS,
+        label="视口",
+        icon_name="viewport-settings",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.TWO_D, TabType.MPR, TabType.FOUR_D)),
+        reset_label="重置视口设置",
     ),
     ToolDefinition(
         tool_type=ToolType.PLAY,
@@ -163,7 +182,6 @@ class PlaceholderToolDefinition:
 
 
 PLACEHOLDER_TOOLS = (
-    PlaceholderToolDefinition("pseudocolor", "伪彩", frozenset((TabType.TWO_D, TabType.MPR, TabType.FOUR_D))),
     PlaceholderToolDefinition("segmentation", "分割", frozenset((TabType.MPR,))),
     PlaceholderToolDefinition("voi", "VOI", frozenset((TabType.MPR, TabType.THREE_D))),
     PlaceholderToolDefinition("remove-bed", "去床板", frozenset((TabType.THREE_D,))),

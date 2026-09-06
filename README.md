@@ -170,6 +170,16 @@ Montage 调窗使用后台模态像素缓存并合并连续请求；离开可视
 - 成品输出到 `dist/installers/`；版本号读取 `pyproject.toml`。构建环境与开发环境隔离。
 - GitHub Actions 的 **Build native installers** 可手动构建两个平台，不会自动发布。
 - 默认构建未使用商业签名证书；正式分发前需要签名、公证（macOS）及目标机安装验收。
+## 标注、伪彩与视口设置
+
+- **标注**：输入最多 200 个字符，选择颜色和 10～48 px 字号后，在影像上单击放置。
+  文本按切片保存并跟随影像平移、缩放、旋转和镜像；可从右侧列表重新选中编辑，或用
+  `Delete` / `Backspace` 删除。当前仅保存在本次会话内。
+- **伪彩**：支持 BW、BWInverse、BlackBody、Cardiac、Flow、French、GrayRainbow、
+  HotGreen、HotIron 和 Rainbow。LUT 应用于调窗后的 8 位显示像素，不改变 ROI、光标取值
+  或 MTF 使用的原始模态像素。
+- **视口设置**：可独立控制窗口角标、患者姓名/ID 隐藏、物理比例尺、伪彩条、
+  DICOM 方向标记、MPR 定位线以及窗口自适应。设置作用于当前活动视口，工具栏底部可恢复默认值。
 
 ## Windows 单文件 EXE
 

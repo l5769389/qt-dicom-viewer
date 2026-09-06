@@ -90,6 +90,7 @@ class StackViewportController(Image2DViewportController):
             ),
             window=None if initial else state.window,
             inverted=False if initial else state.inverted,
+            color_map=state.display_style.color_map,
         )
 
     def _validate_render_result(self, result: RenderResult) -> None:

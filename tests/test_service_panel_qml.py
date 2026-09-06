@@ -72,8 +72,16 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
     view, controller, warnings = service_panel
     commands = []
     controller.commandRequested.connect(commands.append)
-    _click(view, _find(view, "primaryTool-service"))
+    primary_service = _find(view, "primaryTool-service")
+    tinted_service_icon = next(
+        item for item in _visual_children(primary_service)
+        if item.objectName() == "tintedRasterToolIcon" and item.isVisible()
+    )
+    assert tinted_service_icon.property("tintColor").name() == "#96a6b5"
+
+    _click(view, primary_service)
     assert controller.activePanel == "service"
+    assert tinted_service_icon.property("tintColor").name() == "#66d0ff"
     _assert_service_panel_has_only_top_aligned_buttons(view)
 
     for entry in ["mtf"]:

@@ -119,6 +119,7 @@ class MprViewportController(Image2DViewportController):
                 series_uid=self.viewport_config.series_uid,
                 window=None if initial else state.window,
                 inverted=False if initial else state.inverted,
+                color_map=state.display_style.color_map,
                 plane=self.viewport_config.viewport_type,
                 mpr_frame=mpr_frame,
                 phase_identifier=phase_identifier,
