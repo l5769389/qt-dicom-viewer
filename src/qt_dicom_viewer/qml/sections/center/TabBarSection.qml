@@ -58,7 +58,8 @@ Basic.TabBar {
                 Rectangle {
                     Layout.preferredWidth:
                         String(tabButton.modelData.tabType).toLowerCase()
-                            === "mpr" ? 38 : 30
+                            === "petctfusion" ? 60
+                        : String(tabButton.modelData.tabType).toLowerCase() === "mpr" ? 38 : 30
                     Layout.preferredHeight: 22
                     radius: 5
                     color: tabButton.checked
@@ -72,7 +73,7 @@ Basic.TabBar {
                     Text {
                         anchors.centerIn: parent
                         font.pixelSize: 11
-                        text: String(
+                        text: String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
                             tabButton.modelData.tabType
                         ).toUpperCase()
                         font.weight: tabButton.checked

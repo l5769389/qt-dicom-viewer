@@ -16,6 +16,11 @@ uv run --group dev watchfiles "uv run qt-dicom-viewer" src
 
 When a Python file under `src` changes, the Qt app restarts automatically.
 
+## PET 2D、MPR 与 CT 融合
+
+PET 2D、PET MPR 与 PET/CT 融合的使用方法、定量边界及配准格式见
+[PET 浏览与手动配准](docs/pet-mpr-fusion.md)。
+
 ## 3D 体绘制
 
 打开 DICOM 文件夹，选择序列后点击左侧 **3D**。首次加载在后台构建体数据，

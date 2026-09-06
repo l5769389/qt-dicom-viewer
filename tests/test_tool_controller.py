@@ -209,6 +209,24 @@ def test_services_are_available_as_a_primary_panel_only_tool_in_2d() -> None:
     assert not controller.canResetActiveTool
 
 
+def test_pet_2d_hides_ct_services_and_uses_intensity_tool() -> None:
+    controller = ToolController(tab_type=TabType.TWO_D, modality="PT")
+
+    assert all(tool["toolType"] != "service" for tool in controller.tools)
+    assert controller.windowPresets == []
+    assert controller.activeToolLabel == "PET 强度"
+    assert next(
+        tool for tool in controller.tools if tool["toolType"] == "window"
+    )["label"] == "PET 强度"
+
+    controller.activateTool("service")
+    assert controller.activeTool == "window"
+
+    controller_without_tab_type = ToolController(modality="PT")
+    controller_without_tab_type.activateTool("service")
+    assert controller_without_tab_type.activeTool == "window"
+
+
 @pytest.mark.parametrize("action", ["service:mtf", "service:qa"])
 def test_service_selection_restores_corresponding_interaction_without_commands(action) -> None:
     controller = ToolController(tab_type=TabType.TWO_D)

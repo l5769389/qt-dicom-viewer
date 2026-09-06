@@ -8,10 +8,12 @@ class TabType(StrEnum):
     THREE_D = "3d"
     FOUR_D = "4d"
     TAG = "tag"
+    PETCT_FUSION = "petctfusion"
 
 
 class TwoDViewType(StrEnum):
     STACK = "stack"
+    PET_MIP = "pet-mip"
 
 
 class MprPlane(StrEnum):

@@ -1,8 +1,9 @@
 import logging
+import numpy as np
 
 from PySide6.QtCore import QObject, Signal, Property, Slot
 
-from qt_dicom_viewer.model import ViewportConfig, PointerDisplayMeta
+from qt_dicom_viewer.model import PixelValueMeta, ViewportConfig, PointerDisplayMeta
 from qt_dicom_viewer.utils.utils import _display_number
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,36 @@ class CursorController(QObject):
         super().__init__(parent)
         self.viewport_config = viewport_config
         self._pointer_meta: PointerDisplayMeta | None = None
+        self._pixel_value_meta = PixelValueMeta(
+            unit=(
+                "HU"
+                if viewport_config.series_meta.modality.strip().upper() == "CT"
+                else ""
+            )
+        )
+
+    def set_pixel_value_meta(self, meta: PixelValueMeta) -> None:
+        if (
+            not meta.unit
+            and self.viewport_config.series_meta.modality.upper() == "CT"
+        ):
+            meta = PixelValueMeta(unit="HU", source_unit="HU")
+        if meta == self._pixel_value_meta:
+            return
+        self._pixel_value_meta = meta
+        self.cursorInfoChanged.emit()
+
+    def resample(self, pixels):
+        pointer = self._pointer_meta
+        if pointer is None:
+            return
+        col, row = int(pointer.pointer_x), int(pointer.pointer_y)
+        if pixels is None or not (0 <= row < pixels.shape[0] and 0 <= col < pixels.shape[1]):
+            self.clearPosition()
+        elif np.isfinite(pixels[row, col]) or self.viewport_config.role == "fusion":
+            self.updatePosition(col, row, float(pixels[row, col]))
+        else:
+            self.clearPosition()
 
 
     @Property(
@@ -29,6 +60,7 @@ class CursorController(QObject):
                 "y": "--",
                 "value": "--",
                 "unit": "",
+                "label": self._value_label(),
             }
 
         return {
@@ -42,28 +74,37 @@ class CursorController(QObject):
                 precision=0,
             ),
             "value": _display_number(
-                pointer.pointer_ct_value,
-                precision=1,
+                pointer.pointer_value,
+                precision=(
+                    3
+                    if self.viewport_config.series_meta.modality.upper() == "PT"
+                    else 1
+                ),
             ),
-            "unit": (
-                "HU"
-                if self.viewport_config.series_meta.modality
-                   == "CT"
-                else ""
-            ),
+            "unit": self._pixel_value_meta.unit,
+            "label": self._value_label(),
         }
+
+    def _value_label(self) -> str:
+        return (
+            "PET"
+            if self.viewport_config.series_meta.modality.upper() == "PT"
+            else "CT"
+            if self.viewport_config.series_meta.modality.upper() == "CT"
+            else "Value"
+        )
 
     @Slot(float, float)
     def updatePosition(
         self,
         column: float,
         row: float,
-        ct_value: float,
+        value: float,
     ) -> None:
         self._pointer_meta = PointerDisplayMeta(
             pointer_x=column,
             pointer_y=row,
-            pointer_ct_value=ct_value
+            pointer_value=value
         )
         self.cursorInfoChanged.emit()
 

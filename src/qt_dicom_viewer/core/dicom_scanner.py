@@ -5,6 +5,7 @@ from typing import Iterator, cast
 
 import pydicom
 
+from qt_dicom_viewer.core.pet import pet_2d_support_error
 from qt_dicom_viewer.model import (
     DicomFolderScanSnapshot,
     DicomInstanceMeta,
@@ -18,6 +19,23 @@ from qt_dicom_viewer.utils.utils import (
     _as_str,
     _transfer_syntax_name,
 )
+
+
+def _string_values(value) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, (str, bytes)):
+        text = str(value).strip()
+        return (text,) if text else ()
+    try:
+        return tuple(
+            text
+            for item in value
+            if (text := str(item).strip())
+        )
+    except TypeError:
+        text = str(value).strip()
+        return (text,) if text else ()
 
 
 def _iter_visible_files(folder: Path):
@@ -66,6 +84,26 @@ def _read_instance(file_path: Path) -> DicomInstanceMeta | None:
                 column=column_spacing,
             )
 
+    modality = _as_str(getattr(dataset, "Modality", ""))
+    sop_class_uid = _as_str(getattr(dataset, "SOPClassUID", ""))
+    number_of_frames = max(
+        1,
+        _as_int(getattr(dataset, "NumberOfFrames", None)) or 1,
+    )
+    photometric_interpretation = _as_str(
+        getattr(dataset, "PhotometricInterpretation", "")
+    )
+    pet_series_type = _string_values(
+        getattr(dataset, "SeriesType", None)
+    )
+    pet_support_error = pet_2d_support_error(
+        modality=modality,
+        sop_class_uid=sop_class_uid,
+        number_of_frames=number_of_frames,
+        photometric_interpretation=photometric_interpretation,
+        series_type=pet_series_type,
+    )
+
     return DicomInstanceMeta(
         path=file_path,
         patient_name=_as_str(getattr(dataset, "PatientName", "")),
@@ -76,7 +114,7 @@ def _read_instance(file_path: Path) -> DicomInstanceMeta | None:
         series_instance_uid=series_uid,
         series_number=_as_int(getattr(dataset, "SeriesNumber", None)),
         instance_number=_as_int(getattr(dataset, "InstanceNumber", None)),
-        modality=_as_str(getattr(dataset, "Modality", "")),
+        modality=modality,
         rows=_as_int(getattr(dataset, "Rows", None)),
         columns=_as_int(getattr(dataset, "Columns", None)),
         transfer_syntax=_transfer_syntax_name(dataset),
@@ -94,6 +132,21 @@ def _read_instance(file_path: Path) -> DicomInstanceMeta | None:
         study_date=_as_str(getattr(dataset, "StudyDate", "")),
         study_time=_as_str(getattr(dataset, "StudyTime", "")),
         patient_id_issuer=_as_str(getattr(dataset, "IssuerOfPatientID", "")),
+        sop_class_uid=sop_class_uid,
+        number_of_frames=number_of_frames,
+        photometric_interpretation=photometric_interpretation,
+        pet_series_type=pet_series_type,
+        pet_units=_as_str(getattr(dataset, "Units", "")),
+        pet_suv_type=_as_str(getattr(dataset, "SUVType", "")),
+        pet_corrected_image=_string_values(
+            getattr(dataset, "CorrectedImage", None)
+        ),
+        pet_decay_correction=_as_str(
+            getattr(dataset, "DecayCorrection", "")
+        ),
+        pet_2d_supported=modality.upper() == "PT" and not pet_support_error,
+        pet_2d_support_error=pet_support_error,
+        frame_of_reference_uid=str(getattr(dataset, "FrameOfReferenceUID", "")),
     )
 
 
@@ -102,6 +155,25 @@ def _build_series_record(
 ) -> DicomSeriesRecord:
     ordered = tuple(sorted(instances, key=_instance_sort_key))
     first = ordered[0]
+
+    pet_support_error = next(
+        (
+            instance.pet_2d_support_error
+            for instance in ordered
+            if instance.pet_2d_support_error
+        ),
+        "",
+    )
+    pet_series_types = {
+        tuple(value.upper() for value in instance.pet_series_type)
+        for instance in ordered
+    }
+    if (
+        not pet_support_error
+        and first.modality.upper() == "PT"
+        and len(pet_series_types) != 1
+    ):
+        pet_support_error = "PET Series Type 在同一序列中不一致"
 
     return DicomSeriesRecord(
         patient_name=first.patient_name,
@@ -116,6 +188,19 @@ def _build_series_record(
         study_date=first.study_date,
         study_time=first.study_time,
         patient_id_issuer=first.patient_id_issuer,
+        sop_class_uid=first.sop_class_uid,
+        number_of_frames=max(instance.number_of_frames for instance in ordered),
+        photometric_interpretation=first.photometric_interpretation,
+        pet_series_type=first.pet_series_type,
+        pet_units=first.pet_units,
+        pet_suv_type=first.pet_suv_type,
+        pet_corrected_image=first.pet_corrected_image,
+        pet_decay_correction=first.pet_decay_correction,
+        pet_2d_supported=(
+            first.modality.upper() == "PT" and not pet_support_error
+        ),
+        pet_2d_support_error=pet_support_error,
+        frame_of_reference_uid=first.frame_of_reference_uid,
     )
 
 

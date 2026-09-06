@@ -20,6 +20,10 @@ Rectangle {
         detailPanel.toolController
             ? detailPanel.toolController.activeToolIcon
             : ""
+    readonly property bool petIntensityMode:
+        detailPanel.viewportController
+            ? detailPanel.viewportController.isPetViewport === true
+            : false
 
     implicitHeight: loadedPanel
         ? loadedPanel.implicitHeight + 80
@@ -35,17 +39,21 @@ Rectangle {
             id: contentLoader
 
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.alignment: Qt.AlignTop
             Layout.preferredHeight: detailPanel.loadedPanel
                 ? detailPanel.loadedPanel.implicitHeight
                 : 0
 
             active: detailPanel.activePanel !== ""
             sourceComponent: {
+                if (detailPanel.activePanel === "window")
+                    return detailPanel.viewportController
+                        && detailPanel.viewportController.reconstructionController
+                        ? petWorkspaceComponent : detailPanel.petIntensityMode
+                        ? petIntensityComponent : windowLevelComponent
                 const map = {
                     'rotate': rotatePanelComponent,
                     'mip': mipPanelComponent,
-                    'window': windowLevelComponent,
                     'measure': measureComponent,
                     "annotate": annotateComponent,
                     "service": serviceComponent,
@@ -91,9 +99,26 @@ Rectangle {
     }
 
     Component {
+        id: petWorkspaceComponent
+        Panels.PetWorkspacePanel {
+            controller: detailPanel.viewportController.reconstructionController
+        }
+    }
+
+    Component {
+        id: petIntensityComponent
+        Panels.PetIntensityPanel {
+            viewportController: detailPanel.viewportController
+        }
+    }
+
+    Component {
         id: windowLevelComponent
         Panels.WindowLevelToolPanel {
-            presets: detailPanel.toolController
+            presets: detailPanel.viewportController
+                && detailPanel.viewportController.windowPresets !== undefined
+                ? detailPanel.viewportController.windowPresets
+                : detailPanel.toolController
                 ? detailPanel.toolController.windowPresets
                 : []
 

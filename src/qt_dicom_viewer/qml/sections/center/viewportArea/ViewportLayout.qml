@@ -14,6 +14,14 @@ Item {
     required property bool hasTabs
     property string layoutMode: "grid"
     property string focusedViewportId: ""
+    readonly property bool petWorkspace: currentTabAllViewports.length === 4
+        && currentTabAllViewports.some(v => v.viewportRole === "mip")
+    readonly property var petPlacements: ({
+        "axial": {row: 0, column: 0}, "coronal": {row: 0, column: 1},
+        "sagittal": {row: 1, column: 0}, "mip": {row: 1, column: 1},
+        "ct": {row: 0, column: 0}, "pet": {row: 0, column: 1},
+        "fusion": {row: 1, column: 0}
+    })
     readonly property bool singleViewMode:
         layoutMode === "single" && focusedViewportId !== ""
     readonly property var mprPlacements: ({
@@ -61,7 +69,7 @@ Item {
         viewportLayout.layoutMode = "single"
     }
 
-    function placementFor(viewportId, viewportType) {
+    function placementFor(viewportId, viewportType, role) {
         if (viewportLayout.singleViewMode) {
             return {
                 "visible": viewportId
@@ -73,15 +81,17 @@ Item {
             }
         }
 
-        const placement = viewportLayout.tabType === "mpr"
+        const placement = viewportLayout.petWorkspace
+            ? viewportLayout.petPlacements[role]
+            : viewportLayout.tabType === "mpr"
             ? viewportLayout.mprPlacements[viewportType]
             : null
         return {
             "visible": true,
             "row": placement ? placement.row : 0,
             "column": placement ? placement.column : 0,
-            "rowSpan": placement ? placement.rowSpan : 1,
-            "columnSpan": placement ? placement.columnSpan : 1
+            "rowSpan": placement ? (placement.rowSpan ?? 1) : 1,
+            "columnSpan": placement ? (placement.columnSpan ?? 1) : 1
         }
     }
 
@@ -93,8 +103,8 @@ Item {
 
         anchors.fill: parent
 
-        columns: viewportLayout.tabType === "mpr" ? 2 : 1
-        rows: viewportLayout.tabType === "mpr" ? 2 : 1
+        columns: viewportLayout.tabType === "mpr" || viewportLayout.petWorkspace ? 2 : 1
+        rows: viewportLayout.tabType === "mpr" || viewportLayout.petWorkspace ? 2 : 1
         uniformCellWidths: true
         uniformCellHeights: true
 
@@ -118,7 +128,8 @@ Item {
                 readonly property var placement:
                     viewportLayout.placementFor(
                         viewportCell.modelData.viewportId,
-                        viewportCell.viewportType
+                        viewportCell.viewportType,
+                        viewportCell.modelData.viewportRole
                     )
 
                 visible: viewportCell.placement.visible

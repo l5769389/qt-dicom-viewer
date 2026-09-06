@@ -20,6 +20,7 @@ from .dicom_models import (
     ViewportType,
 )
 from .dicom_types import FrameDisplayMeta, WindowLevel
+from .dicom_core import MprState
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -59,6 +60,7 @@ class _RenderRequestBase:
 )
 class StackRenderRequest(_RenderRequestBase):
     slice_index: int
+    value_unit: str | None = None
 
     @property
     def view_type(self) -> ViewportType:
@@ -78,16 +80,36 @@ class MprRenderRequest(_RenderRequestBase):
     mpr_grid_anchor: MprGridAnchor | None = None
     projection_mode: MprProjectionMode | None = None
     slab_thickness_mm: float = 0.0
+    value_unit: str | None = None
 
     @property
     def view_type(self) -> ViewportType:
         return self.plane
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PetBatchRenderRequest:
+    request_id: str
+    viewport_id: str  # owning tab; one coalesced request per linked group
+    series_uid: str  # PET
+    viewports: tuple[tuple[str, str], ...]
+    ct_series_uid: str | None = None
+    state: MprState | None = None
+    plane: MprPlane = MprPlane.AXIAL
+    value_unit: str | None = None
+    pet_window: WindowLevel | None = None
+    ct_window: WindowLevel | None = None
+    transform: tuple[float, ...] = tuple(np.eye(4).ravel())
+    opacity: float = 0.5
+    pet_color_map: str = "grayscale"
+    fusion_color_map: str = "hotIron"
+
+
 RenderRequest: TypeAlias = (
     StackRenderRequest
     | MprRenderRequest
     | VolumeLoadRequest
+    | PetBatchRenderRequest
 )
 
 
@@ -118,10 +140,31 @@ class StackRenderResult(_RenderResultBase):
     ...
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PetMipRenderResult(MprRenderResult):
+    peak_positions: np.ndarray
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PetBatchRenderResult:
+    response_id: str
+    viewport_id: str
+    series_uid: str
+    frames: tuple[MprRenderResult, ...]
+    state: MprState
+    pet_volume: DicomVolume
+    ct_volume: DicomVolume | None
+    pet_window: WindowLevel
+    ct_window: WindowLevel | None
+    ct_samples: np.ndarray | None = None
+    warning: str = ""
+
+
 RenderResult: TypeAlias = (
     StackRenderResult
     | MprRenderResult
     | VolumeLoadResult
+    | PetBatchRenderResult
 )
 
 

@@ -8,9 +8,17 @@ Rectangle {
     required property var measurement
     required property color accentColor
     readonly property var metrics: measurement.metrics ?? ({})
+    readonly property var secondary: measurement.secondaryMetrics ?? null
     readonly property string unitSuffix: metrics.unit ? " " + metrics.unit : ""
     function format(value) {
-        return typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : "—"
+        if (typeof value !== "number" || !Number.isFinite(value))
+            return "—"
+        const unit = String(metrics.unit ?? "")
+        const isPetUnit = unit.indexOf("SUV") === 0
+            || unit.indexOf("Bq/ml") >= 0
+        if (!isPetUnit)
+            return value.toFixed(1)
+        return value.toFixed(Math.abs(value) < 1 ? 3 : 2)
     }
     readonly property var rows: [
         {label: "面积", value: format(metrics.area_mm2) + " mm²"},
@@ -20,7 +28,11 @@ Rectangle {
         {label: "标准差", value: format(metrics.std) + unitSuffix},
         {label: "最小 / 最大", value: format(metrics.minimum) + " / " + format(metrics.maximum) + unitSuffix},
         {label: "有效像素", value: String(metrics.pixel_count ?? 0)}
-    ]
+    ].concat(secondary ? [
+        {label: "CT 均值 / 标准差", value: format(secondary.mean) + " / " + format(secondary.std) + " HU"},
+        {label: "CT 最小 / 最大", value: format(secondary.minimum) + " / " + format(secondary.maximum) + " HU"},
+        {label: "CT 有效像素", value: String(secondary.pixel_count ?? 0)}
+    ] : [])
     implicitWidth: 238
     implicitHeight: content.implicitHeight + 20
     height: implicitHeight

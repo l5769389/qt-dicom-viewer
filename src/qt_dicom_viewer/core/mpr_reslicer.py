@@ -524,35 +524,19 @@ class MprReslicer:
         value110 = volume[slice1, row1, column0]
         value111 = volume[slice1, row1, column1]
 
-        value00 = (
-            # 依次沿 column（8→4）、row（4→2）、slice（2→1）插值。
-            value000 * (1.0 - column_weight)
-            + value001 * column_weight
-        )
-        value01 = (
-            value010 * (1.0 - column_weight)
-            + value011 * column_weight
-        )
-        value10 = (
-            value100 * (1.0 - column_weight)
-            + value101 * column_weight
-        )
-        value11 = (
-            value110 * (1.0 - column_weight)
-            + value111 * column_weight
-        )
-        value0 = (
-            value00 * (1.0 - row_weight)
-            + value01 * row_weight
-        )
-        value1 = (
-            value10 * (1.0 - row_weight)
-            + value11 * row_weight
-        )
-        sampled = (
-            value0 * (1.0 - slice_weight)
-            + value1 * slice_weight
-        ).astype(np.float32)
+        numerator = np.zeros_like(slices, dtype=np.float64)
+        denominator = np.zeros_like(slices, dtype=np.float64)
+        values = (value000, value001, value010, value011,
+                  value100, value101, value110, value111)
+        for index, value in enumerate(values):
+            weight = ((slice_weight if index & 4 else 1 - slice_weight)
+                      * (row_weight if index & 2 else 1 - row_weight)
+                      * (column_weight if index & 1 else 1 - column_weight))
+            supported = np.isfinite(value) & (weight > 0)
+            numerator += np.where(supported, value, 0) * weight
+            denominator += np.where(supported, weight, 0)
+        sampled = np.full(slices.shape, np.nan, dtype=np.float32)
+        np.divide(numerator, denominator, out=sampled, where=denominator > 0)
 
         # Volume 之外的位置保留为缺失模态值；apply_window 会将其显示为背景。
         sampled[~valid] = np.nan

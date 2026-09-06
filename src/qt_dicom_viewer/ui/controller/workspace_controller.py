@@ -16,6 +16,8 @@ from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportC
 from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.model.render_models import VolumeLoadResult
+from qt_dicom_viewer.model.render_models import PetBatchRenderResult
+from qt_dicom_viewer.ui.controller.tab.pet_workspace_controller import PetWorkspaceController
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +170,11 @@ class WorkspaceController(QObject):
                     tab_id, self._series_catalog.get_series(series_uid),
                     self._tag_read_service,
                 )
-            new_tab = TabController(tab_config, parent=self, tag_controller=tag_controller)
+            if tab_type == TabType.MPR and series_display_meta.modality.upper() == "PT":
+                new_tab = PetWorkspaceController(tab_config,
+                    pet_series=self._series_catalog.get_series(series_uid), parent=self)
+            else:
+                new_tab = TabController(tab_config, parent=self, tag_controller=tag_controller)
             self.connect_signal(new_tab)
             self._tab_dict[tab_id] = new_tab
 
@@ -233,10 +239,37 @@ class WorkspaceController(QObject):
             )
             return
 
-        if not isinstance(result, VolumeLoadResult) and result.image is not None:
+        if isinstance(result, PetBatchRenderResult):
+            for frame in result.frames:
+                if frame.image is not None:
+                    self._image_provider.set_array(frame.viewport_id, frame.image)
+        elif not isinstance(result, VolumeLoadResult) and result.image is not None:
             self._image_provider.set_array(result.viewport_id, result.image)
 
         tab.handleRenderResult(result)
+
+    @Slot(str, str)
+    def createFusionTab(self, ct_uid, pet_uid):
+        ct = self._series_catalog.get_series(ct_uid)
+        pet = self._series_catalog.get_series(pet_uid)
+        if ct is None or pet is None or ct.modality.upper() != "CT" or pet.modality.upper() != "PT":
+            return
+        tab_id = f"petct:{ct_uid}:{pet_uid}"
+        if tab_id in self._tab_dict:
+            self.activateTabId(tab_id)
+            return
+        config = TabConfig(tab_id=tab_id, tab_label=f"{ct.patient_name} · PET/CT",
+            tab_type=TabType.PETCT_FUSION, series_metas=(
+                self._series_catalog.get_series_display_meta(ct_uid),
+                self._series_catalog.get_series_display_meta(pet_uid)))
+        tab = PetWorkspaceController(config, ct_series=ct, pet_series=pet, parent=self)
+        self.connect_signal(tab)
+        self._tab_dict[tab_id] = tab
+        self._active_tab_id = tab_id
+        self.tabsChanged.emit()
+        self.activeTabChanged.emit()
+        self.activeViewportChanged.emit()
+        tab.init_render()
 
     @Slot(object)
     def handleRenderFailure(self, failure: RenderFailure) -> None:

@@ -11,9 +11,11 @@ Rectangle {
     objectName: "leftPanel"
     required property var panelController
     readonly property string activeSeriesUid: panelController.activeSeriesUid
+    readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var viewTypes: [
         {label: "2D", type: "2d", supported: true},
         {label: "MPR", type: "mpr", supported: true},
+        {label: "融合", type: "fusion", supported: true},
         {label: "3D", type: "3d", supported: true},
         {label: "4D", type: "4d", supported: false},
         {label: "Tag", type: "tag", supported: true}
@@ -22,6 +24,7 @@ Rectangle {
         {code: "2d", badge: "2D", label: "快速浏览", description: "二维浏览", supported: true, danger: false, separatorBefore: false},
         {code: "tile", badge: "平铺", label: "序列平铺", description: "连续显示全部二维切片", supported: false, danger: false, separatorBefore: false},
         {code: "mpr", badge: "MPR", label: "MPR", description: "多平面重建", supported: true, danger: false, separatorBefore: false},
+        {code: "fusion", badge: "PET/CT", label: "融合浏览", description: "选择 CT 与 PET 进行融合", supported: true, danger: false, separatorBefore: false},
         {code: "3d", badge: "3D", label: "3D", description: "体渲染", supported: true, danger: false, separatorBefore: false},
         {code: "4d", badge: "4D", label: "4D", description: "呼吸相位播放", supported: false, danger: false, separatorBefore: false},
         {code: "tag", badge: "TAG", label: "TAG", description: "DICOM 标签", supported: true, danger: false, separatorBefore: false},
@@ -109,11 +112,22 @@ Rectangle {
                         disabledColor: Theme.canvasBackground
                         baseBorderWidth: 1
                         baseBorderColor: Theme.borderDefault
-                        enabled: leftPanel.activeSeriesUid !== "" && modelData.supported
-                        onClicked: leftPanel.panelController.openSeriesView(leftPanel.activeSeriesUid, modelData.type)
+                        enabled: leftPanel.activeSeriesUid !== ""
+                            && modelData.supported
+                            && (leftPanel.activeSeriesModality !== "PT"
+                                || modelData.type === "2d"
+                                || ["tag", "mpr", "fusion"].includes(modelData.type))
+                        onClicked: modelData.type === "fusion"
+                            ? leftPanel.panelController.requestFusionView()
+                            : leftPanel.panelController.openSeriesView(leftPanel.activeSeriesUid, modelData.type)
                         Basic.ToolTip.visible: hovered
                         Basic.ToolTip.delay: 450
-                        Basic.ToolTip.text: modelData.supported ? "以 " + modelData.label + " 方式打开" : modelData.label + " 暂未实现"
+                        Basic.ToolTip.text: leftPanel.activeSeriesModality === "PT"
+                            && ["3d", "4d"].includes(modelData.type)
+                            ? "暂不支持 PET 体绘制或动态浏览"
+                            : modelData.supported
+                            ? "以 " + modelData.label + " 方式打开"
+                            : modelData.label + " 暂未实现"
                     }
                 }
             }
@@ -140,6 +154,13 @@ Rectangle {
             }
         }
 
+        Text {
+            Layout.leftMargin: 10
+            color: Theme.textMuted
+            font.pixelSize: 11
+            text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · Cmd/Ctrl 单击多选"
+        }
+
         ListView {
             id: seriesList
             objectName: "sidebarSeriesList"
@@ -154,7 +175,7 @@ Rectangle {
                 id: entry
                 required property var modelData
                 readonly property bool isSeries: modelData.kind === "series"
-                readonly property bool selected: isSeries && leftPanel.activeSeriesUid === modelData.seriesInstanceUid
+                readonly property bool selected: isSeries && leftPanel.panelController.selectedSeriesUids.includes(modelData.seriesInstanceUid)
                 objectName: isSeries ? "series-" + modelData.seriesInstanceUid : "sidebar-" + modelData.key
                 width: seriesList.width
                 height: isSeries ? 58 : modelData.kind === "patient" ? 30 : 26
@@ -259,11 +280,12 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: event => {
                         if (entry.isSeries && event.button === Qt.RightButton) {
-                            leftPanel.panelController.selectSeries(entry.modelData.seriesInstanceUid)
+                            leftPanel.panelController.selectContextSeries(entry.modelData.seriesInstanceUid)
                             const point = entry.mapToItem(null, event.x, event.y)
                             seriesContextMenu.openFor(entry.modelData.seriesInstanceUid, point.x, point.y)
                         } else if (entry.isSeries) {
-                            leftPanel.panelController.selectSeries(entry.modelData.seriesInstanceUid)
+                            leftPanel.panelController.selectSeriesWithModifiers(entry.modelData.seriesInstanceUid,
+                                (event.modifiers & (Qt.ControlModifier | Qt.MetaModifier)) !== 0)
                         } else if (leftPanel.panelController.patientSearch.trim() === "") {
                             leftPanel.panelController.toggleGroup(entry.modelData.key)
                         }
@@ -327,7 +349,9 @@ Rectangle {
         function triggerAction(action) {
             const seriesUid = contextSeriesUid
             close()
-            if (action === "2d" || action === "mpr" || action === "tag") {
+            if (action === "fusion") {
+                leftPanel.panelController.requestFusionView()
+            } else if (["2d", "mpr", "tag", "3d"].includes(action)) {
                 leftPanel.panelController.openSeriesView(seriesUid, action)
             } else if (action === "directory") {
                 if (!leftPanel.panelController.openSeriesDirectory(seriesUid))
@@ -355,6 +379,14 @@ Rectangle {
                     id: menuAction
                     required property var modelData
                     readonly property bool actionEnabled: modelData.supported
+                        && (leftPanel.panelController.seriesModality(
+                                seriesContextMenu.contextSeriesUid) !== "PT"
+                            || modelData.code === "2d"
+                            || modelData.code === "tag"
+                            || modelData.code === "mpr"
+                            || modelData.code === "fusion"
+                            || modelData.code === "directory"
+                            || modelData.code === "remove")
                     objectName: "seriesContextAction-" + modelData.code
                     width: menuContent.width
                     height: modelData.separatorBefore ? 58 : 52
@@ -374,11 +406,11 @@ Rectangle {
                         anchors.bottom: parent.bottom
                         height: 52
                         radius: 6
-                        color: menuAction.modelData.supported && menuHover.hovered
+                        color: menuAction.actionEnabled && menuHover.hovered
                             ? Theme.cardBackgroundHover : Theme.cardBackground
                         border.color: menuAction.modelData.danger
                             ? Theme.dangerSurface : Theme.borderSubtle
-                        opacity: menuAction.modelData.supported ? 1 : 0.45
+                        opacity: menuAction.actionEnabled ? 1 : 0.45
 
                         RowLayout {
                             anchors.fill: parent
@@ -427,19 +459,24 @@ Rectangle {
 
                     HoverHandler {
                         id: menuHover
-                        cursorShape: menuAction.modelData.supported ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        cursorShape: menuAction.actionEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     }
                     TapHandler {
-                        enabled: menuAction.modelData.supported
+                        enabled: menuAction.actionEnabled
                         onTapped: seriesContextMenu.triggerAction(menuAction.modelData.code)
                     }
-                    Basic.ToolTip.visible: menuHover.hovered && !menuAction.modelData.supported
+                    Basic.ToolTip.visible: menuHover.hovered && !menuAction.actionEnabled
                     Basic.ToolTip.delay: 350
-                    Basic.ToolTip.text: "暂未实现"
+                    Basic.ToolTip.text: leftPanel.panelController.seriesModality(
+                        seriesContextMenu.contextSeriesUid) === "PT"
+                        ? "暂不支持 PET 体绘制或动态浏览"
+                        : "暂未实现"
                 }
             }
         }
     }
+
+    FusionSeriesDialog { controller: leftPanel.panelController }
 
     Basic.Dialog {
         id: directoryErrorDialog

@@ -38,12 +38,15 @@ class RenderService(QObject):
             volume_manager
         )
         self._worker.moveToThread(self._thread)
+        self._active = {}
+        self._pending = {}
+        self._closing = False
 
         self.renderRequested.connect(self._worker.handleRenderRequest)
 
         # 转发 Worker 的结果
         self._worker.render_finished.connect(self.handleRenderFinished)
-        self._worker.render_failed.connect(self.failed)
+        self._worker.render_failed.connect(self.handleRenderFailed)
 
         self._thread.finished.connect(
             self._worker.deleteLater
@@ -53,14 +56,38 @@ class RenderService(QObject):
 
     @Slot(object)
     def handleRenderFinished(self, result: RenderResult) -> None:
-        self.rendered.emit(result)
+        key = result.viewport_id
+        self._active.pop(key, None)
+        pending = self._pending.pop(key, None)
+        if not self._closing and pending is None:
+            self.rendered.emit(result)
+        if pending is not None and not self._closing:
+            self.submit(pending)
+
+    @Slot(object)
+    def handleRenderFailed(self, failure):
+        key = failure.viewport_id
+        self._active.pop(key, None)
+        pending = self._pending.pop(key, None)
+        if not self._closing and pending is None:
+            self.failed.emit(failure)
+        if pending is not None and not self._closing:
+            self.submit(pending)
 
     def submit(self, request: RenderRequest) -> None:
+        if self._closing:
+            return
+        if request.viewport_id in self._active:
+            self._pending[request.viewport_id] = request
+            return
+        self._active[request.viewport_id] = request.request_id
         logger.info(f"Submitting render request: {request.request_id}")
         self.renderRequested.emit(request)
 
     @Slot()
     def shutdown(self) -> None:
+        self._closing = True
+        self._pending.clear()
         if not self._thread.isRunning():
             return
         logger.info("Stopping render service")

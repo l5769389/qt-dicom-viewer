@@ -11,6 +11,7 @@
         <file>src/qt_dicom_viewer/qml/components/AppButton.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/LeftPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/FusionSeriesDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/SidebarContainer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/RightPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/CenterPanel.qml</file>
@@ -43,6 +44,8 @@
         <file>src/qt_dicom_viewer/qml/sections/right/panels/MtfChart.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/RotateToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/WindowLevelToolPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/PetIntensityPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/PetWorkspacePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumeDirectionPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumePresetPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/theme/Theme.qml</file>

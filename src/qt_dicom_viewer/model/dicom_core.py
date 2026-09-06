@@ -6,7 +6,7 @@ from typing import TypeAlias
 
 import numpy as np
 
-from .dicom_types import InstanceDisplayMeta, WindowLevel
+from .dicom_types import InstanceDisplayMeta, WindowLevel, PixelValueMeta
 from .dicom_models import MprPlane
 
 Vector3: TypeAlias = tuple[float, float, float]
@@ -124,6 +124,30 @@ class DicomVolume:
     series_uid: str
     default_window: WindowLevel
     representative_instance_meta: InstanceDisplayMeta
+    pixel_value_meta: PixelValueMeta = PixelValueMeta()
+    source_pixels: np.ndarray | None = None
+    source_value_meta: PixelValueMeta | None = None
+    suv_pixels: np.ndarray | None = None
+    suv_value_meta: PixelValueMeta | None = None
+    fingerprint: str = ""
+
+    def in_unit(self, unit_id: str | None) -> DicomVolume:
+        """A light view of cached quantitative pixels, never a relabelled SUV."""
+        from dataclasses import replace
+        if not unit_id or unit_id == self.pixel_value_meta.unit_id:
+            return self
+        option = next((o for o in self.pixel_value_meta.unit_options
+                       if o.unit_id == unit_id and o.available), None)
+        if option is not None and self.suv_value_meta is not None and unit_id == self.suv_value_meta.unit_id:
+            return replace(self, modality_pixels=self.suv_pixels, pixel_value_meta=self.suv_value_meta)
+        if option is None or self.source_pixels is None:
+            raise ValueError(f"PET 单位不可用：{unit_id}")
+        meta = replace(self.source_value_meta or self.pixel_value_meta,
+                       unit=option.unit, unit_id=unit_id,
+                       scale_from_source=option.scale_from_source,
+                       suv_type=None)
+        return replace(self, modality_pixels=self.source_pixels * option.scale_from_source,
+                       pixel_value_meta=meta)
 
 
 @dataclass(frozen=True, slots=True)

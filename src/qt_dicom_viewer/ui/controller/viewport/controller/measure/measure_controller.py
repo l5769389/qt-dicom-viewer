@@ -40,6 +40,8 @@ class MeasurementController(QObject):
                  physical_square_roi: bool = False):
         super().__init__(parent)
         self._max_per_frame = max_per_frame
+        self.secondary_pixels = None
+        self._current_frame = None
         self._geometry_only = geometry_only
         self._adaptive_roi_hit_tolerance = adaptive_roi_hit_tolerance
         self._measurements: dict[str, Measurement] = {}
@@ -66,6 +68,7 @@ class MeasurementController(QObject):
 
     def set_frame(self, series_uid: str, frame: FrameDisplayMeta) -> None:
         """MPR 的索引不足以识别切面；同时比较采样原点、方向、尺寸和间距。"""
+        self._current_frame = frame
         geometry = frame.geometry
         pose = (geometry.pixel_spacing.row, geometry.pixel_spacing.column,
                 *(geometry.image_position_patient or ()),
@@ -180,8 +183,7 @@ class MeasurementController(QObject):
     def has_active_transaction(self) -> bool:
         return self._active_transaction is not None
 
-    @staticmethod
-    def _to_qml_item(measurement: Measurement | MeasurementDraft) -> dict:
+    def _to_qml_item(self, measurement: Measurement | MeasurementDraft) -> dict:
         item = {"measurementId": measurement.measurement_id,
                 "points": [{"column": p.column, "row": p.row} for p in measurement.points]}
         if isinstance(measurement, (LengthMeasurement, LengthMeasurementDraft)):
@@ -194,6 +196,12 @@ class MeasurementController(QObject):
         else:
             item.update(type=measurement.kind.value, metrics=asdict(measurement.metrics),
                         label="矩形 ROI" if measurement.kind == MeasurementKind.RECT else "椭圆 ROI")
+            if self.secondary_pixels is not None and self._current_frame is not None:
+                from qt_dicom_viewer.core.measurement_geometry import roi_metrics
+                spacing = self._current_frame.geometry.pixel_spacing
+                item["secondaryMetrics"] = asdict(roi_metrics(measurement.points,
+                    measurement.kind, self.secondary_pixels, row_spacing=spacing.row,
+                    column_spacing=spacing.column, unit="HU"))
         return item
 
     def _operation(self, measurement: Measurement | MeasurementDraft):
@@ -346,6 +354,25 @@ class MeasurementController(QObject):
         self.measurementsChanged.emit()
         self.activeTransactionChanged.emit()
         self.selectionChanged.emit()
+
+
+    def refresh_roi_metrics(self, pixels, frame) -> None:
+        """Recompute only matching-plane ROIs from the accepted measurement domain."""
+        from qt_dicom_viewer.core.measurement_geometry import roi_metrics
+        if pixels is None:
+            return
+        changed = False
+        for measurement in self.visible_measurements:
+            if not isinstance(measurement, RoiMeasurement):
+                continue
+            metrics = roi_metrics(measurement.points, measurement.kind, pixels,
+                                  row_spacing=frame.geometry.pixel_spacing.row,
+                                  column_spacing=frame.geometry.pixel_spacing.column,
+                                  unit=frame.pixel_value_meta.unit)
+            self._measurements[measurement.measurement_id] = replace(measurement, metrics=metrics)
+            changed = True
+        if changed:
+            self.measurementsChanged.emit()
 
     def delete_selected(self) -> None:
         self.cancel_transaction()

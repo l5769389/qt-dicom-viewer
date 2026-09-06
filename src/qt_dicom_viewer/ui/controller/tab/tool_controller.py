@@ -40,10 +40,12 @@ class ToolController(QObject):
             parent=None,
             *,
             tab_type: TabType | None = None,
+            modality: str = "",
     ):
         super().__init__(parent)
 
         self._tab_type = tab_type
+        self._modality = modality.strip().upper()
         self._active_tool = ToolType.WINDOW
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
@@ -62,6 +64,8 @@ class ToolController(QObject):
 
     @Property(str, notify=activeToolChanged)
     def activeToolLabel(self) -> str:
+        if self._modality == "PT" and self._active_tool == ToolType.WINDOW:
+            return "PET 强度"
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         return "" if definition is None else definition.label
 
@@ -109,6 +113,8 @@ class ToolController(QObject):
 
     @Property(str, notify=resetStateChanged)
     def resetLabel(self) -> str:
+        if self._modality == "PT" and self._active_tool == ToolType.WINDOW:
+            return "重置 PET 显示"
         if self._active_tool == ToolType.SERVICE and self._active_service == "service:mtf":
             return "重置 MTF"
         definition = TOOL_DEFINITIONS.get(self._active_tool)
@@ -138,11 +144,11 @@ class ToolController(QObject):
         if definition is None:
             logger.warning("Missing tool definition: %s", tool_type.value)
             return
-        if not tool_available(tool_type, self._tab_type):
+        if not tool_available(tool_type, self._tab_type, self._modality):
             logger.warning(
                 "Tool %s is not available for tab type %s",
                 tool_type.value,
-                self._tab_type.value,
+                self._tab_type.value if self._tab_type is not None else "any",
             )
             return
 
@@ -292,11 +298,11 @@ class ToolController(QObject):
 
     @Property(list, constant=True)
     def windowPresets(self) -> list[dict]:
-        return build_window_presets()
+        return build_window_presets(self._modality)
 
     @Property(list, constant=True)
     def tools(self) -> list[dict]:
-        return build_tool_items(self._tab_type)
+        return build_tool_items(self._tab_type, self._modality)
 
     @Property(list, constant=True)
     def rotateActions(self) -> list[dict]:
@@ -332,7 +338,8 @@ class ToolController(QObject):
         ]
 
 
-def build_window_presets() -> list[dict]:
+def build_window_presets(modality: str = "") -> list[dict]:
+    presets = () if modality.upper() == "PT" else CT_WINDOW_PRESETS
     return [
         {
             "presetId": preset.preset_id,
@@ -340,26 +347,38 @@ def build_window_presets() -> list[dict]:
             "center": preset.center,
             "width": preset.width,
         }
-        for preset in CT_WINDOW_PRESETS
+        for preset in presets
     ]
 
 
 def build_tool_items(
         tab_type: TabType | None = None,
+        modality: str = "",
 ) -> list[dict]:
     return [
         {
             "toolType": definition.tool_type.value,
-            "label": definition.label,
+            "label": (
+                "PET 强度"
+                if modality.upper() == "PT"
+                and definition.tool_type == ToolType.WINDOW
+                else definition.label
+            ),
             "iconName": definition.icon_name,
             "behavior": definition.behavior.value,
         }
         for definition in TOOL_CATALOG
-        if tool_available(definition.tool_type, tab_type)
+        if tool_available(definition.tool_type, tab_type, modality)
     ]
 
 
-def tool_available(tool: ToolType, tab_type: TabType | None) -> bool:
+def tool_available(
+    tool: ToolType,
+    tab_type: TabType | None,
+    modality: str = "",
+) -> bool:
+    if modality.upper() == "PT" and tool in (ToolType.SERVICE, ToolType.MIP):
+        return False
     if tab_type == TabType.THREE_D:
         return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
                         ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)

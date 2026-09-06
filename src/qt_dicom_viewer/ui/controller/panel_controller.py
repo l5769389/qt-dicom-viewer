@@ -23,6 +23,8 @@ class PanelController(QObject):
     patientSearchChanged = Signal()
     # series_uid , tab_type
     tabCreateRequested = Signal(str, str)
+    fusionCreateRequested = Signal(str, str)
+    fusionDialogChanged = Signal()
 
     # parent=self 是 Qt 的对象所有权关系，不是业务上的“父子 Controller 调用关系”。
     def __init__(self, parent=None, series_catalog=None, *, image_provider=None) -> None:
@@ -34,6 +36,11 @@ class PanelController(QObject):
         self._removed_series_uids: set[str] = set()
         self._series_catalog:SeriesCatalog = series_catalog
         self._active_series_uid = ""
+        self._selected_series_uids = []
+        self._fusion_anchor_uid = ""
+        self._fusion_partner_uid = ""
+        self._fusion_dialog_open = False
+        self._fusion_error = ""
         self._patient_search = ""
         self._collapsed_groups: set[str] = set()
         self._thumbnails: dict[str, str] = {}
@@ -118,6 +125,7 @@ class PanelController(QObject):
             self._scan_series_record[each_series.series_instance_uid] = each_series
         self.seriesItemsChanged.emit()
         self.sidebarItemsChanged.emit()
+        self.fusionDialogChanged.emit()
         if self._thumbnail_service is not None:
             self._thumbnail_timer.start()
 
@@ -130,11 +138,139 @@ class PanelController(QObject):
     def activeSeriesUid(self):
         return self._active_series_uid
 
+    @Property(str, notify=selectionChanged)
+    def activeSeriesModality(self) -> str:
+        series = self._scan_series_record.get(self._active_series_uid)
+        return series.modality.strip().upper() if series is not None else ""
+
+    @Slot(str, result=str)
+    def seriesModality(self, series_uid: str) -> str:
+        series = self._scan_series_record.get(series_uid)
+        return series.modality.strip().upper() if series is not None else ""
+
     @Slot(str)
     def selectSeries(self, series_uid):
-        if series_uid in self._scan_series_record and series_uid != self._active_series_uid:
+        if series_uid in self._scan_series_record:
             self._active_series_uid = series_uid
+            self._selected_series_uids = [series_uid]
             self.selectionChanged.emit()
+
+    @Property("QVariantList", notify=selectionChanged)
+    def selectedSeriesUids(self):
+        return list(self._selected_series_uids)
+
+    @Slot(str, bool)
+    def selectSeriesWithModifiers(self, uid, additive):
+        if not additive:
+            self.selectSeries(uid)
+        elif uid in self._scan_series_record:
+            if uid in self._selected_series_uids:
+                self._selected_series_uids.remove(uid)
+            else:
+                self._selected_series_uids.append(uid)
+            self._active_series_uid = self._selected_series_uids[-1] if self._selected_series_uids else ""
+            self.selectionChanged.emit()
+
+    @Slot(str)
+    def selectContextSeries(self, uid):
+        if uid in self._selected_series_uids:
+            self._active_series_uid = uid
+            self.selectionChanged.emit()
+        else:
+            self.selectSeries(uid)
+
+    @Property(bool, notify=fusionDialogChanged)
+    def fusionDialogOpen(self):
+        return self._fusion_dialog_open
+
+    @Property(str, notify=fusionDialogChanged)
+    def fusionError(self):
+        return self._fusion_error
+
+    @Property(str, notify=fusionDialogChanged)
+    def fusionPartnerUid(self):
+        return self._fusion_partner_uid
+
+    @Property(str, notify=fusionDialogChanged)
+    def fusionIdentityWarning(self):
+        a = self._scan_series_record.get(self._fusion_anchor_uid)
+        b = self._scan_series_record.get(self._fusion_partner_uid)
+        if a is None or b is None:
+            return ""
+        if a.patient_id and b.patient_id and (a.patient_id, a.patient_id_issuer) == (b.patient_id, b.patient_id_issuer):
+            if a.study_instance_uid and a.study_instance_uid == b.study_instance_uid:
+                return ""
+            return f"同患者的不同检查或检查信息缺失：{a.study_date or '日期未知'} / {b.study_date or '日期未知'}。请核对是否适合融合。"
+        return (f"请核对所选数据：{a.patient_name} / {a.patient_id or 'ID 缺失'} 与 "
+                f"{b.patient_name} / {b.patient_id or 'ID 缺失'}。患者身份不同或无法确认。")
+
+    @Property("QVariantList", notify=fusionDialogChanged)
+    def fusionCandidates(self):
+        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
+        anchor = self._scan_series_record.get(self._fusion_anchor_uid)
+        if anchor is None:
+            return []
+        target = "CT" if anchor.modality.upper() == "PT" else "PT"
+        records = [r for r in self._scan_series_record.values() if r.modality.upper() == target]
+        def rank(r):
+            same = bool(anchor.patient_id and r.patient_id and
+                        (anchor.patient_id, anchor.patient_id_issuer) == (r.patient_id, r.patient_id_issuer))
+            return (0 if same and r.study_instance_uid == anchor.study_instance_uid else 1 if same else 2,
+                    r.study_date, r.series_description, r.series_instance_uid)
+        return [dict(seriesUid=r.series_instance_uid, patientName=r.patient_name,
+                     patientId=r.patient_id, studyDate=r.study_date,
+                     description=r.series_description, count=r.dicom_file_count,
+                     error=fusion_series_error(r)) for r in sorted(records, key=rank)]
+
+    @Slot()
+    def requestFusionView(self):
+        self._fusion_error = ""
+        self._fusion_partner_uid = ""
+        selected = self._selected_series_uids or ([self._active_series_uid] if self._active_series_uid else [])
+        self._fusion_anchor_uid = selected[0] if selected else ""
+        self._fusion_dialog_open = True
+        if len(selected) not in (1, 2):
+            self._fusion_error = "请选择一个序列，或恰好一个 CT 和一个 PET 序列"
+            self._fusion_anchor_uid = ""
+        elif len(selected) == 2:
+            self._fusion_partner_uid = selected[1]
+            self.confirmFusion(False)
+        elif self.seriesModality(selected[0]) not in ("CT", "PT"):
+            self._fusion_error = "融合仅支持 CT 和 PET 序列"
+            self._fusion_anchor_uid = ""
+        self.fusionDialogChanged.emit()
+
+    @Slot(str)
+    def selectFusionPartner(self, uid):
+        self._fusion_partner_uid = uid
+        self._fusion_error = ""
+        self.fusionDialogChanged.emit()
+
+    @Slot(bool)
+    def confirmFusion(self, identity_confirmed):
+        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
+        records = [self._scan_series_record.get(uid) for uid in (self._fusion_anchor_uid, self._fusion_partner_uid)]
+        if any(r is None for r in records):
+            self._fusion_error = "请选择配对序列；原序列可能已被移除"
+        elif {r.modality.upper() for r in records} != {"CT", "PT"}:
+            self._fusion_error = "融合需要恰好一个 CT 和一个 PET 序列"
+        else:
+            self._fusion_error = next((error for r in records if (error := fusion_series_error(r))), "")
+            if not self._fusion_error and (not self.fusionIdentityWarning or identity_confirmed):
+                ct = next(r for r in records if r.modality.upper() == "CT")
+                pet = next(r for r in records if r.modality.upper() == "PT")
+                if self._series_catalog.get_series(ct.series_instance_uid) and self._series_catalog.get_series(pet.series_instance_uid):
+                    self._fusion_dialog_open = False
+                    self.fusionCreateRequested.emit(ct.series_instance_uid, pet.series_instance_uid)
+                else:
+                    self._fusion_error = "序列已不在当前目录中"
+        self.fusionDialogChanged.emit()
+
+    @Slot()
+    def cancelFusion(self):
+        self._fusion_dialog_open = False
+        self._fusion_partner_uid = ""
+        self.fusionDialogChanged.emit()
 
     @Property(str, notify=patientSearchChanged)
     def patientSearch(self):
@@ -218,6 +354,11 @@ class PanelController(QObject):
             return
         series = self._series_catalog.get_series(active_series_uid)
         if series is not None:
+            if (
+                series.modality.upper() == "PT"
+                and tab_type not in ("2d", "tag", "mpr")
+            ):
+                return
             self.tabCreateRequested.emit(active_series_uid, tab_type)
 
     @Slot(str, result=bool)
@@ -248,6 +389,10 @@ class PanelController(QObject):
         if self._active_series_uid == series_uid:
             self._active_series_uid = ""
             self.selectionChanged.emit()
+        if series_uid in self._selected_series_uids:
+            self._selected_series_uids.remove(series_uid)
+            self.selectionChanged.emit()
+        self.fusionDialogChanged.emit()
         self.seriesItemsChanged.emit()
         self.sidebarItemsChanged.emit()
         if self._thumbnail_service is not None and not self._scanning:

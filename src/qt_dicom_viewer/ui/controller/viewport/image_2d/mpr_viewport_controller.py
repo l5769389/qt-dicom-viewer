@@ -395,7 +395,7 @@ class MprViewportController(Image2DViewportController):
         )
         self.crosshairCenterChangeRequested.emit(center_patient)
 
-    @Property("QVariantMap", constant=True)
+    @Property("QVariantMap", notify=Image2DViewportController.crosshairImagePositionChanged)
     def crosshairStyle(self) -> dict:
         style = self._crosshair_style
         return {

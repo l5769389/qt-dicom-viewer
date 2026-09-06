@@ -20,14 +20,21 @@ class DicomImageProvider(QQuickImageProvider):
             dtype=np.uint8,
         )
 
-        height, width = pixels.shape
+        height, width = pixels.shape[:2]
+        formats = {3: QImage.Format_RGB888, 4: QImage.Format_RGBA8888}
+        if pixels.ndim == 2:
+            image_format = QImage.Format_Grayscale8
+        elif pixels.ndim == 3 and pixels.shape[2] in formats:
+            image_format = formats[pixels.shape[2]]
+        else:
+            raise ValueError("Expected grayscale, RGB or RGBA pixels")
 
         image = QImage(
             pixels.data,
             width,
             height,
             pixels.strides[0],
-            QImage.Format_Grayscale8,
+            image_format,
         )
 
         # 必须 copy，让 QImage 脱离 NumPy 内存生命周期
