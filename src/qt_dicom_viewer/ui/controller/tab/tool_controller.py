@@ -30,6 +30,7 @@ class ToolController(QObject):
     activePanelChanged = Signal()
     activeInteractionChanged = Signal()
     activeServiceChanged = Signal()
+    serviceSelected = Signal(str)
     commandRequested = Signal(str)
     resetRequested = Signal(str)
     resetStateChanged = Signal()
@@ -112,6 +113,8 @@ class ToolController(QObject):
     def resetLabel(self) -> str:
         if self._active_tool == ToolType.SERVICE and self._active_service == "service:mtf":
             return "重置 MTF"
+        if self._active_tool == ToolType.SERVICE and self._active_service == "service:qa":
+            return "重置水模 QA"
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         if definition is None or definition.reset_label is None:
             return "暂无可重置内容"
@@ -120,7 +123,7 @@ class ToolController(QObject):
     @Property(bool, notify=resetStateChanged)
     def canResetActiveTool(self) -> bool:
         if self._active_tool == ToolType.SERVICE:
-            return self._active_service == "service:mtf"
+            return self._active_service in ("service:mtf", "service:qa")
         definition = TOOL_DEFINITIONS.get(self._active_tool)
         return (
             definition is not None
@@ -203,7 +206,7 @@ class ToolController(QObject):
 
     @Slot(str)
     def selectService(self, action: str) -> None:
-        """MTF 启用独立矩形交互，QA 只保留菜单入口。"""
+        """MTF 使用矩形交互，QA 在选择入口时自动分析当前切片。"""
         if action not in {item.action for item in SERVICE_ACTIONS}:
             logger.warning("Unknown service entry: %s", action)
             return
@@ -217,6 +220,7 @@ class ToolController(QObject):
             self.activeServiceChanged.emit()
         self._set_active_interaction(InteractionType.SERVICE_MTF if action == "service:mtf"
                                      else InteractionType.NONE)
+        self.serviceSelected.emit(action)
 
     @Slot(bool)
     def setMprProjectionEnabled(self, enabled: bool) -> None:

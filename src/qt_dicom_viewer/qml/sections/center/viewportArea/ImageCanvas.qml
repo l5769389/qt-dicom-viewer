@@ -270,6 +270,13 @@ Rectangle {
         }
     }
 
+    WaterQaOverlay {
+        anchors.fill: parent
+        controller: imageCanvasRoot.viewportController?.qaController ?? null
+        coordinateMapper: imageCanvasRoot
+        transformState: imageCanvasRoot.measurementTransformState
+    }
+
     MeasurementLayer.MeasurementLayer {
         id: measurementOverlay
         anchors.fill: parent

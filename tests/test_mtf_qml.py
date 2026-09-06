@@ -139,7 +139,8 @@ def test_real_service_roi_to_canvas_chart_and_metrics(workspace, tmp_path):
     saved = controller.mtfController.roiController.measurementItems
     _click(view, _find(view, "serviceEntry-qa"))
     assert controller.activeInteraction == ""
-    assert not controller._tool_controller.canResetActiveTool
+    assert controller._tool_controller.canResetActiveTool
+    assert controller._tool_controller.resetLabel == "重置水模 QA"
     assert not [item for item in _visual_children(view.rootObject())
                 if item.objectName() == "mtfResults" and item.isVisible()]
     _mouse_drag(view, _scene(pixels, 20, 20), _scene(pixels, 90, 90))

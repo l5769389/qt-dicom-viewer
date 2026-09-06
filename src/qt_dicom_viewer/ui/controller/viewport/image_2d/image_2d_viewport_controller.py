@@ -107,6 +107,7 @@ class Image2DViewportController(ViewportController):
         self._baseline_slice_index: int | None = None
         self._measure_controller = MeasurementController(self)
         self._mtf_controller = None
+        self._qa_controller = None
         self._tool_controller = tool_controller
         self._tool_controller.activeInteractionChanged.connect(
             self._handle_active_interaction_changed
@@ -144,6 +145,8 @@ class Image2DViewportController(ViewportController):
         self.cancelMeasurement()
         if self._mtf_controller is not None:
             self._mtf_controller.set_current_slice(index)
+        if self._qa_controller is not None:
+            self._qa_controller.set_current_slice(index)
         self._state = replace(
             self._state,
             slice_index=index,
@@ -626,6 +629,10 @@ class Image2DViewportController(ViewportController):
     def mtfController(self):
         return self._mtf_controller
 
+    @Property(QObject, constant=True)
+    def qaController(self):
+        return self._qa_controller
+
     @Property(QObject, notify=activeInteractionChanged)
     def activeAnnotationController(self):
         if (self._mtf_controller is not None
@@ -636,6 +643,8 @@ class Image2DViewportController(ViewportController):
     def shutdown(self):
         if self._mtf_controller is not None:
             self._mtf_controller.shutdown()
+        if self._qa_controller is not None:
+            self._qa_controller.shutdown()
 
     @Property(int, notify=imageDimensionChanged)
     def imageColumns(self) -> int:
@@ -802,6 +811,8 @@ class Image2DViewportController(ViewportController):
             case ToolType.SERVICE:
                 if self._mtf_controller is not None and self._tool_controller.activeService == "service:mtf":
                     self._mtf_controller.reset()
+                elif self._qa_controller is not None and self._tool_controller.activeService == "service:qa":
+                    self._qa_controller.reset()
 
             case _:
                 return
@@ -840,6 +851,9 @@ class Image2DViewportController(ViewportController):
         self._measure_controller.clear_all()
         if self._mtf_controller is not None:
             self._mtf_controller.reset()
+
+        if self._qa_controller is not None:
+            self._qa_controller.reset()
 
         if transform_changed:
             self.transformChanged.emit()

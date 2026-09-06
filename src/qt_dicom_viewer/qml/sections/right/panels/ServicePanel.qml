@@ -44,6 +44,9 @@ Item {
                     iconName: serviceButton.modelData.iconName
                     label: serviceButton.modelData.label
                     checked: servicePanel.selectedService === serviceButton.modelData.action
+                    enabled: serviceButton.modelData.action !== "service:qa"
+                        || !servicePanel.viewportController
+                        || !!servicePanel.viewportController.qaController?.available
 
                     onClicked: servicePanel.actionTriggered(serviceButton.modelData.action)
                 }
@@ -54,6 +57,12 @@ Item {
             Layout.fillWidth: true
             visible: servicePanel.selectedService === "service:mtf"
             controller: servicePanel.viewportController?.mtfController ?? null
+        }
+
+        WaterQaResults {
+            Layout.fillWidth: true
+            visible: servicePanel.selectedService === "service:qa"
+            controller: servicePanel.viewportController?.qaController ?? null
         }
     }
 }

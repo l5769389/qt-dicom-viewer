@@ -129,7 +129,7 @@ def test_non_2d_toolbar_has_no_service_entry(service_panel):
 
 
 @pytest.mark.parametrize("entry", ["qa"])
-def test_service_placeholder_cancels_draft_and_does_not_draw_on_drag(viewport, entry):
+def test_automatic_qa_cancels_draft_and_does_not_draw_manual_measurements(viewport, entry):
     view, controller, pixel_layer, warnings = viewport
     tools = controller._tool_controller
     tools.activateTool("measure")

@@ -167,7 +167,7 @@ class ToolActionDefinition:
     icon_name: str
 
 
-# 服务菜单暂时只保存入口选择，不对应任何绘制交互或执行命令。
+# 服务入口分别启动手动 MTF ROI 和自动水模 QA。
 SERVICE_ACTIONS = (
     ToolActionDefinition(action="service:mtf", label="MTF", icon_name="mtf"),
     ToolActionDefinition(action="service:qa", label="QA", icon_name="qa"),
