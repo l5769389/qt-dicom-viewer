@@ -41,7 +41,9 @@ Rectangle {
             sourceComponent: centerPanel.workspaceController.activeTabType === "tag"
                 ? tagComponent
                 : centerPanel.workspaceController.activeTabType === "3d"
-                    ? volumeComponent : imageComponent
+                    ? volumeComponent
+                    : centerPanel.workspaceController.activeTabType === "montage"
+                        ? montageComponent : imageComponent
         }
     }
 
@@ -75,6 +77,13 @@ Rectangle {
     Component {
         id: volumeComponent
         ViewportSection.VolumeViewport {
+            viewportController: centerPanel.viewportController
+        }
+    }
+
+    Component {
+        id: montageComponent
+        ViewportSection.MontageViewport {
             viewportController: centerPanel.viewportController
         }
     }

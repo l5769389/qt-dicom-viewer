@@ -38,6 +38,7 @@
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ImageCanvas.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MprSlabGuideLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/InteractionLayer.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MontageViewport.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/Overlay.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/SliceSlider.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/Viewport.qml</file>

@@ -101,6 +101,7 @@ class Image2DViewportController(ViewportController):
             slice_count=None,
         )
         self._image_revision = 0
+        self._latest_request_id: str | None = None
         self._has_image = False
         self._frame_meta: FrameDisplayMeta | None = None
         self._baseline_window: WindowLevel | None = None
@@ -193,6 +194,7 @@ class Image2DViewportController(ViewportController):
 
     def request_first_loader(self) -> None:
         request = self._build_render_request(initial=True)
+        self._latest_request_id = request.request_id
         logger.debug(
             "Render started: request_id=%s viewport_id=%s",
             request.request_id,
@@ -202,6 +204,7 @@ class Image2DViewportController(ViewportController):
 
     def request_render(self) -> None:
         request = self._build_render_request(initial=False)
+        self._latest_request_id = request.request_id
         logger.debug(
             "Render started: request_id=%s viewport_id=%s window=%r",
             request.request_id,
@@ -209,6 +212,12 @@ class Image2DViewportController(ViewportController):
             request.window
         )
         self.renderRequested.emit(request)
+
+    def accepts_result(self, result: RenderResult) -> bool:
+        return (
+            result.viewport_id == self.viewport_config.viewport_id
+            and result.response_id == self._latest_request_id
+        )
 
     @Slot(float, float)
     def setViewportSize(
@@ -239,6 +248,7 @@ class Image2DViewportController(ViewportController):
         ):
             return
         self._validate_render_result(result)
+        self._latest_request_id = None
         if self._baseline_window is None:
             self._baseline_window = result.frame_meta.window
         if self._baseline_slice_index is None:

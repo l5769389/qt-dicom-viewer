@@ -57,9 +57,10 @@ Basic.TabBar {
 
                 // 视图类型先作为上下文标识，再显示序列名称。
                 Rectangle {
-                    Layout.preferredWidth:
-                        String(tabButton.modelData.tabType).toLowerCase()
-                            === "mpr" ? 38 : 30
+                    Layout.preferredWidth: Math.max(
+                        30,
+                        tabTypeLabel.implicitWidth + 12
+                    )
                     Layout.preferredHeight: 22
                     radius: 5
                     color: tabButton.checked
@@ -71,6 +72,8 @@ Basic.TabBar {
                     border.width: 0
 
                     Text {
+                        id: tabTypeLabel
+
                         anchors.centerIn: parent
                         font.pixelSize: 11
                         text: String(

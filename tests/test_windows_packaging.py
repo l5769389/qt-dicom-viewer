@@ -38,6 +38,10 @@ def test_onefile_build_keeps_package_resource_layout() -> None:
         "vtkmodules.vtkRenderingVolumeOpenGL2", "vtkmodules.vtkRenderingFreeType",
         "vtkmodules.vtkInteractionStyle",
     } <= set(command)
+    assert (
+        PROJECT_ROOT
+        / "src/qt_dicom_viewer/qml/sections/center/viewportArea/MontageViewport.qml"
+    ).is_file()
 
 
 def test_console_build_uses_separate_executable() -> None:

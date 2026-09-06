@@ -25,6 +25,15 @@ from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
 
 logger = logging.getLogger(__name__)
 
+MONTAGE_TOOL_TYPES = frozenset((
+    ToolType.WINDOW,
+    ToolType.PAN,
+    ToolType.ZOOM,
+    ToolType.ROTATE,
+    ToolType.INVERT,
+    ToolType.RESET,
+))
+
 
 class ToolController(QObject):
     activeToolChanged = Signal()
@@ -146,6 +155,8 @@ class ToolController(QObject):
         if definition is None:
             logger.warning("Missing tool definition: %s", tool_type.value)
             return
+        if not definition.enabled:
+            return
         if not tool_available(tool_type, self._tab_type):
             logger.warning(
                 "Tool %s is not available for tab type %s",
@@ -196,6 +207,20 @@ class ToolController(QObject):
         if interaction == InteractionType.SERVICE_MTF:
             self.selectService(interaction.value)
             return
+        if (
+            self._tab_type == TabType.MONTAGE
+            and interaction not in {
+                InteractionType.WINDOW,
+                InteractionType.PAN,
+                InteractionType.ZOOM,
+            }
+        ):
+            logger.warning(
+                "Interaction %s is not available for montage tabs",
+                interaction.value,
+            )
+            return
+
         self._set_active_interaction(interaction)
 
     def lock_to_tool(self, tool: ToolType | None) -> None:
@@ -366,7 +391,8 @@ def build_tool_items(
             "label": definition.label,
             "iconName": definition.icon_name,
             "behavior": definition.behavior.value,
-            "available": definition.tool_type != ToolType.ANNOTATE,
+            "available": definition.enabled and definition.tool_type != ToolType.ANNOTATE,
+            "enabled": definition.enabled,
         }
         for definition in TOOL_CATALOG
         if tool_available(definition.tool_type, tab_type)
@@ -383,6 +409,8 @@ def build_tool_items(
 
 
 def tool_available(tool: ToolType, tab_type: TabType | None) -> bool:
+    if tab_type == TabType.MONTAGE:
+        return tool in MONTAGE_TOOL_TYPES
     if tab_type == TabType.THREE_D:
         return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
                         ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)

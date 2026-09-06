@@ -49,6 +49,11 @@ class DicomInstanceMeta:
         | None
     )
     slice_thickness: float | None
+    patient_sex: str = ""
+    patient_age: str = ""
+    acquisition_datetime: str = ""
+    kvp: float | None = None
+    tube_current_ma: float | None = None
     study_date: str = ""
     study_time: str = ""
     patient_id_issuer: str = ""
@@ -213,6 +218,17 @@ class SeriesDisplayMeta:
     phase_identifiers: tuple[int, ...] = ()
     supports_four_d: bool = False
     initial_phase_identifier: int | None = None
+    slice_count: int = 0
+    rows: int | None = None
+    columns: int | None = None
+    pixel_spacing: PixelSpacing | None = None
+    series_number: int | None = None
+    patient_sex: str = ""
+    patient_age: str = ""
+    acquisition_datetime: str = ""
+    kvp: float | None = None
+    tube_current_ma: float | None = None
+    slice_thickness: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,7 +1,10 @@
 import logging
+from collections import OrderedDict
+from dataclasses import dataclass
 from dataclasses import replace
 
 import numpy as np
+import pydicom
 from PySide6.QtCore import QObject, Signal, Slot
 
 from qt_dicom_viewer.core.volume_manager import VolumeManager
@@ -10,13 +13,17 @@ from qt_dicom_viewer.core.mpr_reslicer import MprReslicer
 from qt_dicom_viewer.model import (
     FrameDisplayMeta,
     ImageGeometryMeta,
+    InstanceDisplayMeta,
     MprFrame,
+    MontageRenderRequest,
+    MontageRenderResult,
     PixelSpacing,
     MprRenderRequest,
     RenderFailure,
     RenderRequest,
     RenderResult,
     StackRenderRequest,
+    WindowLevel,
 )
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.model.render_models import MprRenderResult, StackRenderResult
@@ -24,6 +31,57 @@ from qt_dicom_viewer.model.render_models import VolumeLoadRequest, VolumeLoadRes
 from qt_dicom_viewer.core.volume_view import validate_volume_series
 
 logger = logging.getLogger(__name__)
+
+MONTAGE_CACHE_BYTES = 128 * 1024 * 1024
+
+
+@dataclass(frozen=True, slots=True)
+class _CachedMontageFrame:
+    modality_pixels: np.ndarray
+    default_window: WindowLevel
+    instance_meta: InstanceDisplayMeta
+
+
+class _MontageFrameCache:
+    """Worker-thread-only, byte-bounded cache of decoded modality frames."""
+
+    def __init__(self, maximum_bytes: int = MONTAGE_CACHE_BYTES) -> None:
+        self._maximum_bytes = max(0, int(maximum_bytes))
+        self._total_bytes = 0
+        self._items: OrderedDict[
+            tuple[str, int], _CachedMontageFrame
+        ] = OrderedDict()
+
+    @property
+    def total_bytes(self) -> int:
+        return self._total_bytes
+
+    def get(self, key: tuple[str, int]) -> _CachedMontageFrame | None:
+        value = self._items.get(key)
+        if value is not None:
+            self._items.move_to_end(key)
+        return value
+
+    def put(
+        self,
+        key: tuple[str, int],
+        value: _CachedMontageFrame,
+    ) -> None:
+        byte_count = int(value.modality_pixels.nbytes)
+        previous = self._items.pop(key, None)
+        if previous is not None:
+            self._total_bytes -= int(previous.modality_pixels.nbytes)
+
+        # A single frame larger than the budget is still renderable; it simply
+        # is not retained after this request.
+        if byte_count > self._maximum_bytes:
+            return
+
+        self._items[key] = value
+        self._total_bytes += byte_count
+        while self._total_bytes > self._maximum_bytes and self._items:
+            _, evicted = self._items.popitem(last=False)
+            self._total_bytes -= int(evicted.modality_pixels.nbytes)
 
 class DicomRenderWorker(QObject):
     render_finished = Signal(object)
@@ -37,6 +95,7 @@ class DicomRenderWorker(QObject):
         self.series_catalog = series_catalog
         self._volume_manager = volume_manager
         self._mpr_reslicer = MprReslicer()
+        self._montage_cache = _MontageFrameCache()
 
     @Slot(object)
     def handleRenderRequest(self, request: RenderRequest):
@@ -45,6 +104,8 @@ class DicomRenderWorker(QObject):
         try:
             if isinstance(request, StackRenderRequest):
                 self._handle_stack_request(request)
+            elif isinstance(request, MontageRenderRequest):
+                self._handle_montage_request(request)
             elif isinstance(request, MprRenderRequest):
                 self._handle_plane_request(request)
             elif isinstance(request, VolumeLoadRequest):
@@ -75,6 +136,87 @@ class DicomRenderWorker(QObject):
                     error=error,
                 )
             )
+
+    def _handle_montage_request(
+        self,
+        request: MontageRenderRequest,
+    ) -> None:
+        series = self.series_catalog.get_series(request.series_uid)
+        if series is None:
+            raise LookupError(
+                "Series not found: "
+                f"series_uid={request.series_uid}"
+            )
+
+        instances = series.instances
+        if not instances:
+            raise LookupError(
+                "Series has no renderable instances: "
+                f"series_uid={request.series_uid}"
+            )
+
+        slice_index = min(max(0, request.slice_index), len(instances) - 1)
+        instance = instances[slice_index]
+        cache_key = (request.series_uid, slice_index)
+        cached = self._montage_cache.get(cache_key)
+        loader = DicomLoader()
+
+        if cached is None:
+            dataset = pydicom.dcmread(instance.path)
+            modality_pixels = loader.to_modality_pixels(dataset)
+            if modality_pixels.ndim != 2:
+                raise ValueError(
+                    "Montage rendering requires a single-frame 2D image, "
+                    f"got shape={modality_pixels.shape}"
+                )
+            cached = _CachedMontageFrame(
+                modality_pixels=np.ascontiguousarray(
+                    modality_pixels,
+                    dtype=np.float32,
+                ),
+                default_window=loader.resolve_window(dataset, None),
+                instance_meta=loader.extract_instance_meta(dataset),
+            )
+            self._montage_cache.put(cache_key, cached)
+
+        effective_window = loader.normalize_window(
+            request.window or cached.default_window
+        )
+        image = loader.apply_window(
+            modality_pixels=cached.modality_pixels,
+            target_window=effective_window,
+            inverted=request.inverted,
+        )
+        pixel_spacing = instance.pixel_spacing or PixelSpacing(
+            row=1.0,
+            column=1.0,
+        )
+        self.render_finished.emit(
+            MontageRenderResult(
+                response_id=request.request_id,
+                series_uid=request.series_uid,
+                viewport_id=request.viewport_id,
+                view_type=request.view_type,
+                slice_index=slice_index,
+                image=image,
+                # Montage never samples pixels or measures in the thumbnails.
+                modality_pixel=None,
+                frame_meta=FrameDisplayMeta(
+                    slice_index=slice_index,
+                    slice_count=len(instances),
+                    window=effective_window,
+                    instance_meta=cached.instance_meta,
+                    inverted=request.inverted,
+                    geometry=ImageGeometryMeta(
+                        rows=instance.rows or image.shape[0],
+                        columns=instance.columns or image.shape[1],
+                        pixel_spacing=pixel_spacing,
+                        image_position_patient=instance.image_position_patient,
+                        image_orientation_patient=instance.image_orientation_patient,
+                    ),
+                ),
+            )
+        )
 
     def _handle_stack_request(
         self,

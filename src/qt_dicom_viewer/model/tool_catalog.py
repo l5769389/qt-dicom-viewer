@@ -15,6 +15,7 @@ class ToolDefinition:
     command: str | None = None
     supported_tab_types: frozenset[TabType] | None = None
     reset_label: str | None = None
+    enabled: bool = True
 
 
 TOOL_CATALOG: tuple[ToolDefinition, ...] = (
@@ -72,6 +73,14 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         behavior=ToolBehavior.PANEL,
         supported_tab_types=frozenset((TabType.MPR, TabType.FOUR_D)),
         reset_label="重置 MIP",
+    ),
+    ToolDefinition(
+        tool_type=ToolType.INVERT,
+        label="反色（暂未实现）",
+        icon_name="invert",
+        behavior=ToolBehavior.COMMAND,
+        supported_tab_types=frozenset((TabType.MONTAGE,)),
+        enabled=False,
     ),
     ToolDefinition(
         tool_type=ToolType.MPR_ROTATE_3D,

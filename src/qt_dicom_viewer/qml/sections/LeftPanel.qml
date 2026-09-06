@@ -18,7 +18,7 @@ Rectangle {
         {label: "3D 视图", shortLabel: "3D", type: "3d", icon: "nav-view-3d", supported: true}
     ]
     readonly property var secondaryActions: [
-        {label: "平铺视图", shortLabel: "平铺", type: "tile", icon: "nav-view-tile", supported: false},
+        {label: "平铺视图", shortLabel: "平铺", type: "montage", icon: "nav-view-tile", supported: true},
         {label: "4D 视图", shortLabel: "4D", type: "4d", icon: "nav-view-4d", supported: true},
         {label: "DICOM Tag", shortLabel: "Tag", type: "tag", icon: "nav-view-tag", supported: true},
         {label: "融合视图", shortLabel: "融合", type: "fusion", icon: "fusion", supported: false}
@@ -68,6 +68,7 @@ Rectangle {
             ? !leftPanel.panelController.scanning
             : leftPanel.activeSeriesUid !== ""
                 && actionData.supported
+                && (actionData.type !== "montage" || !leftPanel.panelController.scanning)
                 && (
                     actionData.type !== "4d"
                     || leftPanel.panelController.activeSeriesSupportsFourD

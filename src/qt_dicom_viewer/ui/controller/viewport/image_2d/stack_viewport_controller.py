@@ -9,6 +9,7 @@ from qt_dicom_viewer.model import (
     StackRenderResult,
     TwoDViewType,
     ViewportConfig,
+    WindowLevel,
 )
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.viewport.controller.mtf_controller import MtfController
@@ -43,6 +44,37 @@ class StackViewportController(Image2DViewportController):
             slice_index=index,
         )
         self.request_render()
+
+    def navigate_to_slice(
+        self,
+        index: int,
+        window: WindowLevel,
+        inverted: bool,
+    ) -> None:
+        """Atomically select a stack slice and display window."""
+        count = self.viewport_state.slice_count
+        index = max(0, int(index))
+        if count is not None and count > 0:
+            index = min(index, count - 1)
+
+        slice_changed = self._prepare_slice_index_change(index)
+        normalized_window = WindowLevel(
+            center=float(window.center),
+            width=max(float(window.width), 1.0),
+        )
+        window_changed = (
+            normalized_window != self.viewport_state.window
+            or bool(inverted) != self.viewport_state.inverted
+        )
+        if window_changed:
+            self._state = replace(
+                self._state,
+                window=normalized_window,
+                inverted=bool(inverted),
+            )
+            self.overlayChanged.emit()
+        if slice_changed or window_changed:
+            self.request_render()
 
 
     def _build_render_request(self, *, initial: bool) -> RenderRequest:

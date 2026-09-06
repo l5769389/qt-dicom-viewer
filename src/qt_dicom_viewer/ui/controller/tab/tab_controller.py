@@ -5,6 +5,7 @@ from types import MappingProxyType
 from PySide6.QtCore import QObject, QTimer, Signal, Slot, Property
 
 from qt_dicom_viewer.model import (
+    MontageRenderResult,
     MprPlane,
     MprRenderRequest,
     RenderFailure,
@@ -36,6 +37,9 @@ from qt_dicom_viewer.ui.controller.viewport.image_2d.mpr_viewport_controller imp
 from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller import (
     StackViewportController,
 )
+from qt_dicom_viewer.ui.controller.viewport.image_2d.montage_viewport_controller import (
+    MontageViewportController,
+)
 from qt_dicom_viewer.ui.controller.viewport.viewport_controller import ViewportController
 from qt_dicom_viewer.ui.controller.viewport.volume_viewport_controller import VolumeViewportController
 from qt_dicom_viewer.model.dicom_models import VolumeViewType
@@ -49,6 +53,8 @@ class TabController(QObject):
     phaseChanged = Signal()
     fpsChanged = Signal()
     playingChanged = Signal()
+    imageRemovalRequested = Signal(str)
+    stackNavigationRequested = Signal(str, int, float, float, bool)
 
     def __init__(self, tab_config: TabConfig, parent=None, *, tag_controller: TagController | None = None):
         super().__init__(parent)
@@ -279,7 +285,7 @@ class TabController(QObject):
             self._try_start_next_mpr_render()
             return
 
-        if isinstance(viewport, (StackViewportController, VolumeViewportController)):
+        if isinstance(viewport, (StackViewportController, VolumeViewportController, MontageViewportController)):
             viewport.reset_all_view_state()
 
     @Slot(str)
@@ -299,7 +305,7 @@ class TabController(QObject):
             return
 
         viewport = self.activeViewport
-        if isinstance(viewport, (MprViewportController, StackViewportController, VolumeViewportController)):
+        if isinstance(viewport, (MprViewportController, StackViewportController, VolumeViewportController, MontageViewportController)):
             viewport.reset_tool_state(tool_type)
 
     def _reset_mpr_3d_rotation(self) -> None:
@@ -366,7 +372,7 @@ class TabController(QObject):
             and not self._active_mpr_requests
         ):
             self._request_initial_mpr()
-        if self.tab_config.tab_type in (TabType.TWO_D, TabType.THREE_D):
+        if self.tab_config.tab_type in (TabType.TWO_D, TabType.THREE_D, TabType.MONTAGE):
             for viewport in self._viewport_dict.values():
                 viewport.request_first_loader()
 
@@ -408,6 +414,23 @@ class TabController(QObject):
                     )
                     self.connect_signal(viewport)
                     self._viewport_dict[viewport_id] = viewport
+            case TabType.MONTAGE:
+                for series_meta in self._tab_config.series_metas:
+                    viewport_id = str(uuid.uuid4())
+                    self._active_viewport_id = viewport_id
+                    viewport = MontageViewportController(
+                        viewport_config=ViewportConfig(
+                            viewport_id,
+                            tab_id=self._tab_config.tab_id,
+                            viewport_type=TwoDViewType.MONTAGE,
+                            series_uid=series_meta.series_uid,
+                            series_meta=series_meta,
+                        ),
+                        tool_controller=self._tool_controller,
+                        parent=self,
+                    )
+                    self.connect_signal(viewport)
+                    self._viewport_dict[viewport_id] = viewport
             case TabType.MPR | TabType.FOUR_D:
                     for series_meta in self._tab_config.series_metas:
                         for view_type in [MprPlane.AXIAL, MprPlane.SAGITTAL, MprPlane.CORONAL]:
@@ -430,6 +453,17 @@ class TabController(QObject):
 
 
     def connect_signal(self, viewport: ViewportController):
+        if isinstance(viewport, MontageViewportController):
+            viewport.renderRequested.connect(
+                self._handle_render_requested
+            )
+            viewport.imageRemovalRequested.connect(
+                self.imageRemovalRequested.emit
+            )
+            viewport.sliceOpenRequested.connect(
+                self.stackNavigationRequested.emit
+            )
+            return
         if isinstance(viewport, MprViewportController):
             viewport.crosshairCenterChangeRequested.connect(
                 self._handle_crosshair_center_change_requested
@@ -562,8 +596,17 @@ class TabController(QObject):
         if isinstance(result, VolumeLoadResult):
             viewport = self._viewport_dict.get(result.viewport_id)
             return isinstance(viewport, VolumeViewportController) and viewport.accepts_result(result)
+        if isinstance(result, MontageRenderResult):
+            viewport = self._viewport_dict.get(result.viewport_id)
+            return (
+                isinstance(viewport, MontageViewportController)
+                and viewport.accepts_result(result)
+            )
         if not isinstance(result, MprRenderResult):
-            return result.viewport_id in self._viewport_dict
+            viewport = self._viewport_dict.get(result.viewport_id)
+            if isinstance(viewport, StackViewportController):
+                return viewport.accepts_result(result)
+            return viewport is not None
 
         return (
             self._active_mpr_requests.get(result.response_id)
@@ -652,7 +695,7 @@ class TabController(QObject):
     @Slot(object)
     def handleRenderFailure(self, failure: RenderFailure) -> None:
         viewport = self._viewport_dict.get(failure.viewport_id)
-        if isinstance(viewport, VolumeViewportController):
+        if isinstance(viewport, (VolumeViewportController, MontageViewportController)):
             viewport.handleRenderFailure(failure)
             return
         expected_viewport_id = self._active_mpr_requests.get(
@@ -695,7 +738,7 @@ class TabController(QObject):
             self._tag_controller.dispose()
         for viewport in self._viewport_dict.values():
             viewport.shutdown()
-            if isinstance(viewport, VolumeViewportController):
+            if isinstance(viewport, (VolumeViewportController, MontageViewportController)):
                 viewport.dispose()
 
     @property
@@ -717,6 +760,17 @@ class TabController(QObject):
 
         self._active_viewport_id = activeViewportId
         self.activeViewportChanged.emit()
+
+    def navigate_stack(
+        self,
+        slice_index: int,
+        window,
+        inverted: bool,
+    ) -> None:
+        for viewport in self._viewport_dict.values():
+            if isinstance(viewport, StackViewportController):
+                viewport.navigate_to_slice(slice_index, window, inverted)
+                return
 
     def _mpr_viewport_ids(self) -> list[str]:
         return [
