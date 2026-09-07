@@ -175,6 +175,7 @@ Item {
     }
 
     TextAnnotationLayer {
+        preferences: viewportRoot.viewportController?.settingsController.values ?? ({})
         anchors.fill: parent
         z: 14
         annotationController: viewportRoot.viewportController

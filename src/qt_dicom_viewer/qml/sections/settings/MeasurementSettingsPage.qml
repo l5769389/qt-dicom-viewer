@@ -12,6 +12,7 @@ SettingsSplit {
     SettingsSection {
         Layout.fillWidth: true
         title: "测量线条"
+        description: "选中时使用编辑样式，取消选中后使用完成样式。"
         SettingColor { Layout.fillWidth: true; title: "编辑 / 选中"; settingName: "measurement-editingColor"; value: root.values.editingColor; onEdited: color => root.settingsController.setValue("measurement", "editingColor", color) }
         Components.AppCheckBox { objectName: "setting-measurement-editingDash"; text: "选中时使用虚线"; checked: root.values.editingDash; onClicked: root.settingsController.setValue("measurement", "editingDash", checked) }
         SettingColor { Layout.fillWidth: true; title: "完成后"; settingName: "measurement-completedColor"; value: root.values.completedColor; onEdited: color => root.settingsController.setValue("measurement", "completedColor", color) }
@@ -23,7 +24,7 @@ SettingsSplit {
         Layout.fillWidth: true
         title: "箭头标注"
         SettingColor { Layout.fillWidth: true; title: "箭头颜色"; settingName: "measurement-annotationColor"; value: root.values.annotationColor; onEdited: color => root.settingsController.setValue("measurement", "annotationColor", color) }
-        SettingSlider { Layout.fillWidth: true; title: "箭头大小"; settingName: "measurement-annotationSize"; from: 8; to: 28; stepSize: 1; value: root.values.annotationSize; onEdited: value => root.settingsController.setValue("measurement", "annotationSize", value) }
+        SettingSlider { Layout.fillWidth: true; title: "箭头头部大小"; settingName: "measurement-annotationSize"; from: 8; to: 28; stepSize: 1; value: root.values.annotationSize; onEdited: value => root.settingsController.setValue("measurement", "annotationSize", value) }
     }
     preview: Component {
         ColumnLayout {

@@ -16,8 +16,7 @@ CORNER_FIELDS = {
 }
 CORNERS = ("topLeft", "topRight", "bottomLeft", "bottomRight")
 METRICS = {"mean": "均值 Mean", "std": "标准差 StdDev", "minimum": "最小值 Min",
-           "maximum": "最大值 Max", "area": "面积 Area", "width": "宽度 Width",
-           "height": "高度 Height", "count": "有效像素数"}
+           "maximum": "最大值 Max", "area": "面积 Area", "dimensions": "宽度与高度", "count": "有效像素数"}
 DEFAULTS = {
     "colormap": {"gray": "grayscale", "pet": "grayscale"},
     "window": {"hidden": [], "custom": []},
@@ -101,4 +100,8 @@ def normalize_settings(raw):
                     entries[key] = validate_value(section, key, candidate[key])
                 except (ValueError, TypeError):
                     pass
+    # Migrate the former independent flags without turning a hidden size back on.
+    legacy_roi = raw.get("roi", {})
+    if isinstance(legacy_roi, dict) and "dimensions" not in legacy_roi:
+        data["roi"]["dimensions"] = not any(legacy_roi.get(key) is False for key in ("width", "height"))
     return data

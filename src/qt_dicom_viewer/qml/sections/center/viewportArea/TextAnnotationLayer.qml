@@ -10,6 +10,8 @@ Item {
     required property var annotationController
     required property var coordinateMapper
     required property var transformState
+    property var preferences: ({})
+    readonly property var styleSettings: preferences.measurement ?? ({})
 
     Repeater {
         model: annotationLayer.annotationController
@@ -53,8 +55,8 @@ Item {
                 (headPoint.y - tailPoint.y) / Math.max(arrowLength, 0.001)
             readonly property real normalX: -directionY
             readonly property real normalY: directionX
-            readonly property real arrowHeadLength: Math.min(15, arrowLength * 0.45)
-            readonly property real arrowHeadHalfWidth: Math.min(7, arrowLength * 0.3)
+            readonly property real arrowHeadLength: Math.min(annotationLayer.styleSettings.annotationSize ?? 14, arrowLength * 0.45)
+            readonly property real arrowHeadHalfWidth: arrowHeadLength * 0.48
             readonly property point arrowBase: Qt.point(
                 headPoint.x - directionX * arrowHeadLength,
                 headPoint.y - directionY * arrowHeadLength
@@ -79,9 +81,11 @@ Item {
 
                 ShapePath {
                     strokeColor: annotationItem.arrowColor
-                    strokeWidth: annotationItem.modelData.selected ? 2.5 : 2
+                    strokeWidth: annotationLayer.styleSettings.lineWidth ?? 1.5
                     fillColor: "transparent"
-                    strokeStyle: annotationItem.modelData.draft
+                    strokeStyle: (annotationItem.modelData.draft || annotationItem.modelData.selected
+                        ? (annotationLayer.styleSettings.editingDash ?? true)
+                        : (annotationLayer.styleSettings.completedDash ?? false))
                         ? ShapePath.DashLine : ShapePath.SolidLine
                     dashPattern: [4, 2.5]
                     capStyle: ShapePath.RoundCap
@@ -96,7 +100,7 @@ Item {
 
                 ShapePath {
                     strokeColor: annotationItem.arrowColor
-                    strokeWidth: 1
+                    strokeWidth: annotationLayer.styleSettings.lineWidth ?? 1.5
                     fillColor: annotationItem.modelData.draft
                         ? "transparent" : annotationItem.arrowColor
                     joinStyle: ShapePath.RoundJoin

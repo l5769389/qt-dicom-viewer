@@ -20,7 +20,7 @@ Item {
             Text { text: "自动保存"; color: Theme.textSubtle; font.pixelSize: 11 }
             Components.AppButton { objectName: "resetDisplaySettings"; text: "恢复默认"; compact: true; normalColor: "transparent"; baseBorderWidth: 1; onClicked: page.settingsController.resetSection(page.category) }
         }
-        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.dividerColor }
+        Item { Layout.fillWidth: true; Layout.preferredHeight: 2 }
         Text {
             objectName: "settingsError"
             Layout.fillWidth: true

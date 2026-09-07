@@ -140,6 +140,23 @@ class TextAnnotationController(QObject):
         self._annotations[selected.annotation_id] = updated
         self.annotationsChanged.emit()
 
+    def applyStyleDefaults(self, *, color=None, font_size=None) -> None:
+        """Apply changed workspace defaults to existing annotations on every frame."""
+        changes = {}
+        if color is not None and QColor(color).isValid():
+            self._color = QColor(color).name()
+            changes["color"] = self._color
+        if font_size is not None:
+            self._font_size = max(10, min(int(font_size), 48))
+            changes["font_size"] = self._font_size
+        if not changes:
+            return
+        updated = {key: replace(item, **changes) for key, item in self._annotations.items()}
+        if updated != self._annotations:
+            self._annotations = updated
+            self.annotationsChanged.emit()
+        self.editorChanged.emit()
+
     @Slot(str)
     def setAnnotationText(self, text: str) -> None:
         text = str(text)[:200]

@@ -9,11 +9,10 @@ ColumnLayout {
     property string description: ""
     spacing: 10
     data: [
-        RowLayout {
+        Text {
             Layout.fillWidth: true
-            spacing: 10
-            Text { text: root.title; color: Theme.textPrimary; font.pixelSize: 13; font.weight: Font.DemiBold }
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.dividerColor }
+            text: root.title; color: Theme.textPrimary
+            font.pixelSize: 14; font.weight: Font.DemiBold
         },
         Text {
             Layout.fillWidth: true

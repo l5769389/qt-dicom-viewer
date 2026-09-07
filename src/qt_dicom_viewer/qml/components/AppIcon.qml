@@ -108,7 +108,7 @@ Item {
     }
 
     MprIcon {
-        objectName: "mprPlaneIcon"
+        objectName: "mprCrosshairIcon"
         anchors.fill: parent
         visible: appIcon.iconName === "nav-view-mpr"
         tint: appIcon.iconColor

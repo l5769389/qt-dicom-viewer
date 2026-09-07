@@ -158,8 +158,8 @@ class Image2DViewportController(ViewportController):
         self._settings_controller = tool_controller.settingsController
         self._set_default_color_map()
         annotation_style = self._settings_controller.section("measurement")
-        self._text_annotation_controller.setAnnotationColor(annotation_style["annotationColor"])
-        self._text_annotation_controller.setAnnotationFontSize(annotation_style["annotationSize"])
+        self._annotation_style_defaults = dict(color=annotation_style["annotationColor"], font_size=annotation_style["fontSize"])
+        self._text_annotation_controller.applyStyleDefaults(**self._annotation_style_defaults)
         self._settings_controller.sectionChanged.connect(self._preferences_changed)
         self._tool_controller.windowPresetsChanged.connect(self.windowPresetsChanged.emit)
         self._tool_controller.activeInteractionChanged.connect(
@@ -204,8 +204,10 @@ class Image2DViewportController(ViewportController):
     def _preferences_changed(self, section):
         if section == "measurement":
             style = self._settings_controller.section("measurement")
-            self._text_annotation_controller.setAnnotationColor(style["annotationColor"])
-            self._text_annotation_controller.setAnnotationFontSize(style["annotationSize"])
+            defaults = dict(color=style["annotationColor"], font_size=style["fontSize"])
+            changed = {key: value for key, value in defaults.items() if value != self._annotation_style_defaults[key]}
+            self._text_annotation_controller.applyStyleDefaults(**changed)
+            self._annotation_style_defaults = defaults
         if section == "colormap":
             before = self._state.display_style
             self._set_default_color_map()

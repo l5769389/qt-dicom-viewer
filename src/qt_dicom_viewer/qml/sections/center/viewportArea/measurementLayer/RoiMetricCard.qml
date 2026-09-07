@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls.Basic as Basic
 import "../../../../theme"
 
 Rectangle {
@@ -22,10 +23,11 @@ Rectangle {
             return value.toFixed(1)
         return value.toFixed(Math.abs(value) < 1 ? 3 : 2)
     }
+    readonly property var geometryRows: [
+        {key: "dimensions", label: measurement.type === "ellipse" ? "横轴直径 × 纵轴直径" : "宽度 × 高度", value: format(metrics.width_mm) + " × " + format(metrics.height_mm) + " mm"},
+        {key: "area", label: "面积", value: format(metrics.area_mm2) + " mm²"}
+    ].filter(row => root.visibleMetrics[row.key] !== false)
     readonly property var rows: [
-        {key: "area", label: "面积", value: format(metrics.area_mm2) + " mm²"},
-        {key: "width", label: measurement.type === "ellipse" ? "横轴直径" : "宽度", value: format(metrics.width_mm) + " mm"},
-        {key: "height", label: measurement.type === "ellipse" ? "纵轴直径" : "高度", value: format(metrics.height_mm) + " mm"},
         {key: "mean", label: "均值", value: format(metrics.mean) + unitSuffix},
         {key: "std", label: "标准差", value: format(metrics.std) + unitSuffix},
         {key: "minimum", label: "最小值", value: format(metrics.minimum) + unitSuffix},
@@ -38,7 +40,12 @@ Rectangle {
         {key: "maximum", label: "CT 最大值", value: format(secondary.maximum) + " HU"},
         {key: "count", label: "CT 有效像素", value: String(secondary.pixel_count ?? 0)}
     ] : []).filter(row => root.visibleMetrics[row.key] !== false)
-    implicitWidth: 238
+    TextMetrics {
+        id: geometryMetrics
+        font.pixelSize: root.metricFontSize
+        text: root.geometryRows.map(row => row.value).join("   ")
+    }
+    implicitWidth: Math.max(238, geometryMetrics.advanceWidth + 32)
     implicitHeight: content.implicitHeight + 20
     height: implicitHeight
     radius: 6
@@ -56,10 +63,33 @@ Rectangle {
         Text {
             text: root.measurement.label ?? "ROI"
             color: root.accentColor
-            font.pixelSize: 12
+            font.pixelSize: root.metricFontSize
             font.weight: Font.DemiBold
         }
         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.dividerColor }
+        Flow {
+            id: geometryFlow
+            Layout.fillWidth: true
+            visible: root.geometryRows.length > 0
+            spacing: 12
+            Repeater {
+                model: root.geometryRows
+                delegate: Text {
+                    id: geometryValue
+                    required property var modelData
+                    objectName: "roiGeometry-" + modelData.key
+                    width: Math.min(implicitWidth, geometryFlow.width)
+                    text: modelData.value
+                    font.pixelSize: root.metricFontSize
+                    color: Theme.overlayText
+                    wrapMode: Text.Wrap
+                    Accessible.name: modelData.label + " " + modelData.value
+                    Basic.ToolTip.text: modelData.label
+                    Basic.ToolTip.visible: hover.hovered
+                    HoverHandler { id: hover }
+                }
+            }
+        }
         Repeater {
             model: root.rows
             RowLayout {
@@ -67,23 +97,17 @@ Rectangle {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: 8
-                Text { text: metricRow.modelData.label; color: Theme.textMuted; font.pixelSize: root.metricFontSize - 2 }
+                Text { Layout.minimumWidth: 0; Layout.preferredWidth: implicitWidth; wrapMode: Text.Wrap; text: metricRow.modelData.label; color: Theme.textMuted; font.pixelSize: root.metricFontSize }
                 Text {
                     Layout.fillWidth: true
                     text: metricRow.modelData.value
                     color: Theme.overlayText
-                    font.pixelSize: root.metricFontSize - 2
+                    font.pixelSize: root.metricFontSize
                     horizontalAlignment: Text.AlignRight
-                    elide: Text.ElideRight
+                    wrapMode: Text.Wrap
+                    Layout.minimumWidth: 0
                 }
             }
         }
-        // Text {
-        //     Layout.fillWidth: true
-        //     text: root.metrics.pixel_count > 0 ? "仅统计影像内有效像素" : "区域内无有效像素"
-        //     color: Theme.textMuted
-        //     font.pixelSize: 10
-        //     wrapMode: Text.Wrap
-        // }
     }
 }

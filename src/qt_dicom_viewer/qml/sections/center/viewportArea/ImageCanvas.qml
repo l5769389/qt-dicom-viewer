@@ -292,6 +292,7 @@ Rectangle {
 
     MeasurementLayer.MeasurementLayer {
         id: mtfOverlay
+        preferences: imageCanvasRoot.viewportController?.settingsController.values ?? ({})
         objectName: "mtfOverlay"
         anchors.fill: parent
         coordinateMapper: imageCanvasRoot

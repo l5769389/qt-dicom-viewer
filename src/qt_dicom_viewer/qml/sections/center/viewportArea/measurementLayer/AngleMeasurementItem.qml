@@ -41,7 +41,7 @@ Item {
         }
         ShapePath {
             strokeColor: root.arcRadius > 1 ? root.lineColor : "transparent"
-            strokeWidth: 1
+            strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: "transparent"
             PathAngleArc {
                 centerX: root.vertex.x

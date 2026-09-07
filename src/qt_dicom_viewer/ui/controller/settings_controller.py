@@ -97,6 +97,9 @@ class SettingsController(QObject):
 
     @Slot(str, str, "QVariant", result=bool)
     def setValue(self, section, key, value):
+        # Compatibility for callers using the former individual dimension keys.
+        if section == "roi" and key in ("width", "height"):
+            key = "dimensions"
         if hasattr(value, "toVariant"):
             value = value.toVariant()
         try:

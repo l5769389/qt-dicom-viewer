@@ -127,7 +127,7 @@ def test_settings_preview_remains_bounded_on_wide_screens(scene, category, tmp_p
 
 
 @pytest.mark.parametrize('size', [24, 28, 48])
-def test_mpr_planes_and_color_mapping_are_legible_at_toolbar_sizes(qt_app, size, tmp_path):
+def test_mpr_crosshair_and_color_mapping_are_legible_at_toolbar_sizes(qt_app, size, tmp_path):
     view = QQuickView()
     warnings = []
     view.engine().warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
@@ -139,21 +139,13 @@ def test_mpr_planes_and_color_mapping_are_legible_at_toolbar_sizes(qt_app, size,
     try:
         QTest.qWait(80)
         frame = view.grabWindow()
-        foreground = {(x, y) for x in range(frame.width()) for y in range(frame.height()) if frame.pixelColor(x, y).lightness() > 50}
-        components = []
-        while foreground:
-            seed = foreground.pop()
-            pending, group = [seed], {seed}
-            while pending:
-                x, y = pending.pop()
-                for dx in [-1, 0, 1]:
-                    for dy in [-1, 0, 1]:
-                        neighbor = (x + dx, y + dy)
-                        if neighbor in foreground:
-                            foreground.remove(neighbor); pending.append(neighbor); group.add(neighbor)
-            if len(group) >= 5:
-                components.append(group)
-        assert len(components) == 3, [len(c) for c in components]
+        # The reference point and all four crosshair arms remain visible at toolbar size.
+        middle_x, middle_y = frame.width() // 2, frame.height() // 2
+        assert frame.pixelColor(middle_x, middle_y).lightness() > 50
+        for x, y in [(middle_x, size // 5), (middle_x, size * 4 // 5),
+                     (size // 5, middle_y), (size * 4 // 5, middle_y)]:
+            assert any(frame.pixelColor(x + dx, y + dy).lightness() > 50
+                       for dx in [-1, 0, 1] for dy in [-1, 0, 1])
         assert frame.save(str(tmp_path / f'mpr-{size}.png'))
         view.rootObject().setProperty('iconName', 'pseudocolor')
         QTest.qWait(80)

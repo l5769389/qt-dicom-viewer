@@ -71,7 +71,7 @@ Item {
         accentColor: root.lineColor
         visibleMetrics: root.preferences.roi ?? ({})
         metricFontSize: root.styleSettings.fontSize ?? 13
-        width: Math.max(0, Math.min(238, root.width - 16))
+        width: Math.max(0, Math.min(implicitWidth, root.width - 16))
         x: Math.max(8, Math.min(root.width - width - 8,
             root.rightEdge + width + 12 <= root.width ? root.rightEdge + 12 : root.leftEdge - width - 12))
         y: Math.max(8, Math.min(root.height - height - 8, root.topEdge))
@@ -81,6 +81,7 @@ Item {
         objectName: "mtfRoiMetricBadge"
         visible: !root.showMetrics && root.corners.length === 4 && root.shortLabel.length > 0
         implicitWidth: compactText.implicitWidth + 14
+        width: Math.min(implicitWidth, Math.max(0, root.width - 8))
         implicitHeight: compactText.implicitHeight + 8
         x: Math.max(4, Math.min(root.width - width - 4,
             root.rightEdge + width + 8 <= root.width ? root.rightEdge + 8 : root.leftEdge - width - 8))
@@ -92,11 +93,13 @@ Item {
 
         Text {
             id: compactText
+            width: Math.max(0, compactLabel.width - 14)
+            wrapMode: Text.Wrap
             objectName: "mtfRoiLabel"
             anchors.centerIn: parent
             text: root.shortLabel
             color: Theme.overlayText
-            font.pixelSize: 10
+            font.pixelSize: root.styleSettings.fontSize ?? 13
             font.weight: Font.DemiBold
             lineHeight: 1.2
         }

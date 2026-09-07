@@ -4,27 +4,24 @@ import QtQuick.Shapes
 Item {
     id: icon
     property color tint: "#b0bfcc"
-    // Three separated planes; the silhouette intentionally has no common cube rim.
+    // MPR's shared reference point, framed by the corners of an image plane.
     Shape {
         width: 24; height: 24
         transform: Scale { xScale: icon.width / 24; yScale: icon.height / 24 }
         ShapePath {
-            strokeWidth: 1.5; strokeColor: icon.tint
-            fillColor: Qt.rgba(icon.tint.r, icon.tint.g, icon.tint.b, 0.16)
-            joinStyle: ShapePath.MiterJoin
-            PathSvg { path: "M2.5,2.5H12.5V12.5H2.5Z" }
+            strokeColor: icon.tint; strokeWidth: 1.4
+            fillColor: "transparent"; capStyle: ShapePath.SquareCap
+            PathSvg { path: "M8,3H3V8M16,3H21V8M21,16V21H16M8,21H3V16" }
         }
         ShapePath {
-            strokeWidth: 1.5; strokeColor: icon.tint
-            fillColor: Qt.rgba(icon.tint.r, icon.tint.g, icon.tint.b, 0.30)
-            joinStyle: ShapePath.MiterJoin
-            PathSvg { path: "M17,3.5L21.5,7.5V17.5L17,13.5Z" }
+            strokeColor: icon.tint; strokeWidth: 1.7
+            fillColor: "transparent"; capStyle: ShapePath.RoundCap
+            PathSvg { path: "M12,2V8M12,16V22M2,12H8M16,12H22" }
         }
-        ShapePath {
-            strokeWidth: 1.5; strokeColor: icon.tint
-            fillColor: Qt.rgba(icon.tint.r, icon.tint.g, icon.tint.b, 0.48)
-            joinStyle: ShapePath.MiterJoin
-            PathSvg { path: "M7,16H14L9.5,21.5H2.5Z" }
-        }
+    }
+    Rectangle {
+        anchors.centerIn: parent
+        width: icon.width * 3 / 24; height: width; radius: width / 2
+        color: icon.tint
     }
 }
