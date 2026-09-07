@@ -161,3 +161,86 @@ def test_main_qml_two_selection_entry_points(qt_app, paired_series, tmp_path):
         delete(engine)
         workspace.shutdown()
         panel.shutdown()
+
+
+@pytest.mark.parametrize("size", [(1000, 600), (1400, 900)])
+def test_fusion_dialog_previews_and_confirmation(qt_app, paired_series, tmp_path, size):
+    from dataclasses import replace
+    from PySide6.QtQml import QQmlApplicationEngine
+    from qt_dicom_viewer.core.series_thumbnail import read_series_thumbnail
+    from qt_dicom_viewer.service.thumbnail_service import ThumbnailRequest
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    from test_tag_qml import _App, find, click
+
+    catalog, ct, pet = paired_series
+    # The warning and identity checkbox must still gate cross-patient pairing.
+    pet = replace(pet, patient_id="OTHER-PATIENT")
+    provider = DicomImageProvider()
+    panel = PanelController(series_catalog=catalog, image_provider=provider)
+    panel._scan_series_record = {r.series_instance_uid: r for r in (ct, pet)}
+    workspace = WorkspaceController(catalog, provider)
+    app = _App(workspace, panel)
+    engine = QQmlApplicationEngine()
+    engine.addImageProvider("navigation", SvgIconProvider())
+    engine.addImageProvider("dicom", provider)
+    engine.rootContext().setContextProperty("appController", app)
+    warnings = []
+    engine.warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
+    engine.load(QUrl.fromLocalFile(str(Path(__file__).resolve().parents[1] / "src/qt_dicom_viewer/qml/Main.qml")))
+    window = engine.rootObjects()[0]
+    window.resize(*size)
+    opened = []
+    panel.fusionCreateRequested.connect(lambda *uids: opened.append(uids))
+    try:
+        panel.selectSeries(ct.series_instance_uid)
+        panel.requestFusionView()
+        QTest.qWait(50)
+        candidate = find(window, "fusionCandidate-" + pet.series_instance_uid)
+        click(window, candidate)
+        candidate = find(window, "fusionCandidate-" + pet.series_instance_uid)
+        confirm = find(window, "confirmFusion")
+        assert not confirm.isEnabled()
+        identity = find(window, "fusionIdentityConfirmation")
+        click(window, identity)
+        assert confirm.isEnabled()
+
+        # Deliver actual decoded DICOM thumbnails after selection. Selection,
+        # checkbox and delegates survive the asynchronous image refresh.
+        for record in (ct, pet):
+            path = record.instances[len(record.instances) // 2].path
+            image = read_series_thumbnail(path)
+            assert not image.isNull()
+            panel._accept_thumbnail(ThumbnailRequest(record.series_instance_uid, path), image)
+        QTest.qWait(50)
+        assert find(window, "fusionCandidate-" + pet.series_instance_uid) is candidate
+        assert identity.property("checked")
+        assert panel.fusionPartnerUid == pet.series_instance_uid
+        for record in (ct, pet):
+            preview = find(window, "fusionPreview-" + record.series_instance_uid)
+            assert preview.property("source").toString() == panel.fusionThumbnails[record.series_instance_uid]
+            assert preview.property("progress") == 1.0
+            assert preview.property("paintedWidth") > 0
+        assert confirm.property("normalColor") != find(window, "cancelFusion").property("normalColor")
+        for name in ("fusionCandidates", "fusionIdentityConfirmation", "cancelFusion", "confirmFusion"):
+            item = find(window, name)
+            position = item.mapToScene(QPointF(0, 0))
+            assert position.x() >= 0 and position.y() >= 0
+            assert position.x() + item.width() <= window.width()
+            assert position.y() + item.height() <= window.height()
+        assert window.grabWindow().save(str(tmp_path / f"fusion-picker-{size[0]}.png"))
+        click(window, confirm)
+        assert opened == [(ct.series_instance_uid, pet.series_instance_uid)]
+        assert not panel.fusionDialogOpen
+
+        panel.requestFusionView()
+        QTest.qWait(40)
+        click(window, find(window, "fusionCandidate-" + pet.series_instance_uid))
+        assert not find(window, "fusionIdentityConfirmation").property("checked")
+        click(window, find(window, "cancelFusion"))
+        assert not panel.fusionDialogOpen and len(opened) == 1
+        assert not warnings, warnings
+    finally:
+        window.hide()
+        delete(engine)
+        workspace.shutdown()
+        panel.shutdown()

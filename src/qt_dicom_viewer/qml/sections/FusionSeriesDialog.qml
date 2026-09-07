@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "../components" as Components
 import "../theme"
 
 Basic.Dialog {
@@ -10,10 +11,13 @@ Basic.Dialog {
     required property var controller
     parent: Basic.Overlay.overlay
     anchors.centerIn: parent
-    width: Math.min(740, parent ? parent.width - 32 : 740)
-    height: Math.min(580, parent ? parent.height - 32 : 580)
+    width: Math.min(780, parent ? parent.width - 32 : 780)
+    height: Math.min(640, parent ? parent.height - 32 : 640)
+    padding: 16
     modal: true
-    title: "PET/CT 融合 · 选择配对序列"
+    Basic.Overlay.modal: Rectangle { color: "#99000000" }
+    title: "PET/CT 融合"
+
     function syncVisibility() {
         if (controller.fusionDialogOpen && !visible) open()
         else if (!controller.fusionDialogOpen && visible) close()
@@ -27,14 +31,133 @@ Basic.Dialog {
         identityCheck.checked = false
         if (controller.fusionDialogOpen) controller.cancelFusion()
     }
-    background: Rectangle { color: Theme.panelBackground; border.color: Theme.borderDefault; radius: 10 }
-    contentItem: ColumnLayout {
-        spacing: 10
+
+    component SeriesPreview: Rectangle {
+        id: preview
+        required property var series
+        implicitWidth: 80
+        implicitHeight: 80
+        color: Theme.canvasBackground
+        radius: 5
+        Image {
+            id: thumbnail
+            objectName: "fusionPreview-" + (preview.series.seriesUid || "")
+            anchors.fill: parent
+            anchors.margins: 3
+            source: dialog.controller.fusionThumbnails[preview.series.seriesUid] || ""
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: thumbnail.status !== Image.Ready
+            text: "暂无预览"
+            color: Theme.textSubtle
+            font.pixelSize: 10
+        }
+    }
+
+    component SeriesDetails: ColumnLayout {
+        id: details
+        required property var series
+        spacing: 4
         Text {
             Layout.fillWidth: true
-            text: "CT 为固定层，PET 为移动层。优先列出同患者、同检查序列。"
+            text: details.series.description || "未命名序列"
+            textFormat: Text.PlainText
             color: Theme.textPrimary
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+        }
+        Text {
+            Layout.fillWidth: true
+            text: (details.series.patientName || "姓名未知") + " · "
+                + (details.series.patientId || "ID 缺失")
+            textFormat: Text.PlainText
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            elide: Text.ElideRight
+        }
+        Text {
+            Layout.fillWidth: true
+            text: (details.series.studyDate || "日期未知") + "  ·  " + (details.series.count || 0) + " 张"
+            color: Theme.textMuted
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: text !== ""
+            text: details.series.error || ""
+            color: Theme.dangerColor
+            font.pixelSize: 11
             wrapMode: Text.Wrap
+        }
+    }
+
+    background: Rectangle {
+        color: Theme.panelBackground
+        border.color: Theme.borderDefault
+        radius: 10
+    }
+    header: Item {
+        implicitHeight: 72
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 12
+            Components.AppIcon {
+                iconName: "fusion"
+                iconSize: 28
+                iconColor: Theme.primaryColor
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text { text: "PET/CT 融合"; color: Theme.textPrimary; font.pixelSize: 18; font.weight: Font.DemiBold }
+                Text {
+                    Layout.fillWidth: true
+                    text: "选择配对序列 · CT 固定层 / PET 移动层"
+                    color: Theme.textMuted
+                    font.pixelSize: 12
+                    wrapMode: Text.Wrap
+                }
+            }
+        }
+    }
+    contentItem: ColumnLayout {
+        spacing: 10
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: Math.max(100, anchorRow.implicitHeight + 20)
+            visible: !!dialog.controller.fusionAnchor.seriesUid
+            color: Theme.cardBackground
+            radius: 6
+            RowLayout {
+                id: anchorRow
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 12
+                SeriesPreview { series: dialog.controller.fusionAnchor }
+                SeriesDetails { Layout.fillWidth: true; series: dialog.controller.fusionAnchor }
+                Text {
+                    text: dialog.controller.fusionAnchor.modality === "CT" ? "CT · 固定层" : "PET · 移动层"
+                    color: Theme.primaryHover
+                    font.pixelSize: 12
+                }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Text {
+                text: dialog.controller.fusionAnchor.modality === "CT" ? "选择 PET 序列" : "选择 CT 序列"
+                color: Theme.textPrimary
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+            }
+            Item { Layout.fillWidth: true }
+            Text { text: "优先显示同患者、同检查"; color: Theme.textSubtle; font.pixelSize: 11 }
         }
         ListView {
             id: candidates
@@ -44,47 +167,100 @@ Basic.Dialog {
             clip: true
             spacing: 6
             model: dialog.controller.fusionCandidates
-            Basic.ScrollBar.vertical: Basic.ScrollBar {}
+            Basic.ScrollBar.vertical: Components.AppScrollBar {}
             delegate: Basic.ItemDelegate {
                 id: candidate
                 required property var modelData
                 objectName: "fusionCandidate-" + modelData.seriesUid
-                width: candidates.width
-                height: 84
+                width: candidates.width - 12
+                height: Math.max(100, candidateRow.implicitHeight + 20)
+                padding: 10
+                hoverEnabled: true
                 highlighted: dialog.controller.fusionPartnerUid === modelData.seriesUid
                 onClicked: { identityCheck.checked = false; dialog.controller.selectFusionPartner(modelData.seriesUid) }
                 background: Rectangle {
-                    color: candidate.highlighted ? Theme.selectionBackground : Theme.cardBackground
-                    border.color: candidate.highlighted ? Theme.primaryColor : Theme.borderDefault
+                    color: candidate.highlighted ? Theme.selectionBackground
+                        : candidate.hovered ? Theme.controlHover : Theme.cardBackground
+                    border.color: candidate.highlighted ? Theme.selectionBorder : Theme.borderSubtle
+                    border.width: candidate.visualFocus ? 2 : 1
                     radius: 6
                 }
-                contentItem: Text {
-                    text: candidate.modelData.patientName + " · " + candidate.modelData.patientId
-                        + " · " + candidate.modelData.studyDate + "\n"
-                        + candidate.modelData.description + " · " + candidate.modelData.count + " 张\n"
-                        + (candidate.modelData.error || "可构建体数据")
-                    textFormat: Text.PlainText
-                    color: candidate.modelData.error ? Theme.dangerColor : Theme.textPrimary
-                    elide: Text.ElideRight
-                    font.pixelSize: 12
+                contentItem: RowLayout {
+                    id: candidateRow
+                    spacing: 12
+                    SeriesPreview { series: candidate.modelData }
+                    SeriesDetails { Layout.fillWidth: true; series: candidate.modelData }
+                    Components.AppIcon {
+                        iconName: "check"
+                        iconSize: 20
+                        iconColor: Theme.primaryColor
+                        opacity: candidate.highlighted ? 1 : 0
+                    }
                 }
             }
-            Text { anchors.centerIn: parent; visible: candidates.count === 0; text: "没有可配对的另一种 modality 序列"; color: Theme.textMuted }
+            Text {
+                anchors.centerIn: parent
+                width: parent.width - 24
+                visible: candidates.count === 0
+                text: "没有可配对的序列\n请先导入另一组 CT 或 PET 影像"
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                color: Theme.textMuted
+                font.pixelSize: 12
+            }
         }
-        Text { Layout.fillWidth: true; text: dialog.controller.fusionError; visible: text !== ""; color: Theme.dangerColor; wrapMode: Text.Wrap }
-        Text { Layout.fillWidth: true; text: dialog.controller.fusionIdentityWarning; visible: text !== ""; color: Theme.textPrimary; wrapMode: Text.Wrap }
-        Basic.CheckBox {
+        Text {
+            Layout.fillWidth: true
+            text: dialog.controller.fusionError
+            visible: text !== ""
+            color: Theme.dangerColor
+            font.pixelSize: 12
+            wrapMode: Text.Wrap
+        }
+        Text {
+            Layout.fillWidth: true
+            text: dialog.controller.fusionIdentityWarning
+            visible: text !== ""
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            wrapMode: Text.Wrap
+        }
+        Components.AppCheckBox {
             id: identityCheck
             objectName: "fusionIdentityConfirmation"
+            Layout.fillWidth: true
             visible: dialog.controller.fusionIdentityWarning !== ""
             text: "已核对两个来源，确认进行人工配对"
         }
+    }
+    footer: Item {
+        implicitHeight: 66
         RowLayout {
-            Layout.alignment: Qt.AlignRight
-            Basic.Button { text: "取消"; onClicked: dialog.controller.cancelFusion() }
-            Basic.Button {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: "序列缩略图 · 配对后进入融合视图"
+                color: Theme.textSubtle
+                font.pixelSize: 11
+            }
+            Components.AppButton {
+                objectName: "cancelFusion"
+                text: "取消"
+                minimumButtonWidth: 80
+                baseBorderWidth: 1
+                onClicked: dialog.controller.cancelFusion()
+            }
+            Components.AppButton {
                 objectName: "confirmFusion"
                 text: "融合浏览"
+                iconName: "fusion"
+                minimumButtonWidth: 112
+                normalColor: Theme.primaryButtonBackground
+                hoverColor: Theme.primaryButtonHover
+                pressedColor: Theme.primaryButtonPressed
+                disabledColor: Theme.primaryButtonDisabled
                 enabled: dialog.controller.fusionPartnerUid !== ""
                     && (dialog.controller.fusionIdentityWarning === "" || identityCheck.checked)
                 onClicked: dialog.controller.confirmFusion(identityCheck.checked)

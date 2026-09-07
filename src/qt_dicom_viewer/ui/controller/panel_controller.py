@@ -212,9 +212,26 @@ class PanelController(QObject):
         return (f"请核对所选数据：{a.patient_name} / {a.patient_id or 'ID 缺失'} 与 "
                 f"{b.patient_name} / {b.patient_id or 'ID 缺失'}。患者身份不同或无法确认。")
 
+    def _fusion_series_item(self, record):
+        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
+        return dict(seriesUid=record.series_instance_uid, patientName=record.patient_name,
+                    patientId=record.patient_id, studyDate=record.study_date,
+                    description=record.series_description, count=record.dicom_file_count,
+                    modality=record.modality.upper(), error=fusion_series_error(record))
+
+    @Property("QVariantMap", notify=fusionDialogChanged)
+    def fusionAnchor(self):
+        record = self._scan_series_record.get(self._fusion_anchor_uid)
+        return self._fusion_series_item(record) if record else {}
+
+    @Property("QVariantMap", notify=sidebarItemsChanged)
+    def fusionThumbnails(self):
+        # Update images independently of the candidates model: a late thumbnail
+        # must not recreate delegates or move the user's scroll position.
+        return dict(self._thumbnails)
+
     @Property("QVariantList", notify=fusionDialogChanged)
     def fusionCandidates(self):
-        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
         anchor = self._scan_series_record.get(self._fusion_anchor_uid)
         if anchor is None:
             return []
@@ -225,10 +242,7 @@ class PanelController(QObject):
                         (anchor.patient_id, anchor.patient_id_issuer) == (r.patient_id, r.patient_id_issuer))
             return (0 if same and r.study_instance_uid == anchor.study_instance_uid else 1 if same else 2,
                     r.study_date, r.series_description, r.series_instance_uid)
-        return [dict(seriesUid=r.series_instance_uid, patientName=r.patient_name,
-                     patientId=r.patient_id, studyDate=r.study_date,
-                     description=r.series_description, count=r.dicom_file_count,
-                     error=fusion_series_error(r)) for r in sorted(records, key=rank)]
+        return [self._fusion_series_item(r) for r in sorted(records, key=rank)]
 
     @Slot()
     def requestFusionView(self):

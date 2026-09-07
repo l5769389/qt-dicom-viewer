@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import "../theme"
@@ -12,6 +13,7 @@ Basic.Button {
 
     property bool compact: false
     property bool momentary: false
+    property string iconName: ""
     property real iconSize: 18
     property real minimumButtonWidth: 40
     property real cornerRadius: Theme.controlRadius
@@ -31,7 +33,7 @@ Basic.Button {
     property real baseBorderWidth: 0
 
     readonly property bool hasIcon:
-        control.icon.source.toString() !== ""
+        control.iconName !== "" || control.icon.source.toString() !== ""
 
     readonly property bool hasText:
         control.text.length > 0
@@ -91,13 +93,20 @@ Basic.Button {
             anchors.centerIn: parent
             spacing: control.hasIcon && control.hasText ? 7 : 0
 
+            AppIcon {
+                visible: control.iconName !== ""
+                iconName: control.iconName
+                iconSize: control.iconSize
+                iconColor: control.enabled ? control.textColor : control.disabledTextColor
+            }
+
             Image {
-                visible: control.hasIcon
+                visible: control.iconName === "" && control.hasIcon
 
                 width: control.iconSize
                 height: control.iconSize
-                sourceSize.width: control.iconSize
-                sourceSize.height: control.iconSize
+                sourceSize.width: Math.ceil(control.iconSize * Math.max(1, Screen.devicePixelRatio))
+                sourceSize.height: Math.ceil(control.iconSize * Math.max(1, Screen.devicePixelRatio))
 
                 source: control.icon.source
                 fillMode: Image.PreserveAspectFit

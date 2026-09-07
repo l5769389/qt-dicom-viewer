@@ -34,18 +34,14 @@ Item {
             border.color: Theme.borderStrong
             border.width: 1
 
-            Image {
+            Components.AppIcon {
+                objectName: "homeFolderIcon"
                 anchors.centerIn: parent
                 visible: !emptyState.hasSeries
-                width: 30
-                height: 30
-                sourceSize.width: 30
-                sourceSize.height: 30
-                source: Qt.resolvedUrl(
-                    "../../assets/icons/nav-load-file.png"
-                )
-                fillMode: Image.PreserveAspectFit
-                opacity: emptyState.scanning ? 0.55 : 0.9
+                iconName: "nav-load-file"
+                iconSize: 30
+                iconColor: Theme.primaryHover
+                opacity: emptyState.scanning ? 0.55 : 1
             }
 
             Text {
@@ -113,9 +109,8 @@ Item {
             visible: !emptyState.hasSeries && (!emptyState.pacsController || emptyState.pacsController.localEnabled)
             enabled: !emptyState.scanning
             text: emptyState.scanning ? "正在扫描…" : "打开 DICOM 文件夹"
-            icon.source: Qt.resolvedUrl(
-                "../../assets/icons/nav-load-file.png"
-            )
+            objectName: "homeOpenFolder"
+            iconName: "nav-load-file"
             iconSize: 17
             normalColor: Theme.primaryButtonBackground
             hoverColor: Theme.primaryButtonHover
@@ -135,14 +130,6 @@ Item {
             baseBorderColor: Theme.borderStrong
             onClicked: emptyState.workspaceController.openPacs()
         }
-        Text {
-            Layout.fillWidth: true
-            visible: emptyState.pacsController && emptyState.pacsController.pacsEnabled
-            text: emptyState.pacsController ? emptyState.pacsController.defaultName : ""
-            color: Theme.textSubtle
-            font.pixelSize: 11
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-        }
+
     }
 }
