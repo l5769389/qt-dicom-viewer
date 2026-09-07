@@ -31,7 +31,7 @@ Item {
 
             radius: 18
             color: Theme.primarySoft
-            border.color: Theme.borderStrong
+            border.color: Theme.selectionBorder
             border.width: 1
 
             Components.AppIcon {
@@ -40,7 +40,7 @@ Item {
                 visible: !emptyState.hasSeries
                 iconName: "nav-load-file"
                 iconSize: 30
-                iconColor: Theme.primaryHover
+                iconColor: Theme.primaryColor
                 opacity: emptyState.scanning ? 0.55 : 1
             }
 
@@ -117,6 +117,7 @@ Item {
             pressedColor: Theme.primaryButtonPressed
             disabledColor: Theme.primaryButtonDisabled
             focusBorderColor: Theme.primaryButtonBorder
+            textColor: Theme.textOnPrimary
 
             onClicked: emptyState.panelController.openFolderDialog()
         }
@@ -128,8 +129,12 @@ Item {
             text: "从 PACS 导入序列"
             iconName: "nav-pacs"
             iconSize: 17
-            baseBorderWidth: 1
-            baseBorderColor: Theme.borderStrong
+            normalColor: Theme.primaryButtonBackground
+            hoverColor: Theme.primaryButtonHover
+            pressedColor: Theme.primaryButtonPressed
+            disabledColor: Theme.primaryButtonDisabled
+            focusBorderColor: Theme.primaryButtonBorder
+            textColor: Theme.textOnPrimary
             onClicked: emptyState.workspaceController.openPacs()
         }
 

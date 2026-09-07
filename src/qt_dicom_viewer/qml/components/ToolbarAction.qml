@@ -39,7 +39,7 @@ Item {
         anchors.fill: parent
         anchors.margins: action.segmented ? 3 : 0
         cornerRadius: action.segmented ? 3 : Theme.controlRadius
-        activeColor: action.segmented ? Theme.primarySoftHover : Theme.selectionBackground
+        activeColor: action.segmented ? Theme.primaryButtonBackground : Theme.selectionBackground
         activeBorderColor: action.segmented ? "transparent" : Theme.selectionBorder
         enabled: action.actionEnabled && !action.placeholder
         checked: action.checked && enabled
@@ -50,8 +50,10 @@ Item {
         minimumButtonWidth: 0
         normalColor: action.prominent ? Theme.folderSurface : "transparent"
         disabledColor: "transparent"
-        hoverColor: action.resetAction ? Theme.resetActionHover : Theme.controlHover
-        pressedColor: action.resetAction ? Theme.resetActionPressed : Theme.controlPressed
+        hoverColor: action.resetAction ? Theme.resetActionHover
+            : action.segmented ? Theme.primarySoftHover : Theme.controlHover
+        pressedColor: action.resetAction ? Theme.resetActionPressed
+            : action.segmented ? Theme.primaryButtonPressed : Theme.controlPressed
         Accessible.name: action.label
         Accessible.description: action.tooltipText
         onClicked: action.triggered()
@@ -74,8 +76,8 @@ Item {
                         detailColor: action.iconName === "fusion" ? Theme.fusionAccent : "transparent"
                         iconColor: !button.enabled ? action.disabledIconColor
                             : action.resetAction && button.hovered ? Theme.resetActionColor
-                            : button.checked ? Theme.iconActive
-                            : button.hovered ? Theme.iconHover : action.normalIconColor
+                            : button.checked ? (action.segmented ? Theme.textOnPrimary : Theme.iconActive)
+                            : button.hovered ? (action.segmented ? Theme.primaryHover : Theme.iconHover) : action.normalIconColor
                     }
                     Rectangle {
                         anchors.centerIn: parent
