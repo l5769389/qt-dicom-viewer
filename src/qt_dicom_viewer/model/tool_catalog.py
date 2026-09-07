@@ -19,6 +19,10 @@ class ToolDefinition:
 
 
 TOOL_CATALOG: tuple[ToolDefinition, ...] = (
+    ToolDefinition(ToolType.SEGMENTATION, "阈值分割", "segmentation", ToolBehavior.INTERACTION_PANEL,
+                   InteractionType.SEGMENTATION, supported_tab_types=frozenset((TabType.MPR,))),
+    ToolDefinition(ToolType.VOI, "VOI", "voi", ToolBehavior.INTERACTION_PANEL,
+                   InteractionType.VOI, supported_tab_types=frozenset((TabType.MPR,))),
     ToolDefinition(
         tool_type=ToolType.WINDOW,
         label="调窗",
@@ -199,8 +203,7 @@ class PlaceholderToolDefinition:
 
 
 PLACEHOLDER_TOOLS = (
-    PlaceholderToolDefinition("segmentation", "分割", frozenset((TabType.MPR,))),
-    PlaceholderToolDefinition("voi", "VOI", frozenset((TabType.MPR, TabType.THREE_D))),
+    PlaceholderToolDefinition("voi", "VOI", frozenset((TabType.THREE_D,))),
 )
 
 @dataclass(frozen=True, slots=True)

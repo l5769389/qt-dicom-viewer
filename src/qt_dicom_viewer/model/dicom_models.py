@@ -41,6 +41,8 @@ ViewportType: TypeAlias = MprPlane | TwoDViewType | VolumeViewType
 
 
 class ToolType(StrEnum):
+    SEGMENTATION = "segmentation"
+    VOI = "voi"
     WINDOW = "window"
     PAN = "pan"
     ZOOM = "zoom"

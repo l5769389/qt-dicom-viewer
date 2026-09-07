@@ -10,6 +10,9 @@ Rectangle {
     id: resetBar
 
     required property var toolController
+    property var voiController: null
+    readonly property string panel: toolController?.activePanel ?? ""
+    readonly property bool voiActions: !!voiController && (panel === "segmentation" || panel === "voi")
 
     implicitHeight: 52
     color: Theme.panelBackgroundStrong
@@ -26,6 +29,7 @@ Rectangle {
     Basic.Button {
         id: resetButton
         objectName: "activeToolReset"
+        visible: !resetBar.voiActions
 
         anchors.fill: parent
         anchors.margins: 10
@@ -77,6 +81,31 @@ Rectangle {
             border.color: resetButton.enabled
                 ? (resetButton.activeFocus ? Theme.focusBorder : Theme.controlBorder)
                 : Theme.controlBorder
+        }
+    }
+
+    RowLayout {
+        objectName: "voiBottomActions"
+        anchors.fill: parent
+        anchors.margins: 10
+        spacing: 8
+        visible: resetBar.voiActions
+        Components.AppButton {
+            objectName: "voiClearKind"
+            Layout.fillWidth: true
+            compact: true
+            text: resetBar.panel === "segmentation" ? "清除分割" : "清除 VOI"
+            enabled: (resetBar.voiController?.items ?? []).some(item => item.kind === resetBar.panel)
+            onClicked: resetBar.voiController.clear(resetBar.panel)
+        }
+        Components.AppButton {
+            objectName: "voiClearAll"
+            Layout.fillWidth: true
+            compact: true
+            text: "全部清除"
+            textColor: Theme.warningColor
+            enabled: (resetBar.voiController?.items.length ?? 0) > 0
+            onClicked: resetBar.voiController.clear("")
         }
     }
 }

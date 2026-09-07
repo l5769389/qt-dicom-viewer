@@ -218,13 +218,10 @@ Item {
                     ? viewportRoot.viewportController.qaController.hoverCursorKind
                     : viewportRoot.viewportController.activeAnnotationController.hoverCursorKind)
                 : ""
+        regionCursorKind: viewportRoot.viewportController?.regionCursorKind ?? ""
 
         onPointerExited: {
-            if (viewportRoot.viewportController) {
-                viewportRoot.viewportController.activeAnnotationController.clearHover()
-                if (viewportRoot.viewportController.qaController)
-                    viewportRoot.viewportController.qaController.clearHover()
-            }
+            viewportRoot.viewportController?.clearInteractionHover()
         }
 
         onTapped: position => {
@@ -269,7 +266,7 @@ Item {
                 imageCanvas.lineHitToleranceInImagePixels
 
             // 按下前可能没有 move 事件，按本次拖动起点确认光标，再锁定到本次拖动。
-            viewportRoot.viewportController.updateMeasurementHover(
+            viewportRoot.viewportController.refreshInteractionHover(
                 startPosition.x, startPosition.y, hit.column, hit.row,
                 endpointTolerance, lineTolerance
             )
@@ -331,7 +328,7 @@ Item {
                 hit.row
             )
             imageCanvas.updateMeasurementHitRegions(interactionLayer)
-            viewportRoot.viewportController.updateMeasurementHover(
+            viewportRoot.viewportController.refreshInteractionHover(
                 endPosition.x, endPosition.y, hit.column, hit.row,
                 imageCanvas.pointHitToleranceInImagePixels,
                 imageCanvas.lineHitToleranceInImagePixels

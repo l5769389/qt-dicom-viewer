@@ -12,6 +12,7 @@ Rectangle {
     required property var viewportController
     required property var toolController
     property var tabController: null
+    signal voiManualRequested(string chapter)
     readonly property Item loadedPanel: contentLoader.item as Item
     readonly property string activeToolLabel:
         detailPanel.toolController
@@ -54,6 +55,8 @@ Rectangle {
                         ? petWorkspaceComponent : detailPanel.petIntensityMode
                         ? petIntensityComponent : windowLevelComponent
                 const map = {
+                    'segmentation': voiComponent,
+                    'voi': voiComponent,
                     'rotate': rotatePanelComponent,
                     'mip': mipPanelComponent,
                     'measure': measureComponent,
@@ -68,6 +71,15 @@ Rectangle {
                 }
                 return map[detailPanel.activePanel] ?? null
             }
+        }
+    }
+
+    Component {
+        id: voiComponent
+        Panels.MprVoiPanel {
+            controller: detailPanel.tabController?.voiController ?? detailPanel.viewportController?.voiController ?? null
+            mode: detailPanel.activePanel
+            onManualRequested: chapter => detailPanel.voiManualRequested(chapter)
         }
     }
 

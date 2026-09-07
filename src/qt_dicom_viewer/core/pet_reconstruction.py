@@ -105,7 +105,8 @@ class PetReconstructor:
             frames.append(MprRenderResult(response_id=request.request_id, viewport_id=viewport_id,
                 series_uid=volume.series_uid, view_type=plane, image=image, modality_pixel=pixels,
                 frame_meta=self._meta(volume, ref_slice, window), mpr_frame=state.frame,
-                plane_geometry=ref_slice.geometry, mpr_view_grids=state.view_grids))
+                plane_geometry=ref_slice.geometry, mpr_view_grids=state.view_grids,
+                volume=ct if role == "ct" else transformed_pet))
         return PetBatchRenderResult(response_id=request.request_id, viewport_id=request.viewport_id,
             series_uid=pet.series_uid, frames=tuple(frames), state=state, pet_volume=pet,
             ct_volume=ct, pet_window=pet_window, ct_window=ct_window,

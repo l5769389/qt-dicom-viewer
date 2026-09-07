@@ -15,7 +15,7 @@ from test_measurement_qml import _visual_children
 
 @pytest.mark.parametrize("tab_type, expected", [
     (TabType.TWO_D, set()),
-    (TabType.MPR, {"segmentation", "voi"}),
+    (TabType.MPR, set()),
     (TabType.THREE_D, {"voi"}),
     (TabType.FOUR_D, set()),
 ])

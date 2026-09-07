@@ -64,6 +64,8 @@ class TabController(QObject):
             tag_controller.setParent(self)
         self._viewport_dict: dict[str, ViewportController] = {}
         self._create_tool_controller()
+        from .mpr_voi_controller import MprVoiController
+        self._voi_controller = MprVoiController(self._tool_controller, self) if tab_config.tab_type in (TabType.MPR, TabType.PETCT_FUSION) else None
         self._phase_identifiers: tuple[int, ...] = ()
         if tab_config.tab_type == TabType.FOUR_D:
             if (
@@ -112,6 +114,10 @@ class TabController(QObject):
     @Property(str, notify=activeToolChanged)
     def activeTool(self):
         return self._tool_controller.activeTool
+
+    @Property(QObject, constant=True)
+    def voiController(self):
+        return self._voi_controller
 
 
     @Property(QObject, notify=activeViewportChanged)
@@ -748,6 +754,8 @@ class TabController(QObject):
 
     def dispose(self) -> None:
         self.pausePlayback()
+        if self._voi_controller is not None:
+            self._voi_controller.dispose()
         if self._tag_controller is not None:
             self._tag_controller.dispose()
         for viewport in self._viewport_dict.values():
