@@ -1,6 +1,6 @@
 # 设置与工作区交互复核
 
-本次修改位于 `codex/imaging-ui-polish`，基于现有样式工作树。
+本次修改原位于 `codex/imaging-ui-polish`，现已完整合并到 `main`。开发目录统一为 `/Users/jun/Documents/git-repo/qt-dicom-viewer`。
 
 ## 实现
 

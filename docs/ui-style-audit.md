@@ -90,7 +90,7 @@ ROI 设置与实际显示（18 px 字号）：
 ## 运行
 
 ```sh
-cd /Users/jun/Documents/git-repo/qt-dicom-viewer-ui-polish
+cd /Users/jun/Documents/git-repo/qt-dicom-viewer
 PYTHONPATH=src /Users/jun/Documents/git-repo/qt-dicom-viewer/.venv/bin/python -m qt_dicom_viewer.app
 ```
 
@@ -101,4 +101,4 @@ QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software PYTHONPATH=src \
   /Users/jun/Documents/git-repo/qt-dicom-viewer/.venv/bin/python -m pytest -q
 ```
 
-当前样式分支保持独立，供后续审阅与合并。
+样式与交互修改已合并到 main，原样式 worktree 和已合并的本地功能分支已清理。
