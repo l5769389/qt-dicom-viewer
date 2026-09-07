@@ -9,7 +9,7 @@ from PySide6.QtQuick import QQuickImageProvider
 from PySide6.QtSvg import QSvgRenderer
 
 NAMES = frozenset({
-    'annotate', 'annotate-text', 'cine-pause', 'cine-play', 'clear',
+    'annotate', 'annotate-arrow', 'annotate-text', 'cine-pause', 'cine-play', 'clear',
     'crop-inside', 'crop-outside', 'delete', 'export', 'export-dicom',
     'export-png', 'fusion', 'invert', 'measure', 'measure-angle',
     'measure-ellipse', 'measure-line', 'measure-rect', 'mip', 'mirror-h',

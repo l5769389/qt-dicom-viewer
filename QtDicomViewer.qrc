@@ -144,6 +144,7 @@
         <file>src/qt_dicom_viewer/qml/assets/icons/measure-line.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/cine-pause.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/annotate.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/annotate-arrow.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/measure.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/mip.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/pan.svg</file>

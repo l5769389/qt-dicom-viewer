@@ -21,7 +21,7 @@ ColumnLayout {
             compact: true
             momentary: true
             label: "箭头"
-            iconName: "annotate"
+            iconName: "annotate-arrow"
             checked: annotatePanel.viewportController.activeInteraction === "annotate:arrow"
             onClicked: annotatePanel.viewportController.setAnnotationMode(false)
         }
