@@ -336,6 +336,43 @@ def test_custom_cursor_sizes_and_arrow_hotspot(viewport, tmp_path):
         print(f"Cursor preview: {output}")
 
 
+def test_unified_cursor_policy_has_vectors_for_every_operation_and_no_raster_badge(viewport):
+    view, controller, pixel_layer, warnings = viewport
+    _move_pointer(view, _scene(pixel_layer, 60, 65))
+    interaction = view.rootObject().findChild(QQuickItem, "viewportInteractionLayer")
+    glyph = view.rootObject().findChild(QQuickItem, "viewportCursorOperationIcon")
+    # Component-level policy matrix, including targets that overlap each other.
+    for tool, region, crosshair, measurement, expected in [
+        ("window", "", "", "pan", "window"),
+        ("zoom", "", "", "", "zoom"),
+        ("scroll", "", "", "", "scroll"),
+        ("pan", "", "", "", "pan"),
+        ("mpr:rotate3d", "", "", "", "rotate-3d"),
+        ("window", "", "center", "", "crosshair-move"),
+        ("zoom", "", "verticalLine", "", "crosshair-rotate"),
+        ("measure:rect", "", "", "pan", "pan"),
+        ("measure:ellipse", "", "", "", ""),
+        ("measure:angle", "", "horizontalLine", "pan", "crosshair-rotate"),
+        ("annotate:text", "", "center", "", ""),
+        ("mpr:voi", "voi", "center", "pan", "voi"),
+        ("mpr:voi", "resize", "horizontalLine", "", "resize"),
+        ("mpr:voi", "pan", "center", "", "pan"),
+        ("mpr:segmentation", "segmentation", "verticalLine", "", "segmentation"),
+        ("mpr:voi", "default", "center", "", "default"),
+        ("service:mtf", "", "", "", "mtf"),
+    ]:
+        interaction.setProperty("activeInteraction", tool)
+        interaction.setProperty("regionCursorKind", region)
+        interaction.setProperty("crosshairHoverTarget", crosshair)
+        interaction.setProperty("measurementCursorKind", measurement)
+        assert interaction.property("hoverCursorKind") == expected
+        assert interaction.property("customCursorActive") == (expected not in ("", "default"))
+        if expected not in ("", "default"):
+            assert glyph.property("pathData"), expected
+    assert not any(x.objectName() in ("tintedRasterToolIcon", "rasterToolIcon") for x in _visual_children(glyph))
+    assert not warnings, warnings
+
+
 @pytest.mark.parametrize("kind", ["rect", "ellipse"])
 @pytest.mark.parametrize("transformed", [False, True])
 def test_click_unselected_roi_interior_shows_move_cursor_without_an_extra_move(viewport, kind, transformed):
@@ -395,7 +432,7 @@ def test_selected_outline_has_move_cursor_and_crosshair_keeps_priority(viewport,
     assert interaction.property("hoverCursorKind") == "pan"
     # 仅验证统一光标层的优先级，不修改实际 MPR 状态。
     interaction.setProperty("crosshairHoverTarget", "horizontalLine")
-    assert interaction.property("hoverCursorKind") == "rotate-3d-variant"
+    assert interaction.property("hoverCursorKind") == "crosshair-rotate"
     interaction.setProperty("crosshairHoverTarget", "")
     measurement.clear_selection()
     assert interaction.property("hoverCursorKind") == ""

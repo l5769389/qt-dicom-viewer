@@ -128,6 +128,7 @@ class Image2DViewportController(ViewportController):
     preferencesChanged = Signal()
     crosshairImagePositionChanged = Signal()
     crosshairHoverTargetChanged = Signal()
+    regionCursorKindChanged = Signal()
     activeInteractionChanged = Signal()
     directionLabelsChanged = Signal()
     windowPresetsChanged = Signal()
@@ -288,6 +289,7 @@ class Image2DViewportController(ViewportController):
 
     def _handle_active_interaction_changed(self) -> None:
         self.cancelMeasurement()
+        self.clearInteractionHover()
         if self._tool_controller.active_interaction != InteractionType.ANNOTATE_TEXT:
             self._text_annotation_controller.clearSelection()
         self._measure_controller.clear_selection()
@@ -832,10 +834,41 @@ class Image2DViewportController(ViewportController):
         if self._tool_controller.active_interaction == InteractionType.MEASURE_ANGLE:
             preview = ImagePoint(column, row) if isfinite(column) and isfinite(row) else None
             self._measure_controller.preview_at(preview)
+        self.refreshInteractionHover(x, y, column, row, point_tolerance, line_tolerance)
+
+        if self._modality_pixel is None or not image_valid:
+            self._cursor_controller.clearPosition()
+            return
+
+        pixel_value = self._modality_pixel[int(clipRow)][int(clipColumn)]
+        if not np.isfinite(pixel_value) and self.viewportRole != "fusion":
+            self._cursor_controller.clearPosition()
+            return
+        self._cursor_controller.updatePosition(clipColumn, clipRow, pixel_value)
+
+    @Property(str, notify=regionCursorKindChanged)
+    def regionCursorKind(self):
+        return getattr(self, "_region_cursor_kind", "")
+
+    @Slot()
+    def clearInteractionHover(self):
+        self._region_cursor_kind = ""
+        self.regionCursorKindChanged.emit()
+        self._crosshair_hover_target = None
+        self.crosshairHoverTargetChanged.emit()
+        self.activeAnnotationController.clearHover()
+        if self._qa_controller is not None:
+            self._qa_controller.clearHover()
+
+    @Slot(float, float, float, float, float, float)
+    def refreshInteractionHover(self, x, y, column, row, point_tolerance, line_tolerance):
+        """Resolve operation targets without sampling pixels (press/release/tool changes)."""
+        if self._active_drag_operation is not None:
+            return
         pointer_position = _make_pointer_position(
             viewport_x=x,
             viewport_y=y,
-            image_valid=image_valid,
+            image_valid=True,
             column=column,
             row=row,
             include_outside_image=True,
@@ -849,23 +882,6 @@ class Image2DViewportController(ViewportController):
         )
 
         self.updateMeasurementHover(x, y, column, row, point_tolerance, line_tolerance)
-
-        if self._modality_pixel is None or not image_valid:
-            self._cursor_controller.clearPosition()
-            return
-
-        pixel_value = self._modality_pixel[
-            int(clipRow)
-        ][int(clipColumn)]
-        if not np.isfinite(pixel_value) and self.viewportRole != "fusion":
-            self._cursor_controller.clearPosition()
-            return
-
-        self._cursor_controller.updatePosition(
-            clipColumn,
-            clipRow,
-            pixel_value,
-        )
 
     @Slot(float, float, float, float, float, float)
     def updateMeasurementHover(self, x: float, y: float, column: float, row: float,

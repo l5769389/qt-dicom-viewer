@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Shapes
 import "../../../components" as Components
 import "../../../theme"
+import "CursorPolicy.js" as CursorPolicy
 
 Item {
     id: interactionLayer
@@ -46,6 +47,7 @@ Item {
     property point lastPosition: Qt.point(0, 0)
     property string crosshairHoverTarget: ""
     property string measurementCursorKind: ""
+    property string regionCursorKind: ""
     property string activeInteraction: ""
     property string dragCursorKind: ""
     // 从按下到释放持续为 true，不受 DragHandler 拖动阈值影响。
@@ -53,42 +55,21 @@ Item {
     // ROI 和箭头标注需要从第一个像素位移就反馈。其他视图操作继续沿用
     // 平台拖动阈值，避免一次普通点击被解释成调窗、平移或缩放。
     readonly property bool immediateRoiDrag:
-        activeInteraction === "measure:rect"
+        activeInteraction === "mpr:segmentation"
+        || activeInteraction === "mpr:voi"
+        || activeInteraction === "measure:rect"
         || activeInteraction === "measure:ellipse"
         || activeInteraction === "service:mtf"
         || activeInteraction === "annotate:text"
         || activeInteraction === "service:qa"
 
-    function cursorKindForInteraction(interaction) {
-        switch (interaction) {
-            case "service:mtf":
-                return "mtf"
-            case "window":
-                return "window"
-            case "scroll":
-                return "scroll"
-            case "pan":
-                return "pan"
-            case "zoom":
-                return "zoom"
-            case "mpr:rotate3d":
-                return "rotate-3d"
-            default:
-                return ""
-        }
+    readonly property string hoverCursorKind: CursorPolicy.resolve(
+        activeInteraction, regionCursorKind, crosshairHoverTarget, measurementCursorKind)
+    onActiveInteractionChanged: {
+        dragCursorKind = ""
+        if (hoverHandler.hovered && !pointerPressed)
+            pointerMoved(hoverHandler.point.position)
     }
-
-    readonly property string hoverCursorKind:
-            crosshairHoverTarget === "center"
-        ? "pan"
-        : crosshairHoverTarget === "horizontalLine"
-            || crosshairHoverTarget === "verticalLine"
-            ? "rotate-3d-variant"
-            : (activeInteraction.startsWith("measure:") || activeInteraction === "service:mtf"
-                || activeInteraction === "service:qa")
-                && measurementCursorKind !== ""
-                ? measurementCursorKind
-                : cursorKindForInteraction(activeInteraction)
 
     readonly property string effectiveCursorKind:
         dragHandler.active
@@ -96,7 +77,9 @@ Item {
             : hoverCursorKind
 
     readonly property bool customCursorActive:
-        effectiveCursorKind !== ""
+        effectiveCursorKind !== "" && effectiveCursorKind !== "default"
+    readonly property int effectiveCursorShape: customCursorActive ? Qt.BlankCursor
+        : effectiveCursorKind === "default" || activeInteraction === "" ? Qt.ArrowCursor : Qt.CrossCursor
 
     readonly property point cursorPosition:
         dragHandler.active
@@ -112,6 +95,7 @@ Item {
         id: pressTracker
 
         target: null
+        cursorShape: interactionLayer.effectiveCursorShape
         acceptedDevices: PointerDevice.Mouse
             | PointerDevice.TouchPad
         acceptedButtons: Qt.LeftButton
@@ -125,11 +109,7 @@ Item {
         acceptedDevices: PointerDevice.Mouse
             | PointerDevice.TouchPad
 
-        cursorShape: {
-            if (interactionLayer.customCursorActive)
-                return Qt.BlankCursor
-            return Qt.CrossCursor
-        }
+        cursorShape: interactionLayer.effectiveCursorShape
 
         onHoveredChanged: {
             if (!hovered)
@@ -168,27 +148,19 @@ Item {
             (hoverHandler.hovered || dragHandler.active)
             && interactionLayer.customCursorActive
 
-        Rectangle {
+        Item {
             id: cursorBadge
             objectName: "viewportCursorBadge"
             x: 10
             y: 6
             width: customCursor.operationIconSize + 6
             height: width
-            radius: 4
-            color: Qt.rgba(
-                Theme.panelBackgroundStrong.r,
-                Theme.panelBackgroundStrong.g,
-                Theme.panelBackgroundStrong.b,
-                0.72
-            )
-
-            Components.AppIcon {
+            CursorGlyph {
                 objectName: "viewportCursorOperationIcon"
                 anchors.centerIn: parent
                 iconName: interactionLayer.effectiveCursorKind
-                iconSize: customCursor.operationIconSize
-                iconColor: "#ffffff"
+                width: customCursor.operationIconSize
+                height: width
             }
         }
 
@@ -239,6 +211,7 @@ Item {
         id: dragHandler
 
         target: null
+        cursorShape: interactionLayer.effectiveCursorShape
         // undefined 会恢复 Qt 的平台默认值；零阈值用于 ROI 和箭头标注。
         dragThreshold: interactionLayer.immediateRoiDrag ? 0 : undefined
 

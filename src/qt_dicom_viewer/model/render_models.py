@@ -148,6 +148,7 @@ class _RenderResultBase:
 class MprRenderResult(_RenderResultBase):
     mpr_frame: MprFrame | None
     plane_geometry: MprImageGeometry | None
+    volume: DicomVolume | None = None
     phase_identifier: int | None = None
     mpr_view_grids: MprViewGrids | None = None
 

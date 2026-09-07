@@ -3,7 +3,7 @@ from math import degrees, hypot, radians
 from typing import cast
 
 import numpy as np
-from PySide6.QtCore import Property, QPointF, Signal
+from PySide6.QtCore import Property, QPointF, Signal, Slot, QObject
 
 from qt_dicom_viewer.model import (
     CrosshairCenterChange,
@@ -54,6 +54,8 @@ _CROSSHAIR_STYLES = {
 
 
 class MprViewportController(Image2DViewportController):
+    voiChanged = Signal()
+    voiMasksChanged = Signal()
     crosshairCenterChangeRequested = Signal(object)
     crosshairRotationRequested = Signal(object, float)
     mpr3DRotationRequested = Signal(object, float)
@@ -71,6 +73,11 @@ class MprViewportController(Image2DViewportController):
                 "MprViewportController requires an MPR plane config"
             )
         super().__init__(viewport_config, tool_controller, parent)
+        self._voi_controller = getattr(parent, "_voi_controller", None)
+        self._voi_volume = None
+        if self._voi_controller is not None:
+            self._voi_controller.overlaysChanged.connect(self.voiChanged.emit)
+            self._voi_controller.masksChanged.connect(self.voiMasksChanged.emit)
         self._plane_geometry: MprImageGeometry | None = None
         self._mpr_state: MprState | None = None
         self._crosshair_image_position: ImagePoint | None = None
@@ -165,6 +172,10 @@ class MprViewportController(Image2DViewportController):
     def _apply_specific_render_result(self, result: RenderResult) -> None:
         mpr_result = cast(MprRenderResult, result)
         geometry = mpr_result.plane_geometry
+        if (self._voi_controller is not None and self._voi_controller._draft
+                and self._voi_controller._draft["viewport"] is self
+                and geometry != self._plane_geometry):
+            self._voi_controller.cancel()
         self._plane_geometry = geometry
         self._crosshair_image_position = None
 
@@ -192,6 +203,62 @@ class MprViewportController(Image2DViewportController):
 
         self.crosshairImagePositionChanged.emit()
         self.mprSlabGuidesChanged.emit()
+        self._voi_volume = mpr_result.volume
+        if self._voi_controller is not None:
+            self._voi_controller.set_source(mpr_result.volume)
+        self.voiChanged.emit()
+        self.voiMasksChanged.emit()
+
+    @Property(QObject, constant=True)
+    def voiController(self):
+        return self._voi_controller
+
+    @Property("QVariantList", notify=voiChanged)
+    def voiOverlays(self):
+        return self._voi_controller.overlays(self) if self._voi_controller else []
+
+    @Property("QVariantList", notify=voiMasksChanged)
+    def voiMasks(self):
+        return self._voi_controller.masks(self) if self._voi_controller else []
+
+    def _voi_mode(self):
+        return self._voi_controller is not None and self.activeInteraction in ("mpr:segmentation", "mpr:voi")
+
+    @Slot(float, float, int, bool, float, float, float, float)
+    def beginInteraction(self, x, y, buttons, image_valid, column, row, endpoint_tolerance, line_tolerance):
+        if self._voi_mode():
+            self.cancelMeasurement()
+            if image_valid and buttons & 1:
+                self._voi_controller.begin(self, column, row, endpoint_tolerance)
+            return
+        super().beginInteraction(x, y, buttons, image_valid, column, row, endpoint_tolerance, line_tolerance)
+
+    @Slot(QPointF, QPointF, QPointF, QPointF, bool, float, float)
+    def updateInteraction(self, start, current, step, total, image_valid, column, row):
+        if self._voi_mode():
+            self._voi_controller.update(self, column, row)
+            return
+        super().updateInteraction(start, current, step, total, image_valid, column, row)
+
+    @Slot(float, float, bool, float, float)
+    def endInteraction(self, x, y, image_valid, column, row):
+        if self._voi_mode():
+            self._voi_controller.finish(self, column, row)
+            return
+        super().endInteraction(x, y, image_valid, column, row)
+
+    @Slot()
+    def cancelMeasurement(self):
+        if getattr(self, "_voi_controller", None) is not None:
+            self._voi_controller.cancel()
+        super().cancelMeasurement()
+
+    @Slot()
+    def deleteSelectedMeasurement(self):
+        if self._voi_mode():
+            self._voi_controller.remove(self._voi_controller.selectedId)
+            return
+        super().deleteSelectedMeasurement()
 
 
     def _get_crosshair_operation_context(
@@ -284,7 +351,17 @@ class MprViewportController(Image2DViewportController):
             self,
             context: PointerHoverContext,
     ) -> None:
-        target = self._crosshair_hit_test(
+        kind = ""
+        if self._voi_mode():
+            kind = "default"
+            point = context.position.image
+            if self._voi_controller.enabled and point is not None:
+                target = self._voi_controller.edit_target(self, point.column, point.row, context.point_tolerance)
+                kind = ("pan" if target["mode"] == "move" else "resize") if target else self.activeInteraction.split(":")[1]
+        if kind != self.regionCursorKind:
+            self._region_cursor_kind = kind
+            self.regionCursorKindChanged.emit()
+        target = None if self._voi_mode() else self._crosshair_hit_test(
             position=context.position,
             center_tolerance=context.point_tolerance,
             line_tolerance=context.line_tolerance,

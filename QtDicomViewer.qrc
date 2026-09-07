@@ -41,6 +41,8 @@
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ImageCanvas.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MprSlabGuideLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/InteractionLayer.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/CursorPolicy.js</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/CursorGlyph.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MontageViewport.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/Overlay.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/SliceSlider.qml</file>
@@ -56,6 +58,14 @@
         <file>src/qt_dicom_viewer/qml/sections/right/PrimaryToolBar.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/ToolDetailPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/ToolResetBar.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/manual/OperationManual.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/manual/VoiManualFigure.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/MprVoiPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MprVoiOverlay.qml</file>
+        <file>src/qt_dicom_viewer/qml/assets/help/segmentation-ct.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/help/segmentation-pt.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/help/voi-ct.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/help/voi-pt.png</file>
         <file>src/qt_dicom_viewer/qml/sections/right/components/ToolActionButton.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/AnnotatePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/MeasurePanel.qml</file>

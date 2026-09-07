@@ -269,8 +269,27 @@ Rectangle {
                     smooth: true
                 }
 
+                Repeater {
+                    model: imageCanvasRoot.viewportController?.voiMasks ?? []
+                    delegate: Image {
+                        required property var modelData
+                        objectName: "mprSegmentationMask"
+                        anchors.fill: parent
+                        source: modelData.source
+                        smooth: false
+                        cache: false
+                    }
+                }
+
             }
         }
+    }
+
+    MprVoiOverlay {
+        anchors.fill: parent
+        items: imageCanvasRoot.viewportController?.voiOverlays ?? []
+        coordinateMapper: imageCanvasRoot
+        transformState: imageCanvasRoot.measurementTransformState
     }
 
     WaterQaOverlay {

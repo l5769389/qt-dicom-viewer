@@ -14,6 +14,7 @@ Rectangle {
     property var tabController: null
     property var exportController: null
     property Item exportItem: null
+    signal voiManualRequested(string chapter)
     readonly property Item loadedPanel: contentLoader.item as Item
     readonly property string activeToolLabel:
         detailPanel.toolController
@@ -57,6 +58,8 @@ Rectangle {
                         ? petIntensityComponent : windowLevelComponent
                 const map = {
                     'export': exportComponent,
+                    'segmentation': voiComponent,
+                    'voi': voiComponent,
                     'rotate': rotatePanelComponent,
                     'mip': mipPanelComponent,
                     'measure': measureComponent,
@@ -77,6 +80,15 @@ Rectangle {
     Component {
         id: exportComponent
         Panels.ExportPanel { exportController: detailPanel.exportController; exportItem: detailPanel.exportItem }
+    }
+
+    Component {
+        id: voiComponent
+        Panels.MprVoiPanel {
+            controller: detailPanel.tabController?.voiController ?? detailPanel.viewportController?.voiController ?? null
+            mode: detailPanel.activePanel
+            onManualRequested: chapter => detailPanel.voiManualRequested(chapter)
+        }
     }
 
     Component {

@@ -309,6 +309,8 @@ class ToolBehavior(StrEnum):
 
 
 class InteractionType(StrEnum):
+    SEGMENTATION = "mpr:segmentation"
+    VOI = "mpr:voi"
     SERVICE_MTF = "service:mtf"
     SERVICE_QA = "service:qa"
     NONE = ""

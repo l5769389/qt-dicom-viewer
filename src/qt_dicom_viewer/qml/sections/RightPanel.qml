@@ -1,9 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "right" as Right
+import "manual" as Manual
 import "../theme"
 import "../components" as Components
 
@@ -89,6 +91,7 @@ Rectangle {
                 tabController: rightPanel.tabController
                 exportController: rightPanel.exportController
                 exportItem: rightPanel.exportItem
+                onVoiManualRequested: chapter => voiManual.showChapter(chapter)
             }
 
             Basic.ScrollBar.vertical: Components.AppScrollBar {
@@ -102,6 +105,12 @@ Rectangle {
         Right.ToolResetBar {
             Layout.fillWidth: true
             toolController: rightPanel.toolController
+            voiController: rightPanel.tabController?.voiController ?? rightPanel.viewportController?.voiController ?? null
         }
+    }
+
+    Manual.OperationManual {
+        id: voiManual
+        ownerWindow: rightPanel.Window.window
     }
 }
