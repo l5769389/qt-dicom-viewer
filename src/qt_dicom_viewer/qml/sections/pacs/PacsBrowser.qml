@@ -170,11 +170,6 @@ Rectangle {
                             currentIndex: model.indexOf(String(browser.pacsController.pageSize))
                             enabled: !browser.pacsController.busy
                         }
-                        Components.AppButton {
-                            Layout.fillWidth: true
-                            text: advanced.visible ? "收起更多条件  ⌃" : "更多筛选条件  ⌄"
-                            onClicked: advanced.visible = !advanced.visible
-                        }
                         ColumnLayout {
                             id: advanced
                             Layout.fillWidth: true
@@ -194,10 +189,17 @@ Rectangle {
                             }
                             Components.AppTextField {
                                 id: description
+                                objectName: "pacsStudyDescription"
                                 Layout.fillWidth: true
                                 text: browser.pacsController.filterInputs.StudyDescription || ""
                                 enabled: !browser.pacsController.busy
                             }
+                        }
+                        Components.AppButton {
+                            objectName: "pacsMoreFilters"
+                            Layout.fillWidth: true
+                            text: advanced.visible ? "收起更多条件  ⌃" : "更多筛选条件  ⌄"
+                            onClicked: advanced.visible = !advanced.visible
                         }
                     }
                 }

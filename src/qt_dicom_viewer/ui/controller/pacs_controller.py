@@ -213,7 +213,7 @@ class PacsController(QObject):
             self._selected_profile = default
         self._clear_results()
         self.profilesChanged.emit()
-        self._notify("设置已保存")
+        self._notify("")
         return True
 
     def _clear_results(self):

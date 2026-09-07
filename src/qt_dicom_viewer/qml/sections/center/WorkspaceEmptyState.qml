@@ -126,6 +126,8 @@ Item {
             Layout.preferredWidth: 168
             visible: emptyState.pacsController && emptyState.pacsController.pacsEnabled
             text: "从 PACS 导入序列"
+            iconName: "nav-pacs"
+            iconSize: 17
             baseBorderWidth: 1
             baseBorderColor: Theme.borderStrong
             onClicked: emptyState.workspaceController.openPacs()

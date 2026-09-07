@@ -19,6 +19,7 @@ Item {
     property color normalIconColor: Theme.iconDefault
     property color disabledIconColor: Theme.iconDisabled
     property bool prominent: false
+    property bool segmented: false
     property string directionFace: ""
     property color directionColor: Theme.iconDefault
     property string tooltipText: label + (placeholder ? " · 待实现" : "")
@@ -36,6 +37,10 @@ Item {
         id: button
         objectName: action.buttonObjectName
         anchors.fill: parent
+        anchors.margins: action.segmented ? 3 : 0
+        cornerRadius: action.segmented ? 3 : Theme.controlRadius
+        activeColor: action.segmented ? Theme.primarySoftHover : Theme.selectionBackground
+        activeBorderColor: action.segmented ? "transparent" : Theme.selectionBorder
         enabled: action.actionEnabled && !action.placeholder
         checked: action.checked && enabled
         compact: true

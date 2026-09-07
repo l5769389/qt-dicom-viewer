@@ -29,6 +29,10 @@ Rectangle {
         : action.type !== "pacs" || (leftPanel.pacsController && leftPanel.pacsController.pacsEnabled))
     readonly property var primaryActions: navigationActions.slice(0, 4)
     readonly property var secondaryActions: navigationActions.slice(4)
+    property string selectedSource: workspaceController?.activeTabType === "pacs" ? "pacs" : "file"
+    readonly property string activeSource: navigationActions.some(action => action.type === selectedSource)
+        ? selectedSource : navigationActions[0].type
+    readonly property int sourceCount: navigationActions.filter(action => ["file", "pacs"].includes(action.type)).length
     property string lastQuery: ""
     color: Theme.panelBackground
     border.color: Theme.borderDefault
@@ -52,6 +56,14 @@ Rectangle {
         function onSidebarItemsChanged() { leftPanel.refreshRows() }
     }
 
+    Connections {
+        target: leftPanel.workspaceController
+        function onActiveTabChanged() {
+            if (leftPanel.workspaceController.activeTabType === "pacs")
+                leftPanel.selectedSource = "pacs"
+        }
+    }
+
     component NavigationActionButton: Components.ToolbarAction {
         id: navigationAction
 
@@ -69,9 +81,9 @@ Rectangle {
         label: actionData.label
         shortLabel: actionData.label
         iconSize: Theme.navigationIconSize
-        checked: isPacsAction && leftPanel.workspaceController?.activeTabType === "pacs"
-        prominent: isFileAction
-        normalIconColor: isFileAction ? Theme.folderAccent : Theme.iconDefault
+        checked: (isFileAction || isPacsAction) && leftPanel.activeSource === actionData.type
+        segmented: isFileAction || isPacsAction
+        normalIconColor: segmented ? Theme.folderAccent : Theme.iconDefault
         disabledIconColor: normalIconColor
         iconName: actionData.icon
         placeholder: !actionData.supported
@@ -89,6 +101,8 @@ Rectangle {
                 )
 
         onTriggered: {
+            if (isFileAction || isPacsAction)
+                leftPanel.selectedSource = actionData.type
             if (isFileAction)
                 leftPanel.panelController.openFolderDialog()
             else if (isPacsAction)
@@ -125,16 +139,37 @@ Rectangle {
                 anchors.fill: parent
                 spacing: 4
 
-                RowLayout {
+                Item {
+                    implicitHeight: Theme.toolbarButtonHeight
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 4
-
-                    Repeater {
-                        model: leftPanel.primaryActions
-                        delegate: NavigationActionButton {
-                            required property var modelData
-                            actionData: modelData
+                    Rectangle {
+                        objectName: "sourceEntryGroup"
+                        width: ((primaryRow.width - 3 * primaryRow.spacing) / 4) * leftPanel.sourceCount
+                            + primaryRow.spacing * (leftPanel.sourceCount - 1)
+                        height: parent.height
+                        radius: Theme.controlRadius
+                        color: Theme.folderSurface
+                        border.color: Theme.selectionBorder
+                        Rectangle {
+                            visible: leftPanel.sourceCount === 2
+                            anchors.centerIn: parent
+                            width: 1
+                            height: parent.height - 16
+                            color: Theme.selectionBorder
+                            opacity: 0.45
+                        }
+                    }
+                    RowLayout {
+                        id: primaryRow
+                        anchors.fill: parent
+                        spacing: 4
+                        Repeater {
+                            model: leftPanel.primaryActions
+                            delegate: NavigationActionButton {
+                                required property var modelData
+                                actionData: modelData
+                            }
                         }
                     }
                 }

@@ -151,3 +151,46 @@ def test_series_selection_and_status_updates_preserve_scroll(scene, pacs_server)
     wait_until(lambda: not pacs.busy)
     assert view.property("contentY") == pytest.approx(before)
     assert not warnings, warnings
+
+
+def test_segmented_sources_and_advanced_filter_footer(scene, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QFileDialog
+    window, app, warnings = scene
+    window.resize(1000, 600)
+    folder = find(window, "sidebarOpenFolder")
+    pacs = find(window, "sidebarPacs")
+    assert folder.property("checked") and not pacs.property("checked")
+    assert find(window, "homeOpenPacs").property("iconName") == "nav-pacs"
+    click(window, pacs)
+    assert app.workspaceController.activeTabType == "pacs"
+    assert pacs.property("checked") and not folder.property("checked")
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *args: "")
+    click(window, folder)
+    assert folder.property("checked") and not pacs.property("checked")
+    click(window, pacs)
+    assert pacs.property("checked") and not folder.property("checked")
+
+    assert app.pacsController.saveProfile({"name": "Demo", "url": "http://127.0.0.1:8042"})
+    assert app.pacsController.message == ""
+    QTest.qWait(60)
+    scroll = find(window, "pacsFilterScroll")
+    flick = next(i for i in descendants(scroll) if i.property("contentY") is not None)
+
+    def scroll_bottom():
+        flick.setProperty("contentY", max(0, flick.property("contentHeight") - flick.height()))
+        QTest.qWait(60)
+
+    scroll_bottom()
+    click(window, find(window, "pacsMoreFilters"))
+    scroll_bottom()
+    collapse = find(window, "pacsMoreFilters")
+    description = find(window, "pacsStudyDescription")
+    assert collapse.mapToScene(QPointF()).y() >= description.mapToScene(QPointF(0, description.height())).y()
+    assert collapse.mapToItem(scroll, QPointF(0, collapse.height())).y() <= scroll.height()
+    assert window.grabWindow().save(str(tmp_path / "pacs-segmented-expanded.png"))
+    click(window, collapse)
+    QTest.qWait(150)
+    assert not any(i.objectName() == "pacsStudyDescription" and i.isVisible() for i in descendants(scroll))
+    assert "更多筛选条件" in find(window, "pacsMoreFilters").property("text")
+    assert 0 <= collapse.mapToItem(scroll, QPointF()).y() < scroll.height()
+    assert not warnings, warnings
