@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" color="#aabcc8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5v10l-9 5-9-5V7ZM12 2v4M3 7l3.5 2M21 7l-3.5 2M3 17l3.5-2M21 17l-3.5-2M12 18v4" stroke-dasharray="3.3 1.8"/><path d="m12 7 5 2.8v5.4L12 18l-5-2.8V9.8ZM7 9.8l5 2.8 5-2.8M12 12.6V18"/><path d="m7 9.8 5 2.8V18l-5-2.8Z" fill="currentColor" stroke="none"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" color="#aabcc8">
+  <!-- Match the original VOI image: separate outer frame segments and three solid inner faces. -->
+  <g fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 8.7V7L12 2l9 5v1.7M12 2v2.8M3 7l3.3 1.8M21 7l-3.3 1.8"/>
+    <path d="M3 11.2V17l9 5 9-5v-5.8M3 17l3-1.7M21 17l-3-1.7M12 22v-2.8"/>
+  </g>
+  <g fill="currentColor">
+    <path d="m12 7 4.7 2.7-4.7 2.7-4.7-2.7Z"/>
+    <path d="m7.3 10.8 4.2 2.4v4.6l-4.2-2.4Z"/>
+    <path d="m12.5 13.2 4.2-2.4v4.6l-4.2 2.4Z"/>
+  </g>
+</svg>
