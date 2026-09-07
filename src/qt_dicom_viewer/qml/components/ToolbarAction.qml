@@ -120,7 +120,7 @@ Item {
     Basic.ToolTip {
         id: tooltip
         objectName: "toolbarTooltip"
-        visible: action.hovered || button.activeFocus
+        visible: action.hovered || button.visualFocus
         delay: 400
         text: action.tooltipText
         font.pixelSize: Theme.bodyFontSize

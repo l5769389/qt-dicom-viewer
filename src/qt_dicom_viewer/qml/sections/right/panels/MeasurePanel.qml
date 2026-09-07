@@ -1,5 +1,4 @@
-pragma
-ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import "../components" as Components
@@ -20,42 +19,31 @@ ColumnLayout {
         wrapMode: Text.Wrap
     }
 
-    Repeater {
-        model: measurePanel.toolController
-            ? measurePanel.toolController.measureActions
-            : []
-        delegate: Components.ToolActionButton
-        {
-            id: measureButton
-            required property var modelData
-            readonly property bool btnChecked:
-                measureButton.modelData.action
-                === measurePanel.toolController.activeInteraction
+    GridLayout {
+        Layout.fillWidth: true
+        columns: 2
+        columnSpacing: 6
+        rowSpacing: 6
+        uniformCellWidths: true
+        Repeater {
+            model: measurePanel.toolController ? measurePanel.toolController.measureActions : []
+            delegate: Components.ToolActionButton {
+                id: measureButton
+                required property var modelData
+                readonly property bool btnChecked: measureButton.modelData.action === measurePanel.toolController.activeInteraction
 
-            checked: measureButton.btnChecked
-            Layout.fillWidth: true
-            iconName: modelData.iconName
-            label: modelData.label
+                checked: measureButton.btnChecked
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                iconName: modelData.iconName
+                label: modelData.label
 
-            onClicked: {
-                measurePanel.actionTriggered(modelData.action)
-            }
-
-            background: Rectangle {
-                color: measureButton.checked
-                    ? Theme.selectionBackground
-                    : measureButton.hovered
-                        ? Theme.controlHover
-                        : "transparent"
-                border.color: measureButton.checked
-                    ? Theme.selectionBorder
-                    : "transparent"
-                border.width: 1
-                radius: 6
+                onClicked: {
+                    measurePanel.actionTriggered(modelData.action);
+                }
             }
         }
     }
-
 
     Item {
         Layout.fillHeight: true

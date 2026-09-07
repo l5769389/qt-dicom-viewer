@@ -45,6 +45,13 @@ Item {
         }
     })
 
+    function activeExportItem() {
+        for (let i = 0; i < viewportRepeater.count; i++) {
+            const cell = viewportRepeater.itemAt(i)
+            if (cell && cell.modelData === viewportController) return cell.exportItem
+        }
+        return null
+    }
     signal viewportActivated(var viewport_id)
 
     function resetLayout() {
@@ -112,10 +119,12 @@ Item {
         rowSpacing: 2
 
         Repeater {
+            id: viewportRepeater
             model: viewportLayout.currentTabAllViewports
 
             delegate: Item {
                 id: viewportCell
+                readonly property alias exportItem: imageViewport
 
                 required property var modelData
                 readonly property string viewportType:
@@ -154,6 +163,7 @@ Item {
                     color: Theme.canvasBackground
 
                     Viewport {
+                        id: imageViewport
                         anchors.fill: parent
                         anchors.margins: 1
 

@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
 import "../../../theme"
+import "../../../components" as Components
 
 ColumnLayout {
     id: panel
@@ -104,23 +105,10 @@ ColumnLayout {
         }
     }
 
-    component ActionButton: Basic.Button {
-        id: action
-        implicitHeight: 34
-        contentItem: Text {
-            text: action.text
-            color: action.enabled ? Theme.textPrimary : Theme.textDisabled
-            font.pixelSize: 12
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-        background: Rectangle {
-            radius: 5
-            color: action.down ? Theme.selectionBackground
-                : action.hovered ? Theme.controlHover : Theme.controlBackground
-            border.width: 1
-            border.color: Theme.controlBorder
-        }
+    component ActionButton: Components.AppButton {
+        compact: true
+        momentary: true
+        fontPixelSize: 12
     }
 
     RowLayout {
@@ -225,7 +213,7 @@ ColumnLayout {
                     radius: 5
                     color: Theme.controlBackground
                     border.width: 1
-                    border.color: number.activeFocus ? Theme.focusBorder : Theme.inputBorder
+                    border.color: number.visualFocus ? Theme.focusBorder : Theme.inputBorder
                 }
             }
         }

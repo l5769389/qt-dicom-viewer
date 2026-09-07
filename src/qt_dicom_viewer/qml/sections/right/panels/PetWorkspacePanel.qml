@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
 import "../../../components" as Components
+import "../components" as Controls
 import "../../../theme"
 
 ColumnLayout {
@@ -132,11 +133,13 @@ ColumnLayout {
             color: Theme.textPrimary
             wrapMode: Text.Wrap
         }
-        Components.AppButton {
+        Controls.ToolActionButton {
             objectName: "togglePetRegistration"
             Layout.fillWidth: true
             enabled: panel.controller.ready
-            text: panel.controller.registrationActive ? "退出手动配准" : "开始手动配准"
+            label: panel.controller.registrationActive ? "退出手动配准" : "开始手动配准"
+            iconName: "fusion"
+            checked: panel.controller.registrationActive
             onClicked: panel.controller.setRegistrationActive(!panel.controller.registrationActive)
         }
         Text {
@@ -174,13 +177,13 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
-            Components.AppButton { Layout.fillWidth: true; text: "中心对齐"; enabled: panel.controller.ready; onClicked: panel.controller.centerAlign() }
-            Components.AppButton { Layout.fillWidth: true; text: "重置配准"; enabled: panel.controller.ready; onClicked: panel.controller.resetRegistration() }
+            Controls.ToolActionButton { Layout.fillWidth: true; label: "中心对齐"; iconName: "nav-view-mpr"; enabled: panel.controller.ready; onClicked: panel.controller.centerAlign() }
+            Controls.ToolActionButton { Layout.fillWidth: true; label: "重置配准"; iconName: "reset"; enabled: panel.controller.ready; onClicked: panel.controller.resetRegistration() }
         }
         RowLayout {
             Layout.fillWidth: true
-            Components.AppButton { Layout.fillWidth: true; text: "加载配准"; enabled: panel.controller.ready; onClicked: panel.controller.loadRegistration() }
-            Components.AppButton { Layout.fillWidth: true; text: "保存配准"; enabled: panel.controller.ready; onClicked: panel.controller.saveRegistration() }
+            Controls.ToolActionButton { Layout.fillWidth: true; label: "加载配准"; iconName: "nav-load-file"; enabled: panel.controller.ready; onClicked: panel.controller.loadRegistration() }
+            Controls.ToolActionButton { Layout.fillWidth: true; label: "保存配准"; iconName: "save"; enabled: panel.controller.ready; onClicked: panel.controller.saveRegistration() }
         }
     }
 }

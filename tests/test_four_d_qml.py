@@ -100,7 +100,12 @@ def test_play_tool_opens_secondary_panel_and_controls_playback(
 
     assert controller.toolController.activePanel == "play"
     assert panel.mapToScene(QPointF()).y() > play_tool.mapToScene(QPointF()).y()
-    assert play_button.width() <= 34
+    assert 44 <= play_button.width() <= 48
+    assert play_button.height() <= play_button.parentItem().height()
+    grid = _find(view, "phaseGrid")
+    last_phase = _find(view, "phaseButton-5")
+    last_y = last_phase.mapToItem(grid, QPointF()).y()
+    assert last_y + last_phase.height() <= grid.height()
     assert not play_button.property("checked")
     _click(view, play_button)
     assert controller.playing

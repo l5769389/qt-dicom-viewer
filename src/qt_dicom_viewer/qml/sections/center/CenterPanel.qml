@@ -17,6 +17,11 @@ Rectangle {
     required property var viewportController
     required property var currentTabAllViewports
 
+    readonly property bool imageWorkspace: ["2d", "mpr", "4d", "petctfusion"].includes(workspaceController.activeTabType)
+
+    readonly property Item exportItem: workspaceLoader.item
+        ? (workspaceLoader.item.activeExportItem !== undefined ? workspaceLoader.item.activeExportItem() : workspaceLoader.item) : null
+
     readonly property bool hasTabs:
         workspaceController.tabs.length > 0
 
@@ -39,6 +44,7 @@ Rectangle {
         }
 
         Loader {
+            id: workspaceLoader
             Layout.fillWidth: true
             Layout.fillHeight: true
             active: centerPanel.hasTabs
@@ -77,12 +83,10 @@ Rectangle {
     Component {
         id: imageComponent
         ViewportSection.ViewportLayout {
-            viewportController: centerPanel.workspaceController.activeTabType === "3d"
-                ? null : centerPanel.viewportController
+            viewportController: centerPanel.imageWorkspace ? centerPanel.viewportController : null
             hasTabs: centerPanel.hasTabs
             tabType: centerPanel.workspaceController.activeTabType
-            currentTabAllViewports: centerPanel.workspaceController.activeTabType === "3d"
-                ? [] : centerPanel.currentTabAllViewports
+            currentTabAllViewports: centerPanel.imageWorkspace ? centerPanel.currentTabAllViewports : []
             onViewportActivated: viewportId => {
                 const activeTab = centerPanel.workspaceController.activeTab
                 if (activeTab) {
@@ -102,7 +106,7 @@ Rectangle {
     Component {
         id: montageComponent
         ViewportSection.MontageViewport {
-            viewportController: centerPanel.viewportController
+            viewportController: centerPanel.workspaceController.activeTab?.activeViewport ?? null
         }
     }
 

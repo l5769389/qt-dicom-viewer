@@ -147,7 +147,7 @@ def test_3d_tools_and_scoped_resets_are_independent_per_tab(volume):
     assert {t["toolType"] for t in tools.tools} == {
         "pan", "zoom", "volume-rotate", "volume-direction", "volume-preset", "window", "reset",
         "volume-bed", "volume-crop",
-        "voi",
+        "voi", "export",
     }
     assert all(not t["available"] for t in tools.tools if t["toolType"] in {"voi", "remove-bed"})
     assert tools.activeInteraction == "volume:rotate"

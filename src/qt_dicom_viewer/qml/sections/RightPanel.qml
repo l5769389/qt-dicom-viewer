@@ -15,6 +15,8 @@ Rectangle {
     required property bool toolVisible
     required property var viewportController
     property var tabController: null
+    property var exportController: null
+    property Item exportItem: null
     readonly property var volumeController: viewportController && viewportController.viewportType === "volume"
         ? viewportController : null
 
@@ -77,7 +79,7 @@ Rectangle {
             Right.ToolDetailPanel {
                 id: toolDetailPanel
 
-                width: detailFlickable.width
+                width: detailFlickable.width - (detailFlickable.contentHeight > detailFlickable.height ? 10 : 0)
                 height: detailFlickable.contentHeight
                 toolController: rightPanel.toolController
                 activePanel: rightPanel.toolController
@@ -85,6 +87,8 @@ Rectangle {
                     : ""
                 viewportController: rightPanel.viewportController
                 tabController: rightPanel.tabController
+                exportController: rightPanel.exportController
+                exportItem: rightPanel.exportItem
             }
 
             Basic.ScrollBar.vertical: Components.AppScrollBar {

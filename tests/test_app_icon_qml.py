@@ -1,4 +1,4 @@
-"""透明 PNG 图标在实际工具栏尺寸下加载、切换与状态着色。"""
+"""统一 SVG 图标在实际工具栏尺寸下加载、切换与状态着色。"""
 
 from pathlib import Path
 
@@ -11,7 +11,7 @@ from shiboken6 import delete
 from test_measurement_qml import qt_app
 
 
-def test_tool_pngs_render_and_recolor_when_icon_name_changes(qt_app):
+def test_tool_svgs_render_and_recolor_when_icon_name_changes(qt_app):
     qml = Path(__file__).resolve().parents[1] / "src/qt_dicom_viewer/qml"
     names = ["fusion", "measure", "service", "mtf",
              "remove-bed", "segmentation", "voi", "qa", "mip"]
@@ -29,15 +29,9 @@ def test_tool_pngs_render_and_recolor_when_icon_name_changes(qt_app):
     view.show()
     try:
         for name in names:
-            asset = QImage(str(qml / f"assets/icons/tool-{name}.png"))
-            assert not asset.isNull() and asset.hasAlphaChannel()
-            assert asset.pixelColor(0, 0).alpha() == 0
             root = view.rootObject()
             root.setProperty("iconName", name)
-            if name == "fusion":
-                assert root.property("isNavigationIcon") and not root.property("rasterSource")
-            else:
-                assert root.property("rasterSource").endswith(f"tool-{name}.png")
+            assert root.property("isSvgIcon") and not root.property("rasterSource")
             for color in [QColor("#b8c3cf"), QColor("#00cfff")]:
                 root.setProperty("iconColor", color)
                 QTest.qWait(120)

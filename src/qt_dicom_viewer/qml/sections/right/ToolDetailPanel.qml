@@ -12,6 +12,8 @@ Rectangle {
     required property var viewportController
     required property var toolController
     property var tabController: null
+    property var exportController: null
+    property Item exportItem: null
     readonly property Item loadedPanel: contentLoader.item as Item
     readonly property string activeToolLabel:
         detailPanel.toolController
@@ -54,6 +56,7 @@ Rectangle {
                         ? petWorkspaceComponent : detailPanel.petIntensityMode
                         ? petIntensityComponent : windowLevelComponent
                 const map = {
+                    'export': exportComponent,
                     'rotate': rotatePanelComponent,
                     'mip': mipPanelComponent,
                     'measure': measureComponent,
@@ -69,6 +72,11 @@ Rectangle {
                 return map[detailPanel.activePanel] ?? null
             }
         }
+    }
+
+    Component {
+        id: exportComponent
+        Panels.ExportPanel { exportController: detailPanel.exportController; exportItem: detailPanel.exportItem }
     }
 
     Component {

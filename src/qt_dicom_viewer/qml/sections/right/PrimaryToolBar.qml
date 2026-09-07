@@ -65,7 +65,7 @@ Rectangle {
                 directionColor: toolBar.volumeController
                     ? toolBar.volumeController.currentFaceColor : Theme.iconDefault
                 tooltipText: label + (placeholder ? " · 待实现"
-                    : !actionEnabled ? " · 播放期间不可用"
+                    : !actionEnabled ? (toolBar.playbackActive ? " · 播放期间不可用" : toolBar.volumeController && toolBar.volumeController.editBusy ? " · 正在处理体数据" : " · 当前体数据不支持")
                     : directionFace !== "" ? " · " + directionFace : "")
                 onTriggered: {
                     if (modelData.behavior === "command") {

@@ -59,5 +59,6 @@ class ToolType(StrEnum):
     VOLUME_BED = "volume-bed"
     VOLUME_CROP = "volume-crop"
     PLAY = "play"
+    EXPORT = "export"
     SERVICE = "service"
     RESET = "reset"

@@ -11,21 +11,26 @@ ColumnLayout {
     signal actionTriggered(string action)
     spacing: 8
 
-    Repeater {
-        model: rotatePanel.toolController
-            ? rotatePanel.toolController.rotateActions
-            : []
+    GridLayout {
+        Layout.fillWidth: true
+        columns: 2
+        columnSpacing: 6
+        rowSpacing: 6
+        uniformCellWidths: true
+        Repeater {
+            model: rotatePanel.toolController ? rotatePanel.toolController.rotateActions : []
 
-        delegate: Components.ToolActionButton
-        {
-            required property var modelData
+            delegate: Components.ToolActionButton {
+                required property var modelData
 
-            Layout.fillWidth: true
-            iconName: modelData.iconName
-            label: modelData.label
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                iconName: modelData.iconName
+                label: modelData.label
 
-            onClicked: {
-                rotatePanel.actionTriggered(modelData.action)
+                onClicked: {
+                    rotatePanel.actionTriggered(modelData.action);
+                }
             }
         }
     }

@@ -1,4 +1,4 @@
-"""DPR-sized, tintable SVG navigation assets shared by QML icons."""
+"""DPR-sized, tintable SVG action assets shared by QML icons."""
 from functools import lru_cache
 from importlib.resources import files
 from urllib.parse import unquote
@@ -8,8 +8,18 @@ from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtQuick import QQuickImageProvider
 from PySide6.QtSvg import QSvgRenderer
 
-NAMES = frozenset(("nav-load-file", "nav-view-2d", "nav-view-mpr", "nav-view-3d",
-                   "nav-view-tile", "nav-view-4d", "nav-view-tag", "fusion"))
+NAMES = frozenset({
+    'annotate', 'annotate-text', 'cine-pause', 'cine-play', 'clear',
+    'crop-inside', 'crop-outside', 'delete', 'export', 'export-dicom',
+    'export-png', 'fusion', 'invert', 'measure', 'measure-angle',
+    'measure-ellipse', 'measure-line', 'measure-rect', 'mip', 'mirror-h',
+    'mirror-v', 'mtf', 'nav-load-file', 'nav-view-2d', 'nav-view-3d',
+    'nav-view-4d', 'nav-view-mpr', 'nav-view-tag', 'nav-view-tile', 'palette',
+    'pan', 'qa', 'remove-bed', 'reset', 'rotate',
+    'rotate-3d', 'rotate-ccw90', 'rotate-cw90', 'save', 'scroll',
+    'segmentation', 'service', 'viewport-settings', 'voi', 'volume-crop',
+    'window', 'zoom',
+})
 
 @lru_cache(maxsize=256)
 def render_icon(name, tint, accent, width, height):

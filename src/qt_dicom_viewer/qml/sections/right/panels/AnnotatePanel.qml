@@ -4,33 +4,34 @@ import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../theme"
 import "../../../components" as Components
+import "../components" as Controls
 
 ColumnLayout {
     id: annotatePanel
     objectName: "annotatePanel"
     required property var viewportController
-    readonly property var controller: annotatePanel.viewportController
-        ? annotatePanel.viewportController.textAnnotationController
-        : null
+    readonly property var controller: annotatePanel.viewportController ? annotatePanel.viewportController.textAnnotationController : null
     spacing: 12
 
     RowLayout {
         Layout.fillWidth: true
-        Components.AppButton {
+        Controls.ToolActionButton {
             objectName: "annotateArrowMode"
             Layout.fillWidth: true
             compact: true
             momentary: true
-            text: "箭头"
+            label: "箭头"
+            iconName: "annotate"
             checked: annotatePanel.viewportController.activeInteraction === "annotate:arrow"
             onClicked: annotatePanel.viewportController.setAnnotationMode(false)
         }
-        Components.AppButton {
+        Controls.ToolActionButton {
             objectName: "annotateTextMode"
             Layout.fillWidth: true
             compact: true
             momentary: true
-            text: "文字箭头"
+            label: "文字箭头"
+            iconName: "annotate-text"
             checked: annotatePanel.viewportController.activeInteraction === "annotate:text"
             onClicked: annotatePanel.viewportController.setAnnotationMode(true)
         }
@@ -38,9 +39,7 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
-        text: annotatePanel.viewportController.activeInteraction === "annotate:text"
-            ? "拖动绘制文字箭头，单击箭身编辑。"
-            : "拖动绘制箭头，选中后可移动或调整端点。"
+        text: annotatePanel.viewportController.activeInteraction === "annotate:text" ? "拖动绘制文字箭头，单击箭身编辑。" : "拖动绘制箭头，选中后可移动或调整端点。"
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap
@@ -64,8 +63,7 @@ ColumnLayout {
         Basic.TextArea {
             id: annotationEditor
             objectName: "annotationTextEditor"
-            text: annotatePanel.controller
-                ? annotatePanel.controller.annotationText : ""
+            text: annotatePanel.controller ? annotatePanel.controller.annotationText : ""
             color: Theme.textPrimary
             placeholderText: "请输入标注内容"
             placeholderTextColor: Theme.textDisabled
@@ -79,29 +77,26 @@ ColumnLayout {
 
             onTextChanged: {
                 if (activeFocus && annotatePanel.controller) {
-                    annotatePanel.viewportController.setAnnotationMode(true)
-                    annotatePanel.controller.setAnnotationText(text)
+                    annotatePanel.viewportController.setAnnotationMode(true);
+                    annotatePanel.controller.setAnnotationText(text);
                 }
             }
 
             background: Rectangle {
                 color: Theme.controlBackground
-                border.color: annotationEditor.activeFocus
-                    ? Theme.focusBorder : Theme.inputBorder
+                border.color: annotationEditor.activeFocus ? Theme.focusBorder : Theme.inputBorder
                 radius: Theme.controlRadius
             }
 
             Connections {
                 target: annotatePanel.controller
                 function onEditorChanged() {
-                    if (annotationEditor.text
-                            !== annotatePanel.controller.annotationText) {
-                        annotationEditor.text = annotatePanel.controller.annotationText
+                    if (annotationEditor.text !== annotatePanel.controller.annotationText) {
+                        annotationEditor.text = annotatePanel.controller.annotationText;
                     }
                 }
             }
         }
-
     }
 
     Text {
@@ -117,10 +112,7 @@ ColumnLayout {
         spacing: 6
 
         Repeater {
-            model: [
-                "#ffd45c", "#66d0ff", "#7bd7a4", "#ef7777",
-                "#f5f7fb", "#ff8a5b", "#c99cff"
-            ]
+            model: ["#ffd45c", "#66d0ff", "#7bd7a4", "#ef7777", "#f5f7fb", "#ff8a5b", "#c99cff"]
 
             delegate: Basic.Button {
                 id: colorButton
@@ -129,16 +121,14 @@ ColumnLayout {
                 width: 28
                 height: 28
                 Accessible.name: "标注颜色 " + modelData
-                checked: annotatePanel.controller
-                    && annotatePanel.controller.annotationColor === modelData
+                checked: annotatePanel.controller && annotatePanel.controller.annotationColor === modelData
                 onClicked: annotatePanel.controller?.setAnnotationColor(modelData)
 
                 background: Rectangle {
                     radius: width / 2
                     color: colorButton.modelData
                     border.width: colorButton.checked ? 3 : 1
-                    border.color: colorButton.checked
-                        ? Theme.selectionBorder : Theme.controlBorder
+                    border.color: colorButton.checked ? Theme.selectionBorder : Theme.controlBorder
                 }
             }
         }
@@ -162,11 +152,8 @@ ColumnLayout {
             from: 10
             to: 48
             stepSize: 1
-            value: annotatePanel.controller
-                ? annotatePanel.controller.annotationFontSize : 16
-            onMoved: annotatePanel.controller?.setAnnotationFontSize(
-                Math.round(value)
-            )
+            value: annotatePanel.controller ? annotatePanel.controller.annotationFontSize : 16
+            onMoved: annotatePanel.controller?.setAnnotationFontSize(Math.round(value))
         }
 
         Text {
@@ -196,8 +183,7 @@ ColumnLayout {
         spacing: 5
 
         Repeater {
-            model: annotatePanel.controller
-                ? annotatePanel.controller.annotationItems : []
+            model: annotatePanel.controller ? annotatePanel.controller.annotationItems : []
 
             delegate: Basic.Button {
                 id: annotationItem
@@ -206,9 +192,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 implicitHeight: 34
                 checked: modelData.selected
-                onClicked: annotatePanel.controller?.selectAnnotation(
-                    modelData.annotationId
-                )
+                onClicked: annotatePanel.controller?.selectAnnotation(modelData.annotationId)
 
                 contentItem: RowLayout {
                     spacing: 8
@@ -227,10 +211,8 @@ ColumnLayout {
                     }
                 }
                 background: Rectangle {
-                    color: annotationItem.checked
-                        ? Theme.selectionBackground : Theme.controlBackground
-                    border.color: annotationItem.checked
-                        ? Theme.selectionBorder : Theme.controlBorder
+                    color: annotationItem.checked ? Theme.selectionBackground : Theme.controlBackground
+                    border.color: annotationItem.checked ? Theme.selectionBorder : Theme.controlBorder
                     radius: Theme.controlRadius
                 }
             }
@@ -238,8 +220,7 @@ ColumnLayout {
 
         Text {
             Layout.fillWidth: true
-            visible: !annotatePanel.controller
-                || annotatePanel.controller.annotationItems.length === 0
+            visible: !annotatePanel.controller || annotatePanel.controller.annotationItems.length === 0
             text: "当前切片暂无标注"
             color: Theme.textDisabled
             font.pixelSize: 11
@@ -250,52 +231,27 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 8
 
-        Basic.Button {
-            id: deleteAnnotationButton
+        Controls.ToolActionButton {
             objectName: "deleteSelectedAnnotation"
             Layout.fillWidth: true
-            text: "删除选中"
+            label: "删除选中标注"
+            iconName: "delete"
+            hoverColor: Theme.resetActionHover
             enabled: annotatePanel.controller?.hasSelection ?? false
             onClicked: annotatePanel.controller?.deleteSelected()
-            contentItem: Text {
-                text: deleteAnnotationButton.text
-                color: deleteAnnotationButton.enabled
-                    ? Theme.textSecondary : Theme.textDisabled
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            background: Rectangle {
-                color: deleteAnnotationButton.hovered
-                    ? Theme.controlHover : Theme.controlBackground
-                border.color: Theme.controlBorder
-                radius: Theme.controlRadius
-            }
         }
-
-        Basic.Button {
-            id: clearAnnotationsButton
+        Controls.ToolActionButton {
             objectName: "clearAllAnnotations"
             Layout.fillWidth: true
-            text: "清空全部"
+            label: "清空当前切片标注"
+            iconName: "clear"
+            hoverColor: Theme.resetActionHover
             enabled: annotatePanel.controller?.hasAnnotations ?? false
             onClicked: annotatePanel.controller?.clearAll()
-            contentItem: Text {
-                text: clearAnnotationsButton.text
-                color: clearAnnotationsButton.enabled
-                    ? Theme.textSecondary : Theme.textDisabled
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            background: Rectangle {
-                color: clearAnnotationsButton.hovered
-                    ? Theme.controlHover : Theme.controlBackground
-                border.color: Theme.controlBorder
-                radius: Theme.controlRadius
-            }
         }
     }
 
-    Item { Layout.fillHeight: true }
+    Item {
+        Layout.fillHeight: true
+    }
 }

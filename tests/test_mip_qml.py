@@ -88,8 +88,8 @@ def test_mip_panel_updates_mode_enablement_and_live_thickness(
 
     mip_button = _find(view, "primaryTool-mip")
     mip_icon = next(item for item in _visual_children(mip_button)
-                    if item.objectName() == "tintedRasterToolIcon" and item.isVisible())
-    inactive_color = mip_icon.property("tintColor")
+                    if item.objectName() == "navigationSvgIcon" and item.isVisible())
+    inactive_color = mip_icon.parentItem().property("iconColor")
     origin = mip_icon.mapToItem(mip_button, QPointF())
     corner = mip_icon.mapToItem(mip_button, QPointF(mip_icon.width(), mip_icon.height()))
     assert corner.x() - origin.x() == pytest.approx(24)
@@ -98,7 +98,7 @@ def test_mip_panel_updates_mode_enablement_and_live_thickness(
     _click(view, _find(view, "primaryTool-mip"))
     assert _find(view, "mipPanel") is not None
     assert _find(view, "mipMode-mip").property("checked")
-    assert mip_icon.property("tintColor") != inactive_color
+    assert mip_icon.parentItem().property("iconColor") != inactive_color
 
     _click(view, _find(view, "mipMode-mean"))
     thickness_input = _find(view, "mipThicknessInput-axial")

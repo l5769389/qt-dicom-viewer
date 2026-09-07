@@ -32,6 +32,7 @@ MONTAGE_TOOL_TYPES = frozenset((
     ToolType.ZOOM,
     ToolType.ROTATE,
     ToolType.INVERT,
+    ToolType.EXPORT,
     ToolType.RESET,
 ))
 
@@ -446,6 +447,6 @@ def tool_available(
     if tab_type == TabType.THREE_D:
         return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
                         ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.VOLUME_BED,
-                        ToolType.VOLUME_CROP, ToolType.RESET)
+                        ToolType.VOLUME_CROP, ToolType.EXPORT, ToolType.RESET)
     supported = TOOL_DEFINITIONS[tool].supported_tab_types
     return tab_type is None or supported is None or tab_type in supported

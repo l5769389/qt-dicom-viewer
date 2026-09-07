@@ -57,6 +57,29 @@ class VolumeViewportController(ViewportController):
         self._drawing = False
         self._tools.activeInteractionChanged.connect(self._tool_changed)
 
+    def snapshot_image(self):
+        from PySide6.QtGui import QImage
+        from vtkmodules.vtkRenderingCore import vtkWindowToImageFilter
+        from vtkmodules.util.numpy_support import vtk_to_numpy
+        import numpy as np
+        if self._host is None or self._load_state != "ready":
+            raise ValueError("3D 影像尚未加载完成。")
+        window = self._host.backend.window
+        window.Render()
+        capture = vtkWindowToImageFilter()
+        capture.SetInput(window)
+        capture.SetInputBufferTypeToRGB()
+        capture.ReadFrontBufferOff()
+        capture.Update()
+        data = capture.GetOutput()
+        width, height, _ = data.GetDimensions()
+        scalars = data.GetPointData().GetScalars()
+        if width <= 0 or height <= 0 or scalars is None:
+            raise ValueError("3D 视口未生成可导出的图像。")
+        pixels = vtk_to_numpy(scalars).reshape(height, width, 3)
+        pixels = np.ascontiguousarray(pixels[::-1])
+        return QImage(pixels.data, width, height, pixels.strides[0], QImage.Format_RGB888).copy()
+
     @Property(QObject, notify=nativeWindowChanged)
     def nativeWindow(self):
         return self._host.windowHandle() if self._host is not None else None

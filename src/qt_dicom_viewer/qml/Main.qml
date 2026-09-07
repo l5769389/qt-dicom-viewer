@@ -40,6 +40,7 @@ ApplicationWindow {
         }
 
         CenterSections.CenterPanel {
+            id: centerView
             Layout.fillWidth: true
             Layout.fillHeight: true
             workspaceController: window.workspaceController
@@ -51,6 +52,8 @@ ApplicationWindow {
         }
 
         Sections.RightPanel {
+            exportController: appController.exportController ?? null
+            exportItem: centerView.exportItem
             visible: window.hasTabs && ["tag", "settings", "pacs"].indexOf(window.workspaceController.activeTabType) < 0
             Layout.minimumWidth: visible ? 220 : 0
             Layout.preferredWidth: visible ? 250 : 0

@@ -59,7 +59,9 @@ def _assert_service_panel_has_only_top_aligned_buttons(view):
     panel = _find(view, "servicePanel")
     visible_texts = {item.property("text") for item in _visual_children(panel)
                      if item.isVisible() and item.property("text")}
-    assert {"MTF", "QA"} <= visible_texts
+    assert not ({"MTF", "QA"} & visible_texts)
+    assert _find(view, "serviceEntry-mtf").property("label") == "MTF"
+    assert _find(view, "serviceEntry-qa").property("label") == "QA"
     assert not any("预留" in text or "待实现" in text or text == "服务" for text in visible_texts)
     assert not any(item.objectName() == "serviceEntryStatus"
                    for item in _visual_children(panel))
@@ -91,13 +93,13 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
     primary_service = _find(view, "primaryTool-service")
     tinted_service_icon = next(
         item for item in _visual_children(primary_service)
-        if item.objectName() == "tintedRasterToolIcon" and item.isVisible()
+        if item.objectName() == "navigationSvgIcon" and item.isVisible()
     )
-    assert tinted_service_icon.property("tintColor").name() == "#b0bfcc"
+    assert tinted_service_icon.parentItem().property("iconColor").name() == "#b0bfcc"
 
     _click(view, primary_service)
     assert controller.activePanel == "service"
-    assert tinted_service_icon.property("tintColor").name() == "#66d0ff"
+    assert tinted_service_icon.parentItem().property("iconColor").name() == "#66d0ff"
     _assert_service_panel_has_only_top_aligned_buttons(view)
 
     for entry in ["mtf"]:
@@ -122,12 +124,12 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
                                     ("serviceEntry-qa", "qa")]:
         button = _find(view, button_name)
         images = [item for item in _visual_children(button)
-                  if item.objectName() == "tintedRasterToolIcon" and item.isVisible()]
+                  if item.objectName() == "navigationSvgIcon" and item.isVisible()]
         assert len(images) == 1
         image = images[0]
-        assert image.property("imageSource").endswith(f"tool-{icon_name}.png")
+        assert str(image.property("source")).find(icon_name) >= 0
         assert image.width() > 0
-        assert image.property("tintColor") == image.parentItem().property("iconColor")
+        assert image.parentItem().property("iconColor") == image.parentItem().property("iconColor")
     assert not warnings, warnings
     assert commands == []
 

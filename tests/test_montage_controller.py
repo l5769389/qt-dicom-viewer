@@ -315,7 +315,7 @@ def test_montage_tool_whitelist_and_disabled_invert_placeholder() -> None:
     tools = tool_controller.tools
 
     assert [item["toolType"] for item in tools] == [
-        "window", "pan", "zoom", "rotate", "invert", "reset",
+        "window", "pan", "zoom", "rotate", "invert", "export", "reset",
     ]
     invert = next(item for item in tools if item["toolType"] == "invert")
     assert invert["enabled"] is False

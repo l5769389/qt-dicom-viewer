@@ -175,6 +175,10 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
         supported_tab_types=frozenset((TabType.TWO_D,)),
     ),
     ToolDefinition(
+        tool_type=ToolType.EXPORT, label="导出", icon_name="export",
+        behavior=ToolBehavior.PANEL,
+    ),
+    ToolDefinition(
         tool_type=ToolType.RESET,
         label="重置",
         icon_name="reset",

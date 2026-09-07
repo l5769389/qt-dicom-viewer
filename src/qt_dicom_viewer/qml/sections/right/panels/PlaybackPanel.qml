@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../components" as Components
+import "../components" as Controls
 import "../../../theme"
 
 ColumnLayout {
@@ -12,12 +13,12 @@ ColumnLayout {
 
     required property var tabController
 
-    implicitHeight: 226
+    implicitHeight: Theme.toolbarButtonHeight + 8 + spacing + phaseCard.implicitHeight
     spacing: 8
 
     Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: 42
+        Layout.preferredHeight: Theme.toolbarButtonHeight + 8
         radius: 8
         color: Theme.controlBackground
         border.width: 1
@@ -33,6 +34,8 @@ ColumnLayout {
             anchors.fill: parent
             anchors.leftMargin: 9
             anchors.rightMargin: 5
+            anchors.topMargin: 4
+            anchors.bottomMargin: 4
             spacing: 7
 
             Text {
@@ -112,53 +115,29 @@ ColumnLayout {
                 horizontalAlignment: Text.AlignHCenter
             }
 
-            Components.AppButton {
+            Controls.ToolActionButton {
                 objectName: "phasePlaybackButton"
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 32
-                minimumButtonWidth: 34
-                cornerRadius: 7
-                checked: playbackPanel.tabController
-                    ? playbackPanel.tabController.playing
-                    : false
-                normalColor: Theme.panelBackgroundStrong
-                hoverColor: Theme.primarySoftHover
-                pressedColor: Theme.primaryButtonPressed
-                activeColor: Theme.primarySoft
-                activeBorderColor: Theme.primaryColor
-
+                Layout.preferredWidth: 44
+                checked: playbackPanel.tabController ? playbackPanel.tabController.playing : false
+                label: checked ? "暂停" : "播放"
+                iconName: checked ? "cine-pause" : "cine-play"
                 onClicked: playbackPanel.tabController?.togglePlayback()
-
-                contentItem: Components.AppIcon {
-                    anchors.centerIn: parent
-                    iconName: playbackPanel.tabController
-                        && playbackPanel.tabController.playing
-                        ? "cine-pause"
-                        : "cine-play"
-                    iconSize: 18
-                    iconColor: parent.checked
-                        ? Theme.iconActive
-                        : parent.hovered
-                            ? Theme.iconHover
-                            : Theme.iconDefault
-                }
-
-                Basic.ToolTip.visible: hovered
-                Basic.ToolTip.delay: 400
-                Basic.ToolTip.text: checked ? "暂停" : "播放"
             }
         }
     }
 
     Rectangle {
+        id: phaseCard
         Layout.fillWidth: true
-        Layout.fillHeight: true
-        radius: 10
+        implicitHeight: phaseControls.implicitHeight + 18
+        Layout.minimumHeight: implicitHeight
+        radius: Theme.controlRadius
         color: Theme.cardBackground
         border.width: 1
         border.color: Theme.borderDefault
 
         ColumnLayout {
+            id: phaseControls
             anchors.fill: parent
             anchors.margins: 9
             spacing: 5
@@ -252,10 +231,11 @@ ColumnLayout {
                 objectName: "phaseGrid"
 
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: Math.max(1, Math.min(4, Math.ceil(count / columnCount))) * cellHeight
+                Layout.minimumHeight: Layout.preferredHeight
                 clip: true
                 readonly property int columnCount: 5
-                cellWidth: width / columnCount
+                cellWidth: Math.max(0, width - 8) / columnCount
                 cellHeight: 39
                 model: playbackPanel.tabController
                     ? playbackPanel.tabController.phaseItems
@@ -326,7 +306,8 @@ ColumnLayout {
                     }
                 }
 
-                Basic.ScrollBar.vertical: Basic.ScrollBar {
+                Basic.ScrollBar.vertical: Components.AppScrollBar {
+                    id: phaseScrollbar
                     policy: phaseGrid.contentHeight > phaseGrid.height
                         ? Basic.ScrollBar.AsNeeded
                         : Basic.ScrollBar.AlwaysOff

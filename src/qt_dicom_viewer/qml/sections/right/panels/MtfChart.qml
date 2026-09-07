@@ -47,7 +47,7 @@ Canvas {
                 background: Rectangle {
                     radius: 4
                     color: xLegend.hovered ? Theme.controlHover : "transparent"
-                    border.width: xLegend.activeFocus ? 1 : 0
+                    border.width: xLegend.visualFocus ? 1 : 0
                     border.color: Theme.focusBorder
                 }
                 Basic.ToolTip.visible: hovered
@@ -73,7 +73,7 @@ Canvas {
                 background: Rectangle {
                     radius: 4
                     color: yLegend.hovered ? Theme.controlHover : "transparent"
-                    border.width: yLegend.activeFocus ? 1 : 0
+                    border.width: yLegend.visualFocus ? 1 : 0
                     border.color: Theme.focusBorder
                 }
                 Basic.ToolTip.visible: hovered

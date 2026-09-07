@@ -116,5 +116,45 @@
         <file>src/qt_dicom_viewer/qml/assets/icons/fusion.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-mpr.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-tile.svg</file>
-    </qresource>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/ExportPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/voi.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/measure-rect.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/reset.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/volume-crop.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/viewport-settings.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/rotate.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/export-dicom.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/export.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/mtf.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/service.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/remove-bed.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/measure-ellipse.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/mirror-v.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/measure-angle.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/zoom.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/rotate-3d.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/export-png.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/palette.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/rotate-ccw90.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/invert.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/mirror-h.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/rotate-cw90.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/scroll.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/cine-play.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/measure-line.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/cine-pause.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/annotate.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/measure.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/mip.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/pan.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/window.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/segmentation.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/qa.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/annotate-text.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/delete.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/clear.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/crop-inside.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/crop-outside.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/save.svg</file>
+</qresource>
 </RCC>

@@ -32,6 +32,8 @@ class AppController(QObject):
         self._settings_controller = SettingsController(self, path=settings_path)
         self._workspace_controller = WorkspaceController(self._series_catalog,self._image_provider,parent= self)
         self._panel_controller = PanelController(parent=self, series_catalog=self._series_catalog, image_provider=image_provider)
+        from qt_dicom_viewer.ui.controller.export_controller import ExportController
+        self._export_controller = ExportController(self._workspace_controller, self._series_catalog, self)
         self._pacs_controller = PacsController(self, config_path=pacs_config_path, import_root=pacs_import_root)
         self._pacs_controller.imported.connect(self._panel_controller.acceptPacsImport)
         self._volume_manager = VolumeManager()
@@ -70,8 +72,13 @@ class AppController(QObject):
     def pacsController(self) -> QObject:
         return self._pacs_controller
 
+    @Property(QObject, constant=True)
+    def exportController(self):
+        return self._export_controller
+
     @Slot()
     def shutdown(self) -> None:
+        self._export_controller.shutdown()
         self._pacs_controller.shutdown()
         self._panel_controller.shutdown()
         self._workspace_controller.shutdown()

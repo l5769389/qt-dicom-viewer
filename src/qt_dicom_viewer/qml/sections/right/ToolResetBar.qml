@@ -1,82 +1,20 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
-import QtQuick.Controls.Basic as Basic
-import QtQuick.Layouts
-import "../../components" as Components
+import "components" as Controls
 import "../../theme"
-
 Rectangle {
-    id: resetBar
-
+    id: root
     required property var toolController
-
     implicitHeight: 52
     color: Theme.panelBackgroundStrong
-    radius: Theme.controlRadius
-
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        height: 1
-        color: Theme.dividerColor
-    }
-
-    Basic.Button {
-        id: resetButton
+    Controls.ToolActionButton {
         objectName: "activeToolReset"
-
-        anchors.fill: parent
-        anchors.margins: 10
-        enabled: resetBar.toolController
-            ? resetBar.toolController.canResetActiveTool
-            : false
-
-        onClicked: {
-            if (resetBar.toolController)
-                resetBar.toolController.resetActiveTool()
-        }
-
-        contentItem: RowLayout {
-            spacing: 9
-
-            Components.AppIcon {
-                iconName: "reset"
-                iconSize: 19
-                iconColor: resetButton.enabled
-                    ? Theme.resetActionColor
-                    : Theme.textDisabled
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: resetBar.toolController
-                    ? resetBar.toolController.resetLabel
-                    : "暂无可重置内容"
-                color: resetButton.enabled
-                    ? Theme.textSecondary
-                    : Theme.textDisabled
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-        }
-
-        background: Rectangle {
-            radius: 6
-            color: !resetButton.enabled
-                ? Theme.controlDisabled
-                : resetButton.down
-                    ? Theme.resetActionPressed
-                    : resetButton.hovered
-                        ? Theme.resetActionHover
-                        : Theme.controlBackground
-            border.width: resetButton.activeFocus ? 2 : 1
-            border.color: resetButton.enabled
-                ? (resetButton.activeFocus ? Theme.focusBorder : Theme.controlBorder)
-                : Theme.controlBorder
-        }
+        anchors.fill: parent; anchors.margins: 6
+        iconName: "reset"
+        label: root.toolController ? root.toolController.resetLabel : "暂无可重置内容"
+        enabled: root.toolController ? root.toolController.canResetActiveTool : false
+        hoverColor: Theme.resetActionHover
+        pressedColor: Theme.resetActionPressed
+        onClicked: root.toolController.resetActiveTool()
     }
 }
