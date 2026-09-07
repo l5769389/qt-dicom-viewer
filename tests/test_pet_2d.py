@@ -783,6 +783,8 @@ def test_pet_qml_uses_intensity_panel_without_wl_ww(qt_app, tmp_path) -> None:
     requests: list[StackRenderRequest] = []
     controller.renderRequested.connect(requests.append)
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(360, 720)
     warnings: list[str] = []
@@ -849,6 +851,8 @@ def test_pet_qml_uses_pet_specific_corner_information(qt_app, tmp_path) -> None:
     provider = DicomImageProvider()
     provider.set_array("pet-viewport", result.image)
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(720, 520)
     view.engine().addImageProvider("dicom", provider)

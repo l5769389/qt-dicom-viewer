@@ -32,6 +32,8 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
     tab = next(iter(workspace._tab_dict.values()))
     tab.toolController.selectInteraction("window")
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(1540, 1000)
     view.engine().addImageProvider("dicom", provider)
@@ -122,6 +124,8 @@ def test_main_qml_two_selection_entry_points(qt_app, paired_series, tmp_path):
     workspace.renderRequested.connect(lambda r: workspace.handleRenderResult(renderer.render(r)))
     app = _App(workspace, panel)
     engine = QQmlApplicationEngine()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    engine.addImageProvider("navigation", SvgIconProvider())
     engine.addImageProvider("dicom", provider)
     engine.rootContext().setContextProperty("appController", app)
     warnings = []

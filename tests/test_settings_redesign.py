@@ -129,6 +129,8 @@ def test_settings_preview_remains_bounded_on_wide_screens(scene, category, tmp_p
 @pytest.mark.parametrize('size', [24, 28, 48])
 def test_mpr_crosshair_and_color_mapping_are_legible_at_toolbar_sizes(qt_app, size, tmp_path):
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     warnings = []
     view.engine().warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
     view.setColor(QColor('black'))

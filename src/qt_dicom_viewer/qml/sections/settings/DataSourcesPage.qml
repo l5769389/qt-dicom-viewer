@@ -34,55 +34,33 @@ Basic.ScrollView {
             font.pixelSize: 13
             wrapMode: Text.Wrap
         }
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            implicitHeight: sourceContent.implicitHeight + 24
-            color: Theme.cardBackground
-            border.color: Theme.borderSubtle
-            radius: Theme.controlRadius
-            ColumnLayout {
-                id: sourceContent
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
-                Text {
-                    text: "数据源模式"
-                    color: Theme.textPrimary
-                    font.pixelSize: 14
-                    font.bold: true
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: "本地文件和 PACS 可同时启用，入口随设置显示。"
-                    color: Theme.textMuted
-                    font.pixelSize: 12
-                    wrapMode: Text.Wrap
-                }
+        SettingsSection {
+            Layout.fillWidth: true; Layout.leftMargin: 16; Layout.rightMargin: 16
+            title: "数据源模式"
+            description: "本地文件和 PACS 可同时启用，入口随设置显示。"
+            RowLayout {
+                Layout.fillWidth: true; spacing: 18
                 Components.AppCheckBox {
-                    objectName: "enableLocalSource"
-                    text: "启用本地文件"
-                    checked: page.pacsController.localEnabled
-                    enabled: !page.pacsController.busy
+                    objectName: "enableLocalSource"; text: "本地文件"
+                    checked: page.pacsController.localEnabled; enabled: !page.pacsController.busy
                     onClicked: page.pacsController.setSources(checked, page.pacsController.pacsEnabled)
                 }
                 Components.AppCheckBox {
-                    objectName: "enablePacsSource"
-                    text: "启用 PACS 浏览器"
-                    checked: page.pacsController.pacsEnabled
-                    enabled: !page.pacsController.busy
+                    objectName: "enablePacsSource"; text: "PACS 浏览器"
+                    checked: page.pacsController.pacsEnabled; enabled: !page.pacsController.busy
                     onClicked: page.pacsController.setSources(page.pacsController.localEnabled, checked)
                 }
+                Item { Layout.fillWidth: true }
             }
         }
+        SettingsSection {
+            Layout.fillWidth: true; Layout.leftMargin: 16; Layout.rightMargin: 16
+            title: "PACS 连接"
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
             Text {
                 Layout.fillWidth: true
-                text: "PACS 配置"
+                text: "当前默认：" + page.pacsController.defaultName
                 color: Theme.textPrimary
                 font.pixelSize: 14
                 font.bold: true
@@ -94,15 +72,6 @@ Basic.ScrollView {
                 enabled: !page.pacsController.busy
                 onClicked: profileDialog.edit(null)
             }
-        }
-        Text {
-            Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            text: "当前默认：" + page.pacsController.defaultName
-            color: Theme.textMuted
-            font.pixelSize: 12
-            wrapMode: Text.Wrap
         }
         Repeater {
             model: page.pacsController.profiles
@@ -153,16 +122,26 @@ Basic.ScrollView {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: "DICOMweb  ·  " + (card.modelData.auth === "none" ? "无认证" : card.modelData.auth === "basic" ? "Basic" : "Bearer") + "  ·  " + (card.modelData.needsSecret ? "需补充认证信息" : card.modelData.status)
+                        text: "DICOMweb  ·  " + (card.modelData.auth === "none" ? "无认证" : card.modelData.auth === "basic" ? "Basic" : "Bearer") + (card.modelData.needsSecret ? "  ·  需补充认证信息" : "")
                         color: card.modelData.needsSecret ? Theme.warningColor : Theme.textSubtle
                         font.pixelSize: 11
                         wrapMode: Text.Wrap
+                    }
+                    Text {
+                        objectName: "pacsTestResult-" + card.modelData.id
+                        Layout.fillWidth: true
+                        visible: !!card.modelData.testResult.message
+                        text: card.modelData.testResult.message ?? ""
+                        color: card.modelData.testResult.state === "error" ? Theme.dangerColor
+                            : card.modelData.testResult.state === "success" ? Theme.successColor : Theme.textSecondary
+                        wrapMode: Text.Wrap; font.pixelSize: 12
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 7
                         Components.AppButton {
-                            text: "测试连接"
+                            objectName: "pacsTest-" + card.modelData.id
+                            text: card.modelData.testResult.state === "testing" ? "测试中…" : "测试连接"
                             compact: true
                             enabled: !page.pacsController.busy
                             onClicked: page.pacsController.testProfile(card.modelData.id)
@@ -198,8 +177,6 @@ Basic.ScrollView {
         Rectangle {
             visible: page.pacsController.profiles.length === 0
             Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
             implicitHeight: 88
             color: Theme.cardBackground
             border.color: Theme.borderSubtle
@@ -215,11 +192,12 @@ Basic.ScrollView {
                 wrapMode: Text.Wrap
             }
         }
+        }
         Text {
             objectName: "pacsSettingsMessage"
             Layout.fillWidth: true
             Layout.margins: 16
-            visible: page.pacsController.message !== ""
+            visible: page.pacsController.message !== "" && !page.pacsController.profiles.some(row => row.testResult.message === page.pacsController.message)
             text: page.pacsController.message
             color: page.pacsController.isError ? Theme.dangerColor : Theme.successColor
             font.pixelSize: 12

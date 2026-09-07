@@ -26,16 +26,15 @@ ColumnLayout {
     }
     Repeater {
         model: [{key: "gray", title: "CT / 普通灰阶影像"}, {key: "pet", title: "PET 影像"}]
-        delegate: ColumnLayout {
+        delegate: SettingsSection {
             id: group
             required property var modelData
             Layout.fillWidth: true
             visible: root.modality === modelData.key
-            spacing: 6
-            Text { text: group.modelData.title; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+            title: group.modelData.title
             GridLayout {
                 Layout.fillWidth: true
-                columns: Math.max(1, Math.min(4, Math.floor((root.width + 8) / 180)))
+                columns: Math.max(1, Math.min(4, Math.floor((group.width - 12) / 180)))
                 columnSpacing: 8; rowSpacing: 8
                 Repeater {
                     model: root.settingsController.colorMaps

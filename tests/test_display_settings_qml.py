@@ -50,7 +50,7 @@ def test_real_settings_edits_and_reload(scene, tmp_path):
     click(window, find(window, 'setting-scale-enabled'))
     type_text(window, find(window, 'setting-scale-color'), '#aabbcc')
     QTest.keyClick(window, Qt.Key_Tab)
-    assert app.settingsController.values['scale'] == {'enabled': False, 'color': '#aabbcc'}
+    assert app.settingsController.values['scale'] == {'enabled': False, 'color': '#aabbcc', 'lengthMm': 100}
     click(window, find(window, 'settingsCategory-roi'))
     click(window, find(window, 'setting-roi-mean'))
     assert not app.settingsController.values['roi']['mean']

@@ -70,9 +70,9 @@ Basic.Button {
 
         border.width: Math.max(
             control.baseBorderWidth,
-            control.activeFocus ? 2 : control.checked ? 1 : 0
+            control.visualFocus ? 2 : control.checked ? 1 : 0
         )
-        border.color: control.activeFocus ? control.focusBorderColor
+        border.color: control.visualFocus ? control.focusBorderColor
             : control.checked ? control.activeBorderColor
             : control.baseBorderColor
 

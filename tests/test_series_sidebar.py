@@ -181,6 +181,8 @@ def sidebar_scene(qt_app, tmp_path):
     panel.update_series_session(snapshot)
     panel._update_series_record(snapshot)
     engine = QQmlApplicationEngine()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    engine.addImageProvider("navigation", SvgIconProvider())
     warnings = []
     engine.warnings.connect(lambda errors: warnings.extend(error.toString() for error in errors))
     engine.addImageProvider("dicom", provider)

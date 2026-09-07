@@ -40,6 +40,7 @@ class WorkspaceController(QObject):
         self._series_catalog = series_catalog
         self._tab_dict:dict[str, TabController | UtilityTabController] = {}
         self._active_tab_id: str | None = None
+        self._tab_mru: list[str] = []
         self._image_provider = image_provider
         self._tag_read_service = TagReadService(self)
 
@@ -67,16 +68,17 @@ class WorkspaceController(QObject):
 
     @Slot(str)
     def closeTab(self, tab_id: str):
-        if tab_id in self._tab_dict:
-            tab = self._tab_dict[tab_id]
-            tab.dispose()
-            tab.deleteLater()
-            del self._tab_dict[tab_id]
+        if tab_id not in self._tab_dict:
+            return
+        tab = self._tab_dict.pop(tab_id)
+        tab.dispose()
+        tab.deleteLater()
+        self._tab_mru = [key for key in self._tab_mru if key != tab_id]
         if tab_id == self._active_tab_id:
-            self._active_tab_id = next(iter(self._tab_dict), "")
+            self._active_tab_id = self._tab_mru[0] if self._tab_mru else ""
+            self.activeTabChanged.emit()
+            self.activeViewportChanged.emit()
         self.tabsChanged.emit()
-        self.activeTabChanged.emit()
-        self.activeViewportChanged.emit()
 
     @Slot(str)
     def submit(self, render_request: RenderRequest):
@@ -132,6 +134,7 @@ class WorkspaceController(QObject):
         if current_tab is not None:
             current_tab.pausePlayback()
         self._active_tab_id = tab_id
+        self._tab_mru = [tab_id] + [key for key in self._tab_mru if key != tab_id]
         self.activeTabChanged.emit()
         self.activeViewportChanged.emit()
 
@@ -234,15 +237,10 @@ class WorkspaceController(QObject):
             self.connect_signal(new_tab)
             self._tab_dict[tab_id] = new_tab
 
-        current_tab = self._tab_dict.get(self._active_tab_id)
-        if current_tab is not None and current_tab is not new_tab:
-            current_tab.pausePlayback()
         tab = new_tab or self._tab_dict[tab_id]
 
-        self._active_tab_id = tab_id
         self.tabsChanged.emit()
-        self.activeTabChanged.emit()
-        self.activeViewportChanged.emit()
+        self.activateTabId(tab_id)
         return tab, new_tab is not None
 
 
@@ -327,10 +325,8 @@ class WorkspaceController(QObject):
         tab = PetWorkspaceController(config, ct_series=ct, pet_series=pet, parent=self)
         self.connect_signal(tab)
         self._tab_dict[tab_id] = tab
-        self._active_tab_id = tab_id
         self.tabsChanged.emit()
-        self.activeTabChanged.emit()
-        self.activeViewportChanged.emit()
+        self.activateTabId(tab_id)
         tab.init_render()
 
     @Slot(object)

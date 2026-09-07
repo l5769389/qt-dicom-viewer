@@ -105,5 +105,16 @@
         <file>src/qt_dicom_viewer/qml/components/ColorMapIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingsSection.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingsSplit.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/SectionState.js</file>
+        <file>src/qt_dicom_viewer/qml/components/AppNumberField.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/AppDateField.qml</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-3d.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-2d.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-tag.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-4d.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-load-file.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/fusion.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-mpr.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-tile.svg</file>
     </qresource>
 </RCC>

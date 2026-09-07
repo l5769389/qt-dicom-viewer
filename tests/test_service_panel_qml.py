@@ -19,6 +19,8 @@ from test_measurement_qml import (
 def service_panel(qt_app, request):
     controller = ToolController(tab_type=getattr(request, "param", TabType.TWO_D))
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(320, 640)
     warnings = []

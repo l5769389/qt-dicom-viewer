@@ -49,6 +49,8 @@ def bind_controller() -> QQmlApplicationEngine:
     engine = QQmlApplicationEngine()
     image_provider = DicomImageProvider()
     app_controller = AppController(image_provider)
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    engine.addImageProvider("navigation", SvgIconProvider())
     engine.addImageProvider("dicom", image_provider)
     engine.rootContext().setContextProperty("appController", app_controller)
     engine.image_provider = image_provider

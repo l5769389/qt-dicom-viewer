@@ -18,6 +18,8 @@ def scene(qt_app, tmp_path):
     provider = DicomImageProvider()
     controller = AppController(provider, pacs_config_path=tmp_path / "pacs.json", pacs_import_root=tmp_path / "imports")
     engine = QQmlApplicationEngine()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    engine.addImageProvider("navigation", SvgIconProvider())
     warnings = []
     engine.warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
     engine.addImageProvider("dicom", provider)

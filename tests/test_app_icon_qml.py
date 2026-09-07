@@ -16,6 +16,8 @@ def test_tool_pngs_render_and_recolor_when_icon_name_changes(qt_app):
     names = ["fusion", "measure", "service", "mtf",
              "remove-bed", "segmentation", "voi", "qa", "mip"]
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     warnings = []
     view.engine().warnings.connect(
         lambda errors: warnings.extend(error.toString() for error in errors)
@@ -32,7 +34,10 @@ def test_tool_pngs_render_and_recolor_when_icon_name_changes(qt_app):
             assert asset.pixelColor(0, 0).alpha() == 0
             root = view.rootObject()
             root.setProperty("iconName", name)
-            assert root.property("rasterSource").endswith(f"tool-{name}.png")
+            if name == "fusion":
+                assert root.property("isNavigationIcon") and not root.property("rasterSource")
+            else:
+                assert root.property("rasterSource").endswith(f"tool-{name}.png")
             for color in [QColor("#b8c3cf"), QColor("#00cfff")]:
                 root.setProperty("iconColor", color)
                 QTest.qWait(120)

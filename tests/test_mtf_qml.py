@@ -25,6 +25,8 @@ def workspace(qt_app, request):
     controller.handleRenderResult(frame)
     controller._tool_controller.resetRequested.connect(lambda tool: controller.reset_tool_state(ToolType(tool)))
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     size = getattr(request, "param", (1200, 820))
     view.resize(*size)

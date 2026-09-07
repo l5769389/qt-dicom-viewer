@@ -68,6 +68,8 @@ def scene(qt_app, tmp_path):
     panel._update_series_record(DicomFolderScanSnapshot(tmp_path, 20, 20, 0, [series]))
     app = _App(workspace, panel)
     engine = QQmlApplicationEngine()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    engine.addImageProvider("navigation", SvgIconProvider())
     warnings = []
     engine.warnings.connect(lambda errors: warnings.extend(error.toString() for error in errors))
     engine.addImageProvider("dicom", provider)

@@ -1,0 +1,42 @@
+"""DPR-sized, tintable SVG navigation assets shared by QML icons."""
+from functools import lru_cache
+from importlib.resources import files
+from urllib.parse import unquote
+
+from PySide6.QtCore import QByteArray, QSize, Qt
+from PySide6.QtGui import QColor, QImage, QPainter
+from PySide6.QtQuick import QQuickImageProvider
+from PySide6.QtSvg import QSvgRenderer
+
+NAMES = frozenset(("nav-load-file", "nav-view-2d", "nav-view-mpr", "nav-view-3d",
+                   "nav-view-tile", "nav-view-4d", "nav-view-tag", "fusion"))
+
+@lru_cache(maxsize=256)
+def render_icon(name, tint, accent, width, height):
+    image = QImage(width, height, QImage.Format_ARGB32_Premultiplied)
+    image.fill(Qt.transparent)
+    if name not in NAMES:
+        return image
+    color = QColor(tint)
+    detail = QColor(accent)
+    svg = files("qt_dicom_viewer").joinpath("qml/assets/icons/" + name + ".svg").read_text()
+    svg = svg.replace("#aabcc8", color.name() if color.isValid() else "#aabcc8")
+    svg = svg.replace("#5dc4c5", detail.name() if detail.isValid() and detail.alpha() else color.name())
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.Antialiasing)
+    QSvgRenderer(QByteArray(svg.encode())).render(painter)
+    painter.end()
+    return image
+
+class SvgIconProvider(QQuickImageProvider):
+    def __init__(self):
+        super().__init__(QQuickImageProvider.Image)
+
+    def requestImage(self, identifier, size, requestedSize):
+        parts = [unquote(p) for p in identifier.split("/")]
+        name, tint, accent = (parts + ["#aabcc8", "transparent"])[:3]
+        width = min(512, max(1, requestedSize.width() if requestedSize.width() > 0 else 24))
+        height = min(512, max(1, requestedSize.height() if requestedSize.height() > 0 else width))
+        size.setWidth(width)
+        size.setHeight(height)
+        return render_icon(name, tint, accent, width, height)

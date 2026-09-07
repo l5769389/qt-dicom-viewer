@@ -17,7 +17,7 @@ GridLayout {
             Layout.minimumWidth: 0
             Layout.preferredWidth: 480
             Layout.alignment: Qt.AlignTop
-            spacing: 22
+            spacing: 12
         },
         Loader {
             objectName: "settingsPreviewColumn"

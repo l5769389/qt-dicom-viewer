@@ -33,6 +33,8 @@ def _controller(tab_type: TabType = TabType.FOUR_D) -> TabController:
 def four_d_panel(qt_app):
     controller = _controller()
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(280, 760)
     warnings = []
@@ -154,6 +156,8 @@ def test_four_d_panel_updates_fps_and_accepts_phase_click(
 def test_non_four_d_right_panel_does_not_show_playback_controls(qt_app) -> None:
     controller = _controller(TabType.MPR)
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(280, 640)
     warnings = []

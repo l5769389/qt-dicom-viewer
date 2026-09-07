@@ -61,6 +61,8 @@ class PacsController(QObject):
             self._message, self._error = str(exc) if isinstance(exc, ValueError) else "无法读取 PACS 配置文件。", True
         self._selected_profile = self._default
         self._statuses = {}
+        self._test_results = {}
+        self._test_target = "draft"
         self._studies, self._series, self._selected = [], [], set()
         self._study_uid = ""
         self._filters = {}
@@ -78,7 +80,27 @@ class PacsController(QObject):
     def profiles(self):
         return [{**p.public_dict(), "isDefault": p.id == self._default,
                  "needsSecret": p.auth != "none" and not p.secret,
-                 "status": self._statuses.get(p.id, "未测试")} for p in self._profiles]
+                 "status": self._statuses.get(p.id, "未测试"),
+                 "testResult": self._test_results.get(p.id, {})} for p in self._profiles]
+
+    @Property("QVariantMap", notify=stateChanged)
+    def draftTestResult(self):
+        return self._test_results.get("draft", {})
+
+    def _test_feedback(self, state, message):
+        self._test_results[self._test_target] = {"state": state, "message": message}
+        if self._test_target != "draft":
+            self._statuses[self._test_target] = {"testing": "测试中…", "success": "连接成功",
+                                                "error": "连接失败", "cancelled": "已取消"}[state]
+        self.profilesChanged.emit()
+        self.stateChanged.emit()
+
+    @Slot()
+    def clearDraftTest(self):
+        if not self._busy:
+            self._test_results.pop("draft", None)
+            self._tested_draft = None
+            self.stateChanged.emit()
 
     @Property("QVariantList", notify=profilesChanged)
     def enabledProfiles(self):
@@ -230,6 +252,7 @@ class PacsController(QObject):
                 self._statuses[profile.id] = "连接成功"
             elif not self._connection_matches(profile, original):
                 self._statuses.pop(profile.id, None)
+                self._test_results.pop(profile.id, None)
             self.profilesChanged.emit()
             return True
         return False
@@ -295,13 +318,14 @@ class PacsController(QObject):
             if number == self._number:
                 self._busy = False
                 self._job = None
+                if self._operation == "test":
+                    self._test_feedback("cancelled", "测试已取消。")
                 self._notify("操作已取消。")
             return
         self._busy, self._job = False, None
         if error:
-            if self._operation == "test" and self._tested_profile_id:
-                self._statuses[self._tested_profile_id] = "连接失败"
-                self.profilesChanged.emit()
+            if self._operation == "test":
+                self._test_feedback("error", error)
             self._notify(error, True)
         else:
             self._success(result)
@@ -320,25 +344,32 @@ class PacsController(QObject):
             if self._tested_profile_id:
                 self._statuses[self._tested_profile_id] = "连接成功"
                 self.profilesChanged.emit()
+            self._test_feedback("success", message)
             self._notify(message)
+        self._test_feedback("testing", "正在测试连接…")
         self._start("test", lambda cancel, progress: DicomWebClient(profile, cancel).test_connection(), done)
 
     @Slot(str)
     def testProfile(self, profile_id):
         if self._busy:
             return
+        self._test_target = profile_id
         try:
             self._test(self._profile(profile_id))
         except ValueError as exc:
+            self._test_feedback("error", str(exc))
             self._notify(str(exc), True)
 
     @Slot("QVariantMap")
     def testDraft(self, data):
         if self._busy:
             return
+        self._test_target = "draft"
+        self._tested_draft = None
         try:
             self._test(self._draft(data))
         except (ValueError, TypeError) as exc:
+            self._test_feedback("error", str(exc))
             self._notify(str(exc), True)
 
     @Slot("QVariantMap", int)

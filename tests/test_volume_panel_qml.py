@@ -21,6 +21,8 @@ def panel(qt_app, loaded_tab, request):
         controller.viewport_config = replace(controller.viewport_config,
             series_meta=replace(controller.viewport_config.series_meta, modality="MR"))
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(250, 700)
     warnings = []

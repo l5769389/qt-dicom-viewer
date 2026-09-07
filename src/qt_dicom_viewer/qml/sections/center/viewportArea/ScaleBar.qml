@@ -7,14 +7,13 @@ Item {
     required property real pixelsPerMm
     required property bool calibrated
     required property var options
-    readonly property real targetPixels: Math.min(120, width * 0.2)
+    readonly property real availablePixels: Math.max(0, width - 32)
     readonly property real lengthMm: {
-        if (!calibrated || !Number.isFinite(pixelsPerMm) || pixelsPerMm <= 0 || targetPixels <= 0)
+        if (!calibrated || !Number.isFinite(pixelsPerMm) || pixelsPerMm <= 0)
             return 0
-        const target = targetPixels / pixelsPerMm
-        const power = Math.pow(10, Math.floor(Math.log10(target)))
-        const fraction = target / power
-        return (fraction >= 5 ? 5 : fraction >= 2 ? 2 : 1) * power
+        const selected = options.lengthMm ?? 100
+        const choices = [100, 50, 20, 10, 1]
+        return choices.find(mm => mm <= selected && mm * pixelsPerMm <= availablePixels) ?? 0
     }
     readonly property real barPixels: lengthMm * pixelsPerMm
     visible: options.enabled !== false && lengthMm > 0
@@ -34,7 +33,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: line.top
         anchors.bottomMargin: 5
-        text: Number(root.lengthMm.toPrecision(3)) + " mm"
+        text: root.lengthMm === 100 ? "10 cm" : root.lengthMm + " mm"
         color: line.color
         font.pixelSize: 11
         style: Text.Outline

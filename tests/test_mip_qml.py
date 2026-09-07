@@ -50,6 +50,8 @@ def _click(view: QQuickView, item, x_ratio: float = 0.5) -> None:
 def mip_panel(qt_app):
     controller = ToolController(tab_type=TabType.MPR)
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(340, 640)
     warnings = []
@@ -175,6 +177,8 @@ def test_mpr_slab_guide_layer_tracks_image_transforms(qt_app, tmp_path) -> None:
     tools.setMprProjectionEnabled(True)
 
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(640, 480)
     provider = DicomImageProvider()

@@ -58,31 +58,17 @@ ColumnLayout {
                     font.pixelSize: 12
                 }
 
-                Components.AppTextField {
+                Components.AppNumberField {
                     id: displayUpperInput
                     objectName: "petDisplayUpperInput"
-                    Layout.preferredWidth: 92
-                    implicitHeight: 32
+                    Layout.preferredWidth: 92; implicitHeight: 32
                     horizontalAlignment: Text.AlignRight
-                    color: Theme.textPrimary
-                    selectionColor: Theme.selectionBackground
-                    validator: DoubleValidator {
-                        bottom: petPanel.viewportController
-                            ? petPanel.viewportController.petMinimumUpper
-                            : 0.001
-                    }
-                    text: petPanel.formatValue(
-                        petPanel.viewportController
-                            ? petPanel.viewportController.petDisplayUpper
-                            : 0
-                    )
-                    onEditingFinished: {
-                        const parsed = Number(text)
-                        if (Number.isFinite(parsed))
-                            petPanel.viewportController.setPetDisplayUpper(parsed)
-                        text = Qt.binding(() => petPanel.formatValue(petPanel.viewportController.petDisplayUpper))
-                    }
+                    minimum: petPanel.viewportController ? petPanel.viewportController.petMinimumUpper : 0.001
+                    maximum: 1e12; decimals: 3
+                    numberValue: petPanel.viewportController ? petPanel.viewportController.petDisplayUpper : 0
+                    onEdited: value => petPanel.viewportController.setPetDisplayUpper(value)
                 }
+
             }
 
             Basic.Slider {

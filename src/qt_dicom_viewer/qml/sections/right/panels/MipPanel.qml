@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../theme"
+import "../../../components" as Components
 
 ColumnLayout {
     id: mipPanel
@@ -190,63 +191,16 @@ ColumnLayout {
                     border.width: 1
                     radius: 16
 
-                    Basic.TextField {
+                    Components.AppNumberField {
                         id: thicknessInput
-                        objectName: "mipThicknessInput-"
-                            + axisSection.modelData.plane
-
+                        objectName: "mipThicknessInput-" + axisSection.modelData.plane
                         anchors.fill: parent
-                        leftPadding: 10
-                        rightPadding: 27
-                        topPadding: 0
-                        bottomPadding: 0
-                        color: Theme.textPrimary
-                        selectionColor: Theme.primaryStrong
-                        selectedTextColor: Theme.textOnPrimary
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: TextInput.AlignHCenter
-                        verticalAlignment: TextInput.AlignVCenter
-                        selectByMouse: true
-                        inputMethodHints: Qt.ImhDigitsOnly
-                        validator: IntValidator {
-                            bottom: 0
-                            top: 100
-                        }
-
-                        function commitValue() {
-                            const parsed = Number.parseInt(text, 10)
-                            if (Number.isNaN(parsed)) {
-                                text = String(Math.round(thicknessSlider.value))
-                                return
-                            }
-                            const nextValue = Math.max(0, Math.min(100, parsed))
-                            mipPanel.toolController?.setMprThickness(
-                                axisSection.modelData.plane,
-                                nextValue
-                            )
-                            text = String(nextValue)
-                        }
-
-                        onTextEdited: {
-                            if (!acceptableInput || text.length === 0)
-                                return
-                            mipPanel.toolController?.setMprThickness(
-                                axisSection.modelData.plane,
-                                Number.parseInt(text, 10)
-                            )
-                        }
-                        onEditingFinished: commitValue()
-
+                        leftPadding: 10; rightPadding: 27
+                        horizontalAlignment: Text.AlignHCenter
+                        minimum: 0; maximum: 100; decimals: 0
+                        numberValue: thicknessSlider.value
+                        onEdited: value => mipPanel.toolController?.setMprThickness(axisSection.modelData.plane, value)
                         background: Item {}
-                    }
-
-                    Binding {
-                        target: thicknessInput
-                        property: "text"
-                        value: String(Math.round(thicknessSlider.value))
-                        when: !thicknessInput.activeFocus
-                        restoreMode: Binding.RestoreBindingOrValue
                     }
 
                     Text {

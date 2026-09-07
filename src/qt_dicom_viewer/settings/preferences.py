@@ -27,7 +27,7 @@ DEFAULTS = {
                 "topLeft": ["viewPosition", "manufacturer", "seriesDescription", "slice"],
                 "topRight": ["patientName", "patientId"],
                 "bottomLeft": ["exposure", "sliceThickness", "window"], "bottomRight": ["cursor"]},
-    "scale": {"enabled": True, "color": "#f8fafc"},
+    "scale": {"enabled": True, "color": "#f8fafc", "lengthMm": 100},
     "measurement": {"editingColor": "#66d0ff", "completedColor": "#ffd45c", "lineWidth": 1.5,
                     "editingDash": True, "completedDash": False, "fontSize": 13,
                     "annotationColor": "#ffd166", "annotationSize": 14},
@@ -52,6 +52,10 @@ def validate_value(section, key, value):
     elif key == "colorMode":
         if value not in ("auto", "custom"):
             raise ValueError("请选择有效颜色策略")
+    elif section == "scale" and key == "lengthMm":
+        if isinstance(value, bool) or value not in (1, 10, 20, 50, 100):
+            raise ValueError("请选择有效比例尺长度")
+        value = int(value)
     elif isinstance(default, (int, float)):
         limits = {"fontSize": (10, 20), "lineHeight": (1, 1.8), "lineWidth": (1, 6), "annotationSize": (8, 28)}
         low, high = limits.get(key, (1, 6))

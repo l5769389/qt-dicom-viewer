@@ -122,18 +122,6 @@ SettingsSplit {
                     }
                 }
             }
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(100, root.values.fontSize * root.values.lineHeight * 3 + 24)
-                color: Theme.canvasBackground; radius: 4
-                Text {
-                    anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 12
-                    visible: root.values.enabled
-                    text: "CT · 轴位\n示例序列\nSlice: 8 / 16"
-                    font.pixelSize: root.values.fontSize; lineHeight: root.values.lineHeight
-                    color: root.values.colorMode === "custom" ? root.values.color : Theme.overlayText
-                }
-            }
             Text { Layout.fillWidth: true; text: "每角最多 8 项，按列表顺序显示。"; color: Theme.textMuted; font.pixelSize: 11; wrapMode: Text.Wrap }
         }
     }

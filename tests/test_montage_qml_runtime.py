@@ -36,6 +36,8 @@ def test_montage_grid_scrolls_on_wheel_event(qt_app, tmp_path) -> None:
         lambda *args: opened.append(args)
     )
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(1000, 720)
     warnings: list[str] = []

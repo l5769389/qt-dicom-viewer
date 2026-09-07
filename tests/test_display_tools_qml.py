@@ -38,6 +38,8 @@ def display_panel(qt_app):
     viewport_controller = _controller()
     viewport_controller.handleRenderResult(_render_result(viewport_controller))
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(330, 720)
     warnings = []

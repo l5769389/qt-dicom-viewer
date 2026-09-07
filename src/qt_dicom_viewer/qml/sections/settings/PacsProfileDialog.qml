@@ -9,6 +9,7 @@ Basic.Dialog {
     id: dialog
     required property var pacsController
     property string profileId: ""
+    property string saveError: ""
     property bool profileEnabled: true
     property bool existingSecret: false
     parent: Basic.Overlay.overlay
@@ -17,6 +18,7 @@ Basic.Dialog {
     height: Math.min(665, parent.height - 36)
     padding: 22
     modal: true
+    Basic.Overlay.modal: Rectangle { color: "#88000000" }
     focus: true
     closePolicy: pacsController.busy ? Basic.Popup.NoAutoClose : Basic.Popup.CloseOnEscape
     background: Rectangle {
@@ -26,6 +28,7 @@ Basic.Dialog {
     }
 
     function edit(profile) {
+        saveError = "";
         profileId = profile ? profile.id : "";
         profileEnabled = profile ? profile.enabled : true;
         existingSecret = profile ? !profile.needsSecret && profile.auth !== "none" : false;
@@ -35,6 +38,7 @@ Basic.Dialog {
         usernameField.text = profile ? profile.username : "";
         secretField.text = "";
         timeoutField.text = profile ? String(profile.timeout) : "15";
+        pacsController.clearDraftTest();
         open();
     }
     function values() {
@@ -72,10 +76,13 @@ Basic.Dialog {
         Basic.ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            id: profileScroll
             contentWidth: availableWidth
+            rightPadding: 12
+            Basic.ScrollBar.vertical: Components.AppScrollBar {}
             clip: true
             ColumnLayout {
-                width: parent.width
+                width: profileScroll.availableWidth
                 spacing: 8
                 Text {
                     text: "配置名称"
@@ -88,6 +95,7 @@ Basic.Dialog {
                     Layout.fillWidth: true
                     placeholderText: "例如：Orthanc Local"
                     enabled: !dialog.pacsController.busy
+                    onTextEdited: dialog.pacsController.clearDraftTest()
                 }
                 Text {
                     text: "DICOMweb 根地址"
@@ -101,6 +109,7 @@ Basic.Dialog {
                     Layout.fillWidth: true
                     placeholderText: "http://127.0.0.1:8042/dicom-web"
                     enabled: !dialog.pacsController.busy
+                    onTextEdited: dialog.pacsController.clearDraftTest()
                 }
                 Text {
                     Layout.fillWidth: true
@@ -121,6 +130,7 @@ Basic.Dialog {
                     Layout.fillWidth: true
                     model: ["无认证", "Basic · 用户名与密码", "Bearer · 访问令牌"]
                     enabled: !dialog.pacsController.busy
+                    onActivated: dialog.pacsController.clearDraftTest()
                 }
                 Text {
                     visible: authField.currentIndex === 1
@@ -134,6 +144,7 @@ Basic.Dialog {
                     visible: authField.currentIndex === 1
                     Layout.fillWidth: true
                     enabled: !dialog.pacsController.busy
+                    onTextEdited: dialog.pacsController.clearDraftTest()
                 }
                 Text {
                     visible: authField.currentIndex > 0
@@ -149,6 +160,7 @@ Basic.Dialog {
                     echoMode: TextInput.Password
                     placeholderText: dialog.existingSecret ? "留空保留本次会话的认证信息" : "仅保留在本次会话"
                     enabled: !dialog.pacsController.busy
+                    onTextEdited: dialog.pacsController.clearDraftTest()
                 }
                 Text {
                     visible: authField.currentIndex > 0
@@ -173,18 +185,19 @@ Basic.Dialog {
                         top: 120
                     }
                     enabled: !dialog.pacsController.busy
+                    onTextEdited: dialog.pacsController.clearDraftTest()
                 }
-                Text {
-                    objectName: "pacsProfileMessage"
-                    Layout.fillWidth: true
-                    Layout.topMargin: 5
-                    visible: dialog.pacsController.message !== ""
-                    text: dialog.pacsController.message
-                    color: dialog.pacsController.isError ? Theme.dangerColor : Theme.successColor
-                    wrapMode: Text.Wrap
-                    font.pixelSize: 12
-                }
+
             }
+        }
+        Text {
+            objectName: "pacsProfileMessage"
+            Layout.fillWidth: true
+            visible: text !== ""
+            text: dialog.saveError || dialog.pacsController.draftTestResult.message || ""
+            color: dialog.saveError || dialog.pacsController.draftTestResult.state === "error" ? Theme.dangerColor
+                : dialog.pacsController.draftTestResult.state === "success" ? Theme.successColor : Theme.textSecondary
+            wrapMode: Text.Wrap; font.pixelSize: 12
         }
         RowLayout {
             Layout.fillWidth: true
@@ -192,7 +205,7 @@ Basic.Dialog {
                 objectName: "pacsTestDraft"
                 text: dialog.pacsController.busy ? "测试中…" : "测试连接"
                 enabled: !dialog.pacsController.busy
-                onClicked: dialog.pacsController.testDraft(dialog.values())
+                onClicked: { dialog.saveError = ""; dialog.pacsController.testDraft(dialog.values()) }
             }
             Item {
                 Layout.fillWidth: true
@@ -210,6 +223,7 @@ Basic.Dialog {
                 onClicked: {
                     if (dialog.pacsController.saveProfile(dialog.values()))
                         dialog.close();
+                    else dialog.saveError = dialog.pacsController.message;
                 }
             }
         }

@@ -36,6 +36,8 @@ def viewport(qt_app):
                      geometry=replace(original.frame_meta.geometry, rows=256, columns=256)))
     controller.handleRenderResult(result)
     view = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    view.engine().addImageProvider("navigation", SvgIconProvider())
     view.setResizeMode(QQuickView.SizeRootObjectToView)
     view.resize(1000, 720)
     provider = DicomImageProvider()

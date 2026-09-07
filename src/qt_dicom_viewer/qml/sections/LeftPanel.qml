@@ -95,18 +95,8 @@ Rectangle {
                 )
         }
 
-        tooltipText: !actionData.supported
-            ? actionData.label + " · 待实现"
-            : !isFileAction && leftPanel.activeSeriesUid === ""
-                ? actionData.label + " · 请先选择影像序列"
-            : actionData.type === "4d"
-                && !leftPanel.panelController.activeSeriesSupportsFourD
-                ? "所选 Series 不包含可用的 4D 相位"
-                : leftPanel.activeSeriesModality === "PT" && !["2d", "tag", "mpr", "fusion"].includes(actionData.type)
-                    ? actionData.label + " · 当前 PET 序列不支持此视图"
-                : isFileAction
-                    ? "打开 DICOM 文件夹"
-                    : "以 " + actionData.label + "方式打开"
+        tooltipText: isFileAction ? "打开文件夹" : actionData.label + " 视图"
+
     }
 
     ColumnLayout {

@@ -64,12 +64,16 @@ Rectangle {
                 Layout.fillHeight: true
                 spacing: 10
                 Basic.ScrollView {
+                    id: filterScroll
+                    objectName: "pacsFilterScroll"
+                    rightPadding: 12
+                    Basic.ScrollBar.vertical: Components.AppScrollBar {}
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: availableWidth
                     clip: true
                     ColumnLayout {
-                        width: parent.width
+                        width: filterScroll.availableWidth
                         spacing: 8
                         Caption {
                             text: "连接配置"
@@ -137,7 +141,7 @@ Rectangle {
                         Caption {
                             text: "开始日期（可留空）"
                         }
-                        Components.AppTextField {
+                        Components.AppDateField {
                             id: dateFrom
                             objectName: "pacsDateFrom"
                             Layout.fillWidth: true
@@ -148,7 +152,7 @@ Rectangle {
                         Caption {
                             text: "结束日期（可留空）"
                         }
-                        Components.AppTextField {
+                        Components.AppDateField {
                             id: dateTo
                             objectName: "pacsDateTo"
                             Layout.fillWidth: true
@@ -268,12 +272,12 @@ Rectangle {
                         clip: true
                         spacing: 6
                         model: browser.pacsController.studies
-                        Basic.ScrollBar.vertical: Basic.ScrollBar {}
+                        Basic.ScrollBar.vertical: Components.AppScrollBar {}
                         delegate: Rectangle {
                             id: studyRow
                             required property var modelData
                             objectName: "pacsStudy-" + modelData.uid
-                            width: studiesList.width
+                            width: studiesList.width - 12
                             height: studyContent.implicitHeight + 24
                             radius: 7
                             color: browser.pacsController.selectedStudyUid === modelData.uid ? Theme.selectionBackground : studyHover.hovered ? Theme.cardBackgroundHover : Theme.panelBackgroundStrong
@@ -396,12 +400,12 @@ Rectangle {
                             clip: true
                             spacing: 6
                             model: browser.pacsController.series
-                            Basic.ScrollBar.vertical: Basic.ScrollBar {}
+                            Basic.ScrollBar.vertical: Components.AppScrollBar {}
                             delegate: Rectangle {
                                 id: seriesRow
                                 readonly property bool selected: browser.pacsController.selectedSeriesUids.indexOf(modelData.uid) >= 0
                                 required property var modelData
-                                width: seriesList.width
+                                width: seriesList.width - 12
                                 height: seriesContent.implicitHeight + 24
                                 radius: 7
                                 color: seriesRow.selected ? Theme.selectionBackground : Theme.panelBackgroundStrong

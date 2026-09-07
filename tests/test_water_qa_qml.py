@@ -24,6 +24,8 @@ def qa_workspace(qt_app, qa_view, request):
     controller.handleRenderResult(frame)
     controller._tool_controller.resetRequested.connect(lambda tool: controller.reset_tool_state(ToolType(tool)))
     window = QQuickView()
+    from qt_dicom_viewer.ui.svg_icon_provider import SvgIconProvider
+    window.engine().addImageProvider("navigation", SvgIconProvider())
     window.setResizeMode(QQuickView.SizeRootObjectToView)
     window.resize(*getattr(request, "param", (1200, 820)))
     provider = DicomImageProvider()

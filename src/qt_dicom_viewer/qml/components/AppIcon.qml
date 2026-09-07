@@ -14,6 +14,7 @@ Item {
     property color detailColor: "transparent"
     readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
 
+    readonly property bool isNavigationIcon: iconName.startsWith("nav-") || iconName === "fusion"
     readonly property bool isWindowLevelIcon: appIcon.iconName === "window"
     readonly property bool isTintableRasterIcon: appIcon.rasterSource !== ""
     // 伪彩保留灰阶到色带的映射含义，轮廓跟随工具栏状态。
@@ -26,18 +27,11 @@ Item {
         "qa": "../assets/icons/tool-qa.png",
         "mip": "../assets/icons/tool-mip.png",
         "measure": "../assets/icons/tool-measure.png",
-        "fusion": "../assets/icons/tool-fusion.png",
         "remove-bed": "../assets/icons/tool-remove-bed.png",
         "segmentation": "../assets/icons/tool-segmentation.png",
-        "voi": "../assets/icons/tool-voi.png",
-        "nav-load-file": "../assets/icons/nav-load-file.png",
-        "nav-view-2d": "../assets/icons/nav-view-2d.png",
-        "nav-view-3d": "../assets/icons/nav-view-3d.png",
-        "nav-view-tile": "../assets/icons/nav-view-tile.png",
-        "nav-view-4d": "../assets/icons/nav-view-4d.png",
-        "nav-view-tag": "../assets/icons/nav-view-tag.png"
+        "voi": "../assets/icons/tool-voi.png"
     })
-    readonly property string rasterSource: appIcon.rasterSourceMap[appIcon.iconName] ?? ""
+    readonly property string rasterSource: appIcon.isNavigationIcon ? "" : (appIcon.rasterSourceMap[appIcon.iconName] ?? "")
     readonly property var mdiPathMap: ({
         "chevron-down": "M6,9L12,15L18,9L16.6,7.6L12,12.2L7.4,7.6Z",
         "check": "M9,16.2L4.8,12L3.4,13.4L9,19L21,7L19.6,5.6Z",
@@ -85,7 +79,7 @@ Item {
     height: appIcon.iconSize
 
     Shape {
-        visible: !appIcon.isWindowLevelIcon
+        visible: !appIcon.isNavigationIcon && !appIcon.isWindowLevelIcon
             && !appIcon.isPseudocolorIcon
             && appIcon.rasterSource === ""
             && appIcon.iconName !== "nav-view-mpr"
@@ -107,11 +101,16 @@ Item {
         }
     }
 
-    MprIcon {
-        objectName: "mprCrosshairIcon"
+    Image {
+        objectName: "navigationSvgIcon"
         anchors.fill: parent
-        visible: appIcon.iconName === "nav-view-mpr"
-        tint: appIcon.iconColor
+        visible: appIcon.isNavigationIcon
+        source: visible ? "image://navigation/" + appIcon.iconName + "/"
+            + encodeURIComponent(appIcon.iconColor.toString()) + "/"
+            + encodeURIComponent(appIcon.detailColor.toString()) : ""
+        sourceSize.width: Math.ceil(appIcon.width * appIcon.pixelRatio)
+        sourceSize.height: Math.ceil(appIcon.height * appIcon.pixelRatio)
+        smooth: true
     }
     ColorMapIcon {
         objectName: "pseudocolorIcon"
