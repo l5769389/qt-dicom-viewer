@@ -39,7 +39,7 @@ Item {
         anchors.fill: parent
         anchors.margins: action.segmented ? 3 : 0
         cornerRadius: action.segmented ? 3 : Theme.controlRadius
-        activeColor: action.segmented ? Theme.primaryButtonBackground : Theme.selectionBackground
+        activeColor: action.segmented ? "transparent" : Theme.selectionBackground
         activeBorderColor: action.segmented ? "transparent" : Theme.selectionBorder
         enabled: action.actionEnabled && !action.placeholder
         checked: action.checked && enabled
@@ -51,12 +51,24 @@ Item {
         normalColor: action.prominent ? Theme.folderSurface : "transparent"
         disabledColor: "transparent"
         hoverColor: action.resetAction ? Theme.resetActionHover
-            : action.segmented ? Theme.primarySoftHover : Theme.controlHover
+            : action.segmented ? "transparent" : Theme.controlHover
         pressedColor: action.resetAction ? Theme.resetActionPressed
-            : action.segmented ? Theme.primaryButtonPressed : Theme.controlPressed
+            : action.segmented ? "transparent" : Theme.controlPressed
         Accessible.name: action.label
         Accessible.description: action.tooltipText
         onClicked: action.triggered()
+
+        Rectangle {
+            objectName: "sourceSelectionIndicator"
+            visible: action.segmented && button.checked
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 1
+            width: 18
+            height: 2
+            radius: 1
+            color: action.normalIconColor
+        }
 
         contentItem: Item {
             Column {
@@ -76,8 +88,9 @@ Item {
                         detailColor: action.iconName === "fusion" ? Theme.fusionAccent : "transparent"
                         iconColor: !button.enabled ? action.disabledIconColor
                             : action.resetAction && button.hovered ? Theme.resetActionColor
-                            : button.checked ? (action.segmented ? Theme.textOnPrimary : Theme.iconActive)
-                            : button.hovered ? (action.segmented ? Theme.primaryHover : Theme.iconHover) : action.normalIconColor
+                            : action.segmented ? action.normalIconColor
+                            : button.checked ? Theme.iconActive
+                            : button.hovered ? Theme.iconHover : action.normalIconColor
                     }
                     Rectangle {
                         anchors.centerIn: parent
