@@ -21,6 +21,7 @@ from qt_dicom_viewer.model.render_models import PetBatchRenderResult
 from qt_dicom_viewer.ui.controller.tab.pet_workspace_controller import PetWorkspaceController
 
 from qt_dicom_viewer.ui.controller.utility_tab_controller import UtilityTabController
+from qt_dicom_viewer.ui.controller.manual_tab_controller import ManualTabController
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,22 @@ class WorkspaceController(QObject):
     @Slot()
     def openPacs(self):
         self._open_utility(TabType.PACS, "PACS 浏览器")
+
+    @Property(QObject, notify=tabsChanged)
+    def manualController(self):
+        return self._tab_dict.get("workspace-manual")
+
+    @Slot()
+    @Slot(str)
+    def openManual(self, chapter_id=""):
+        tab_id = "workspace-manual"
+        if tab_id not in self._tab_dict:
+            self._tab_dict[tab_id] = ManualTabController(self)
+            self.tabsChanged.emit()
+        if chapter_id:
+            self._tab_dict[tab_id].setSearch("")
+            self._tab_dict[tab_id].selectChapter(chapter_id)
+        self.activateTabId(tab_id)
 
     def _open_utility(self, tab_type, label):
         tab_id = f"workspace-{tab_type.value}"
@@ -170,7 +187,7 @@ class WorkspaceController(QObject):
                         tab_label: str,
                         tab_type: TabType
                    ):
-        if tab_type in (TabType.SETTINGS, TabType.PACS):
+        if tab_type in (TabType.SETTINGS, TabType.PACS, TabType.MANUAL):
             return
         tab, created = self._create_or_activate_tab(
             series_uid,

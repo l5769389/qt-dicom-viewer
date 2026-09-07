@@ -14,7 +14,7 @@ Rectangle {
     property var tabController: null
     property var exportController: null
     property Item exportItem: null
-    signal voiManualRequested(string chapter)
+    signal manualRequested(string chapter)
     readonly property Item loadedPanel: contentLoader.item as Item
     readonly property string activeToolLabel:
         detailPanel.toolController
@@ -87,7 +87,7 @@ Rectangle {
         Panels.MprVoiPanel {
             controller: detailPanel.tabController?.voiController ?? detailPanel.viewportController?.voiController ?? null
             mode: detailPanel.activePanel
-            onManualRequested: chapter => detailPanel.voiManualRequested(chapter)
+            onManualRequested: chapter => detailPanel.manualRequested(chapter)
         }
     }
 
@@ -169,6 +169,7 @@ Rectangle {
     Component {
         id: measureComponent
         Panels.MeasurePanel {
+            onManualRequested: detailPanel.manualRequested("measurement")
             toolController: detailPanel.toolController
             onActionTriggered: action => {
                 if (detailPanel.toolController) {

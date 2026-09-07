@@ -9,6 +9,7 @@ Rectangle {
     required property var workspace
     required property var tabController
     property int rightPanelWidth: 390
+    property string lastManualChapter: ""
     color: "#101820"
     RowLayout {
         anchors.fill: parent
@@ -29,6 +30,7 @@ Rectangle {
             viewportController: root.workspace.activeViewport
             tabController: root.tabController
             toolVisible: true
+            onManualRequested: chapter => root.lastManualChapter = chapter
         }
     }
 }

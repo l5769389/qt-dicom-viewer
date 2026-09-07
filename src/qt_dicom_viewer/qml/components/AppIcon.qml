@@ -15,7 +15,7 @@ Item {
     readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
 
     readonly property bool isNavigationIcon: iconName.startsWith("nav-") || iconName === "fusion"
-    readonly property bool isSvgIcon: isNavigationIcon || ["annotate-arrow", "annotate-text", "delete", "clear", "crop-inside", "crop-outside", "save", "window", "scroll", "pan", "zoom", "measure", "measure-line", "measure-angle", "measure-rect", "measure-ellipse", "rotate", "rotate-3d", "rotate-cw90", "rotate-ccw90", "mirror-h", "mirror-v", "mip", "annotate", "viewport-settings", "service", "mtf", "qa", "remove-bed", "volume-crop", "palette", "cine-play", "cine-pause", "reset", "export", "export-png", "export-dicom", "segmentation", "voi", "invert"].includes(iconName)
+    readonly property bool isSvgIcon: isNavigationIcon || ["manual", "annotate-arrow", "annotate-text", "delete", "clear", "crop-inside", "crop-outside", "save", "window", "scroll", "pan", "zoom", "measure", "measure-line", "measure-angle", "measure-rect", "measure-ellipse", "rotate", "rotate-3d", "rotate-cw90", "rotate-ccw90", "mirror-h", "mirror-v", "mip", "annotate", "viewport-settings", "service", "mtf", "qa", "remove-bed", "volume-crop", "palette", "cine-play", "cine-pause", "reset", "export", "export-png", "export-dicom", "segmentation", "voi", "invert"].includes(iconName)
     readonly property bool isPseudocolorIcon: ["pseudocolor", "pseudocolor-gray"].includes(iconName)
     readonly property string rasterSource: ""
     readonly property var mdiPathMap: ({

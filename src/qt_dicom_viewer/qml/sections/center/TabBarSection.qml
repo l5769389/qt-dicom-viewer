@@ -74,8 +74,8 @@ Basic.TabBar {
 
                     Components.AppIcon {
                         anchors.centerIn: parent
-                        visible: String(tabButton.modelData.tabType).toLowerCase() === "settings"
-                        iconName: "settings"
+                        visible: ["settings", "manual"].includes(String(tabButton.modelData.tabType).toLowerCase())
+                        iconName: String(tabButton.modelData.tabType).toLowerCase() === "manual" ? "manual" : "settings"
                         iconSize: 14
                         iconColor: tabButton.checked ? Theme.primaryColor : Theme.iconDefault
                     }
@@ -84,7 +84,7 @@ Basic.TabBar {
 
                         anchors.centerIn: parent
                         font.pixelSize: 11
-                        text: String(tabButton.modelData.tabType).toLowerCase() === "settings" ? "" : String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
+                        text: ["settings", "manual"].includes(String(tabButton.modelData.tabType).toLowerCase()) ? "" : String(tabButton.modelData.tabType).toLowerCase() === "petctfusion" ? "PET/CT" : String(
                             tabButton.modelData.tabType
                         ).toUpperCase()
                         font.weight: tabButton.checked

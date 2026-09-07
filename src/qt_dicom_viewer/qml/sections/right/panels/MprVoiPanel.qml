@@ -4,6 +4,7 @@ import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../components" as Components
 import "../../../theme"
+import "../components" as Controls
 
 ColumnLayout {
     id: panel
@@ -24,10 +25,13 @@ ColumnLayout {
             font.pixelSize: 14
             font.weight: Font.DemiBold
         }
-        Components.AppButton {
+        Controls.ToolActionButton {
             objectName: "voiManualButton"
-            compact: true
-            text: "操作手册"
+            Layout.preferredWidth: 28
+            Layout.preferredHeight: 28
+            iconName: "manual"
+            iconSize: 18
+            label: "操作手册"
             onClicked: panel.manualRequested(panel.mode)
         }
         Components.AppCheckBox {

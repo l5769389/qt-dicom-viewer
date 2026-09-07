@@ -116,7 +116,7 @@ class ExportController(QObject):
 
     def current_series(self):
         tab = self.workspace.activeTab
-        if not tab or self.workspace.activeTabType in ("tag", "settings", "pacs"):
+        if not tab or self.workspace.activeTabType in ("tag", "settings", "pacs", "manual"):
             return []
         # A fusion workspace exports both source series in separate directories.
         return [record for meta in tab.tab_config.series_metas

@@ -1,11 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Window
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "right" as Right
-import "manual" as Manual
 import "../theme"
 import "../components" as Components
 
@@ -19,6 +17,7 @@ Rectangle {
     property var tabController: null
     property var exportController: null
     property Item exportItem: null
+    signal manualRequested(string chapter)
     readonly property var volumeController: viewportController && viewportController.viewportType === "volume"
         ? viewportController : null
 
@@ -91,7 +90,7 @@ Rectangle {
                 tabController: rightPanel.tabController
                 exportController: rightPanel.exportController
                 exportItem: rightPanel.exportItem
-                onVoiManualRequested: chapter => voiManual.showChapter(chapter)
+                onManualRequested: chapter => rightPanel.manualRequested(chapter)
             }
 
             Basic.ScrollBar.vertical: Components.AppScrollBar {
@@ -109,8 +108,4 @@ Rectangle {
         }
     }
 
-    Manual.OperationManual {
-        id: voiManual
-        ownerWindow: rightPanel.Window.window
-    }
 }

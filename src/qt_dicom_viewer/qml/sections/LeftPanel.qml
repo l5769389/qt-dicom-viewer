@@ -371,6 +371,22 @@ Rectangle {
             Layout.topMargin: -6
             Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.dividerColor }
             Components.ToolbarAction {
+                buttonObjectName: "sidebarManual"
+                anchors.right: settingsEntry.left
+                anchors.rightMargin: 4
+                anchors.bottom: parent.bottom
+                width: 28
+                height: 28
+                label: "操作手册"
+                tooltipText: "操作手册"
+                iconName: "manual"
+                iconSize: 18
+                checked: leftPanel.workspaceController?.activeTabType === "manual"
+                visible: leftPanel.workspaceController !== null
+                onTriggered: leftPanel.workspaceController.openManual("")
+            }
+            Components.ToolbarAction {
+                id: settingsEntry
                 buttonObjectName: "sidebarSettings"
                 anchors.right: parent.right
                 anchors.rightMargin: 8

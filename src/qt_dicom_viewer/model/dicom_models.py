@@ -10,6 +10,7 @@ class TabType(StrEnum):
     FOUR_D = "4d"
     TAG = "tag"
     PETCT_FUSION = "petctfusion"
+    MANUAL = "manual"
     SETTINGS = "settings"
     PACS = "pacs"
 

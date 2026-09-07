@@ -5,8 +5,7 @@ import time
 import numpy as np
 import pytest
 from PySide6.QtCore import QUrl, Qt, QPointF, QMetaObject, QObject
-from PySide6.QtQuick import QQuickView, QQuickWindow
-from PySide6.QtGui import QKeySequence
+from PySide6.QtQuick import QQuickView
 from PySide6.QtTest import QTest
 from shiboken6 import delete
 
@@ -181,75 +180,15 @@ def test_real_mpr_draw_edit_threshold_depth_and_voi(qt_app, paired_series, tmp_p
         QTest.keyClick(view, Qt.Key_Return)
         assert circle["name"] == "Lesion A"
 
-        # The manual is a separate ordinary window with its own surface,
-        # navigation, resizing and keyboard shortcuts.
-        help_button = next(x for x in _visual_children(view.rootObject()) if x.objectName() == "voiManualButton")
-        QTest.qWait(40)
-        before_manual = view.grabWindow()
-        _click(view, help_button)
-        manual = view.rootObject().findChild(QObject, "operationManual")
-        assert manual.property("visible") and manual.property("chapter") == "voi"
-        assert manual.property("category") == "mpr-segmentation"
-        assert isinstance(manual, QQuickWindow) and manual is not view
-        assert manual.modality() == Qt.NonModal
-        assert manual.transientParent() is None
-        assert manual.flags() & Qt.WindowType_Mask == Qt.Window
-        # Opening the manual must not draw an overlay in the image viewport.
-        assert before_manual.copy(12, 12, 1000, 900) == view.grabWindow().copy(12, 12, 1000, 900)
-        main_size = view.size()
+        # Contextual help routes to a workspace chapter without changing ROIs.
         records_before = [r.copy() for r in controller.records]
-        # Directory stays on the left; only the right reading pane scrolls.
-        for size in ((720, 560), (1060, 800)):
-            manual.resize(*size)
+        for tool in ("voi", "segmentation"):
+            tab.toolController.activateTool(tool)
             QTest.qWait(40)
-            visual = {x.objectName(): x for x in _visual_children(manual.contentItem()) if x.objectName()}
-            navigation, reading = visual["manualNavigation"], visual["voiManualReadingArea"]
-            assert navigation.mapToScene(QPointF(navigation.width(), 0)).x() <= reading.mapToScene(QPointF(0, 0)).x()
-            assert (manual.width(), manual.height()) == size
-            assert view.size() == main_size
-            assert reading.height() <= manual.height()
-            button = visual["voiManualChapter-voi"]
-            category = visual["manualCategory-mpr-segmentation"]
-            assert button.mapToScene(QPointF(0, 0)).x() > category.mapToScene(QPointF(0, 0)).x()
-            before_y = button.mapToScene(QPointF(0, 0)).y()
-            reading.setProperty("contentY", 120)
-            assert button.mapToScene(QPointF(0, 0)).y() == before_y
-        for chapter in ("segmentation", "quantification", "interaction", "management", "voi"):
-            name = "voiManualChapter-" + chapter
-            button = next(x for x in _visual_children(manual.contentItem()) if x.objectName() == name)
-            _click(manual, button)
-            assert manual.property("chapter") == chapter
-            assert manual.property("category") == "mpr-segmentation"
-            assert not any(x.objectName() == "manualCategory-interaction" for x in _visual_children(manual.contentItem()))
-            reading = next(x for x in _visual_children(manual.contentItem()) if x.objectName() == "voiManualReadingArea")
-            assert reading.property("contentY") == 0
-            assert button.mapToScene(QPointF(0, 0)).x() > category.mapToScene(QPointF(0, 0)).x()
-            if chapter not in ("management", "interaction"):
-                example = next(x for x in _visual_children(manual.contentItem()) if x.objectName() == "voiManualExample")
-                assert example.property("sourceSize").width() > 0
-            else:
-                assert reading.property("contentHeight") > 0
-        assert manual.grabWindow().save(str(tmp_path / (modality + "-voi-manual.png")))
-        _click(manual, next(x for x in _visual_children(manual.contentItem()) if x.objectName() == "voiManualClose"))
-        assert not manual.property("visible")
-        assert view.isVisible() and controller.records == records_before
-        # Reopen from another tool: reuse the window and jump to its chapter.
-        tab.toolController.activateTool("segmentation")
-        QTest.qWait(40)
-        help_button = next(x for x in _visual_children(view.rootObject()) if x.objectName() == "voiManualButton")
-        _click(view, help_button)
-        assert view.rootObject().findChild(QObject, "operationManual") is manual
-        assert manual.property("visible") and manual.property("chapter") == "segmentation"
-        assert manual.size().width() == 1060 and manual.size().height() == 800
-        QTest.keyClick(manual, Qt.Key_Escape)
-        QTest.qWait(40)
-        assert not manual.isVisible() and view.isVisible()
-        _click(view, help_button)
-        assert manual.isVisible()
-        QTest.keySequence(manual, QKeySequence(QKeySequence.Close))
-        QTest.qWait(40)
-        assert not manual.isVisible() and view.isVisible()
-        assert controller.records == records_before
+            help_button = next(x for x in _visual_children(view.rootObject()) if x.objectName() == "voiManualButton")
+            _click(view, help_button)
+            assert view.rootObject().property("lastManualChapter") == tool
+            assert controller.records == records_before
         tab.toolController.activateTool("voi")
         QTest.qWait(40)
 
@@ -276,14 +215,6 @@ def test_real_mpr_draw_edit_threshold_depth_and_voi(qt_app, paired_series, tmp_p
         tab.toolController.activateTool("window")
         QTest.qWait(30)
         assert reset.isVisible() and not clear_all.isVisible()
-        # Closing the application window also closes the helper window.
-        tab.toolController.activateTool("segmentation")
-        QTest.qWait(40)
-        _click(view, next(x for x in _visual_children(view.rootObject()) if x.objectName() == "voiManualButton"))
-        assert manual.isVisible()
-        view.close()
-        QTest.qWait(30)
-        assert not manual.isVisible()
     finally:
         view.hide()
         delete(view)

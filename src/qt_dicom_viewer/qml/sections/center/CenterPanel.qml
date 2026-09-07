@@ -6,6 +6,7 @@ import 'viewportArea' as ViewportSection
 import "../../theme"
 import "../settings" as Settings
 import "../pacs" as Pacs
+import "../manual" as Manual
 
 Rectangle {
     id: centerPanel
@@ -48,7 +49,9 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             active: centerPanel.hasTabs
-            sourceComponent: centerPanel.workspaceController.activeTabType === "settings"
+            sourceComponent: centerPanel.workspaceController.activeTabType === "manual"
+                ? manualComponent
+                : centerPanel.workspaceController.activeTabType === "settings"
                 ? settingsComponent
                 : centerPanel.workspaceController.activeTabType === "pacs"
                 ? pacsComponent
@@ -59,6 +62,11 @@ Rectangle {
                     : centerPanel.workspaceController.activeTabType === "montage"
                         ? montageComponent : imageComponent
         }
+    }
+
+    Component {
+        id: manualComponent
+        Manual.OperationManual { controller: centerPanel.workspaceController.manualController }
     }
 
     Component {

@@ -85,7 +85,11 @@ def test_full_workspace_readability(sidebar_scene, tab_type, tmp_path):
             button = find(window, name)
             for label in descendants(button):
                 if label.objectName() == "toolbarLabel":
-                    assert not label.property("truncated")
+                    assert not label.isVisible()  # Actions use icons; names are hover text.
+                if label.objectName() == "toolbarGlyph":
+                    assert label.width() > 0 and label.height() > 0
+                    assert label.width() <= button.width()
+            assert button.parentItem().property("tooltipText")
         assert find(window, "openView-fusion").isEnabled()
         assert find(window, "openView-montage").isEnabled()
         QTest.mouseMove(window, QPoint(width // 2, height - 10))

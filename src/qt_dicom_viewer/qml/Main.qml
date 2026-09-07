@@ -52,9 +52,10 @@ ApplicationWindow {
         }
 
         Sections.RightPanel {
+            onManualRequested: chapter => window.workspaceController.openManual(chapter)
             exportController: appController.exportController ?? null
             exportItem: centerView.exportItem
-            visible: window.hasTabs && ["tag", "settings", "pacs"].indexOf(window.workspaceController.activeTabType) < 0
+            visible: window.hasTabs && ["tag", "settings", "pacs", "manual"].indexOf(window.workspaceController.activeTabType) < 0
             Layout.minimumWidth: visible ? 220 : 0
             Layout.preferredWidth: visible ? 250 : 0
             Layout.maximumWidth: visible ? 280 : 0

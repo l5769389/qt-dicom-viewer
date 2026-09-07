@@ -168,5 +168,8 @@
         <file>src/qt_dicom_viewer/qml/assets/icons/crop-inside.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/crop-outside.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/save.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/help/manual.json</file>
+        <file>src/qt_dicom_viewer/qml/assets/help/measurement.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/manual.svg</file>
 </qresource>
 </RCC>

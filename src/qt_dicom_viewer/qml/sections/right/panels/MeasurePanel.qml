@@ -9,6 +9,19 @@ ColumnLayout {
     spacing: 8
     required property var toolController
 
+    signal manualRequested()
+
+    Components.ToolActionButton {
+        objectName: "measurementManualButton"
+        Layout.alignment: Qt.AlignRight
+        Layout.preferredWidth: 28
+        Layout.preferredHeight: 28
+        iconName: "manual"
+        iconSize: 18
+        label: "测量操作手册"
+        onClicked: measurePanel.manualRequested()
+    }
+
     signal actionTriggered(string action)
 
     Text {
@@ -30,7 +43,7 @@ ColumnLayout {
             delegate: Components.ToolActionButton {
                 id: measureButton
                 required property var modelData
-                readonly property bool btnChecked: measureButton.modelData.action === measurePanel.toolController.activeInteraction
+                readonly property bool btnChecked: measureButton.modelData.action === (measurePanel.toolController?.activeInteraction ?? "")
 
                 checked: measureButton.btnChecked
                 Layout.fillWidth: true

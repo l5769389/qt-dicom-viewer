@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from test_dicom_tags import qt_app
+from test_series_sidebar import sidebar_scene
+from test_tag_qml import find, click
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -8,17 +12,16 @@ def _read(relative_path: str) -> str:
     return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
 
 
-def test_montage_entry_and_center_loader_are_wired() -> None:
-    left_panel = _read("src/qt_dicom_viewer/qml/sections/LeftPanel.qml")
-    center_panel = _read(
-        "src/qt_dicom_viewer/qml/sections/center/CenterPanel.qml"
-    )
-
-    assert 'shortLabel: "平铺"' in left_panel
-    assert 'type: "montage"' in left_panel
-    assert 'actionData.type !== "montage" || !leftPanel.panelController.scanning' in left_panel
-    assert 'activeTabType === "montage"' in center_panel
-    assert "ViewportSection.MontageViewport" in center_panel
+def test_montage_entry_and_center_loader_are_wired(sidebar_scene) -> None:
+    window, app, records, warnings = sidebar_scene
+    click(window, find(window, "series-" + records[0].series_instance_uid))
+    button = find(window, "openView-montage")
+    assert button.isEnabled()
+    assert button.parentItem().property("tooltipText") == "平铺视图"
+    click(window, button)
+    assert app.workspaceController.activeTabType == "montage"
+    assert find(window, "montageGrid").isVisible()
+    assert not warnings, warnings
 
 
 def test_montage_qml_exposes_grid_controls_and_navigation() -> None:
