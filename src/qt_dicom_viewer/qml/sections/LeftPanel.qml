@@ -15,7 +15,7 @@ Rectangle {
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var primaryActions: [
-        {label: "加载文件", shortLabel: "文件", type: "file", icon: "nav-load-file", supported: true},
+        {label: "打开文件夹", shortLabel: "文件", type: "file", icon: "nav-load-file", supported: true},
         {label: "2D 视图", shortLabel: "2D", type: "2d", icon: "nav-view-2d", supported: true},
         {label: "MPR 视图", shortLabel: "MPR", type: "mpr", icon: "nav-view-mpr", supported: true},
         {label: "3D 视图", shortLabel: "3D", type: "3d", icon: "nav-view-3d", supported: true}
@@ -23,7 +23,7 @@ Rectangle {
     readonly property var secondaryActions: [
         {label: "平铺视图", shortLabel: "平铺", type: "montage", icon: "nav-view-tile", supported: true},
         {label: "4D 视图", shortLabel: "4D", type: "4d", icon: "nav-view-4d", supported: true},
-        {label: "DICOM Tag", shortLabel: "Tag", type: "tag", icon: "nav-view-tag", supported: true},
+        {label: "DICOM Tag 视图", shortLabel: "Tag", type: "tag", icon: "nav-view-tag", supported: true},
         {label: "融合视图", shortLabel: "融合", type: "fusion", icon: "fusion", supported: true}
     ]
     property string lastQuery: ""
@@ -95,7 +95,7 @@ Rectangle {
                 )
         }
 
-        tooltipText: isFileAction ? "打开文件夹" : actionData.label + " 视图"
+        tooltipText: actionData.label
 
     }
 
