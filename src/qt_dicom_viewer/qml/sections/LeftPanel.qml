@@ -14,18 +14,21 @@ Rectangle {
     property var workspaceController: null
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property string activeSeriesModality: panelController.activeSeriesModality
-    readonly property var primaryActions: [
-        {label: "打开文件夹", shortLabel: "文件", type: "file", icon: "nav-load-file", supported: true},
-        {label: "2D 视图", shortLabel: "2D", type: "2d", icon: "nav-view-2d", supported: true},
-        {label: "MPR 视图", shortLabel: "MPR", type: "mpr", icon: "nav-view-mpr", supported: true},
-        {label: "3D 视图", shortLabel: "3D", type: "3d", icon: "nav-view-3d", supported: true}
-    ]
-    readonly property var secondaryActions: [
-        {label: "平铺视图", shortLabel: "平铺", type: "montage", icon: "nav-view-tile", supported: true},
-        {label: "4D 视图", shortLabel: "4D", type: "4d", icon: "nav-view-4d", supported: true},
-        {label: "DICOM Tag 视图", shortLabel: "Tag", type: "tag", icon: "nav-view-tag", supported: true},
-        {label: "融合视图", shortLabel: "融合", type: "fusion", icon: "fusion", supported: true}
-    ]
+    readonly property var navigationActions: [
+        {label: "打开文件夹", type: "file", icon: "nav-load-file", supported: true},
+        {label: "PACS 浏览器", type: "pacs", icon: "nav-pacs", supported: true},
+        {label: "2D 视图", type: "2d", icon: "nav-view-2d", supported: true},
+        {label: "MPR 视图", type: "mpr", icon: "nav-view-mpr", supported: true},
+        {label: "3D 视图", type: "3d", icon: "nav-view-3d", supported: true},
+        {label: "平铺视图", type: "montage", icon: "nav-view-tile", supported: true},
+        {label: "4D 视图", type: "4d", icon: "nav-view-4d", supported: true},
+        {label: "DICOM Tag 视图", type: "tag", icon: "nav-view-tag", supported: true},
+        {label: "融合视图", type: "fusion", icon: "fusion", supported: true}
+    ].filter(action => action.type === "file"
+        ? !leftPanel.pacsController || leftPanel.pacsController.localEnabled
+        : action.type !== "pacs" || (leftPanel.pacsController && leftPanel.pacsController.pacsEnabled))
+    readonly property var primaryActions: navigationActions.slice(0, 4)
+    readonly property var secondaryActions: navigationActions.slice(4)
     property string lastQuery: ""
     color: Theme.panelBackground
     border.color: Theme.borderDefault
@@ -54,18 +57,19 @@ Rectangle {
 
         required property var actionData
         readonly property bool isFileAction: actionData.type === "file"
+        readonly property bool isPacsAction: actionData.type === "pacs"
 
         buttonObjectName: isFileAction
             ? "sidebarOpenFolder"
-            : "openView-" + actionData.type
+            : isPacsAction ? "sidebarPacs" : "openView-" + actionData.type
         Layout.fillWidth: true
         Layout.fillHeight: true
         Layout.preferredWidth: 1
         Layout.minimumWidth: 0
-        visible: !isFileAction || !leftPanel.pacsController || leftPanel.pacsController.localEnabled
         label: actionData.label
-        shortLabel: actionData.shortLabel
+        shortLabel: actionData.label
         iconSize: Theme.navigationIconSize
+        checked: isPacsAction && leftPanel.workspaceController?.activeTabType === "pacs"
         prominent: isFileAction
         normalIconColor: isFileAction ? Theme.folderAccent : Theme.iconDefault
         disabledIconColor: normalIconColor
@@ -73,6 +77,7 @@ Rectangle {
         placeholder: !actionData.supported
         actionEnabled: isFileAction
             ? !leftPanel.panelController.scanning
+            : isPacsAction ? leftPanel.workspaceController !== null
             : leftPanel.activeSeriesUid !== ""
                 && actionData.supported
                 && (leftPanel.activeSeriesModality !== "PT"
@@ -86,6 +91,8 @@ Rectangle {
         onTriggered: {
             if (isFileAction)
                 leftPanel.panelController.openFolderDialog()
+            else if (isPacsAction)
+                leftPanel.workspaceController.openPacs()
             else if (actionData.type === "fusion")
                 leftPanel.panelController.requestFusionView()
             else
@@ -102,7 +109,7 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         anchors.topMargin: 12
-        anchors.bottomMargin: 8
+        anchors.bottomMargin: 4
         anchors.leftMargin: 1
         anchors.rightMargin: 1
         spacing: 10
@@ -171,16 +178,6 @@ Rectangle {
             text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · Cmd/Ctrl 单击多选"
         }
 
-        Components.AppButton {
-            objectName: "sidebarPacs"
-            Layout.fillWidth: true
-            Layout.leftMargin: 10
-            Layout.rightMargin: 10
-            visible: leftPanel.pacsController && leftPanel.pacsController.pacsEnabled
-            text: "PACS 浏览器"
-            baseBorderWidth: 1
-            onClicked: leftPanel.workspaceController.openPacs()
-        }
 
         ListView {
             id: seriesList
@@ -332,19 +329,27 @@ Rectangle {
                 lineHeight: 1.4
             }
         }
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.dividerColor }
-        Components.ToolbarAction {
-            buttonObjectName: "sidebarSettings"
-            Layout.preferredWidth: 36
-            Layout.preferredHeight: 36
-            Layout.leftMargin: 10
-            label: "工作区设置"
-            tooltipText: "工作区设置"
-            iconName: "settings"
-            iconSize: 20
-            checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
-            visible: leftPanel.workspaceController !== null
-            onTriggered: leftPanel.workspaceController.openSettings()
+        Item {
+            objectName: "sidebarSettingsFooter"
+            Layout.fillWidth: true
+            Layout.preferredHeight: 32
+            Layout.topMargin: -6
+            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.dividerColor }
+            Components.ToolbarAction {
+                buttonObjectName: "sidebarSettings"
+                anchors.right: parent.right
+                anchors.rightMargin: 8
+                anchors.bottom: parent.bottom
+                width: 28
+                height: 28
+                label: "工作区设置"
+                tooltipText: "工作区设置"
+                iconName: "settings"
+                iconSize: 18
+                checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
+                visible: leftPanel.workspaceController !== null
+                onTriggered: leftPanel.workspaceController.openSettings()
+            }
         }
     }
 

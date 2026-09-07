@@ -13,7 +13,7 @@ NAMES = frozenset({
     'crop-inside', 'crop-outside', 'delete', 'export', 'export-dicom',
     'export-png', 'fusion', 'invert', 'measure', 'measure-angle',
     'measure-ellipse', 'measure-line', 'measure-rect', 'mip', 'mirror-h',
-    'mirror-v', 'mtf', 'nav-load-file', 'nav-view-2d', 'nav-view-3d',
+    'mirror-v', 'mtf', 'nav-load-file', 'nav-pacs', 'nav-view-2d', 'nav-view-3d',
     'nav-view-4d', 'nav-view-mpr', 'nav-view-tag', 'nav-view-tile', 'palette',
     'pan', 'qa', 'remove-bed', 'reset', 'rotate',
     'rotate-3d', 'rotate-ccw90', 'rotate-cw90', 'save', 'scroll',

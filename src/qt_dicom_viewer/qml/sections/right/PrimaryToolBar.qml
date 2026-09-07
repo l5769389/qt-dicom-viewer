@@ -52,6 +52,7 @@ Rectangle {
                 label: modelData.label
                 shortLabel: modelData.toolType === "mpr-rotate-3d" ? "3D旋转" : label
                 iconName: modelData.iconName
+                iconSize: modelData.toolType === "service" ? 20 : Theme.toolbarIconSize
                 placeholder: modelData.available === false
                 actionEnabled: (!toolBar.playbackActive || modelData.toolType === "play")
                     && (!bedAction || (toolBar.volumeController

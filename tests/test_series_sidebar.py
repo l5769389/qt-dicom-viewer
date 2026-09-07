@@ -338,9 +338,9 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
     workspace = app.workspaceController
     first_uid = records[0].series_instance_uid
     top_button_names = [
-        "sidebarOpenFolder", "openView-2d", "openView-mpr", "openView-3d",
+        "sidebarOpenFolder", "sidebarPacs", "openView-2d", "openView-mpr",
     ]
-    bottom_button_names = ["openView-montage", "openView-4d", "openView-tag", "openView-fusion"]
+    bottom_button_names = ["openView-3d", "openView-montage", "openView-4d", "openView-tag", "openView-fusion"]
     button_names = top_button_names + bottom_button_names
     panel.selectSeries(first_uid)
 
