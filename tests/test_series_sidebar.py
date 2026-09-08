@@ -233,7 +233,7 @@ def test_open_series_directory_and_remove_keeps_existing_tab(qt_app, tmp_path, m
     monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(url) or True)
     try:
         assert panel.openSeriesDirectory(series.series_instance_uid)
-        assert opened[0].toLocalFile() == str(tmp_path)
+        assert Path(opened[0].toLocalFile()) == tmp_path
         assert not panel.openSeriesDirectory("missing-series")
 
         panel.selectSeries(series.series_instance_uid)
@@ -266,7 +266,7 @@ def test_open_series_directory_and_remove_keeps_existing_tab(qt_app, tmp_path, m
         app.shutdown()
 
 
-def test_sidebar_group_search_selection_and_thumbnails(sidebar_scene):
+def test_sidebar_group_search_selection_and_thumbnails(sidebar_scene, tmp_path):
     window, app, records, warnings = sidebar_scene
     panel = app.panelController
     assert records[0].study_date == "20260903" and records[0].study_time == "093012"
@@ -281,7 +281,7 @@ def test_sidebar_group_search_selection_and_thumbnails(sidebar_scene):
     assert app.workspaceController.activeTabType == "2d"
     wait_until(lambda: app.workspaceController.activeViewport.imageSource != "")
     QTest.qWait(60)
-    assert window.grabWindow().save("/private/tmp/dicom-sidebar-expanded.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-sidebar-expanded.png"))
     study = next(row for row in panel.sidebarItems if row["kind"] == "study")
     click(window, find(window, "sidebar-" + study["key"]))
     assert not any(row["seriesInstanceUid"] == first_uid for row in panel.sidebarItems)
@@ -298,7 +298,7 @@ def test_sidebar_group_search_selection_and_thumbnails(sidebar_scene):
     assert not warnings, warnings
 
 
-def test_sidebar_resize_limits_auto_collapse_and_restore(sidebar_scene):
+def test_sidebar_resize_limits_auto_collapse_and_restore(sidebar_scene, tmp_path):
     window, app, records, warnings = sidebar_scene
     sidebar = find(window, "sidebarContainer")
     assert sidebar.width() == 300
@@ -313,13 +313,13 @@ def test_sidebar_resize_limits_auto_collapse_and_restore(sidebar_scene):
     assert sidebar.width() == pytest.approx(200) and not sidebar.property("collapsed")
     QTest.mouseMove(window, QPoint(600, 300))
     QTest.qWait(80)
-    assert window.grabWindow().save("/private/tmp/dicom-sidebar-minimum.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-sidebar-minimum.png"))
     drag_width(window, 199)
     assert sidebar.width() == 0 and sidebar.property("collapsed")
     assert find(window, "sidebarToggle").property("text") == "›"
     QTest.mouseMove(window, QPoint(600, 300))
     QTest.qWait(80)
-    assert window.grabWindow().save("/private/tmp/dicom-sidebar-collapsed.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-sidebar-collapsed.png"))
     click(window, find(window, "sidebarToggle"))
     assert sidebar.width() == 200
     drag_width(window, 320)
@@ -332,7 +332,7 @@ def test_sidebar_resize_limits_auto_collapse_and_restore(sidebar_scene):
     assert not warnings, warnings
 
 
-def test_split_toolbar_and_series_context_menu(sidebar_scene):
+def test_split_toolbar_and_series_context_menu(sidebar_scene, tmp_path):
     window, app, records, warnings = sidebar_scene
     panel = app.panelController
     workspace = app.workspaceController
@@ -385,7 +385,7 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
         bottom_right = action.mapToScene(QPointF(action.width(), action.height()))
         assert 0 <= top_left.x() < bottom_right.x() <= window.width()
         assert 0 <= top_left.y() < bottom_right.y() <= window.height()
-    assert window.grabWindow().save("/private/tmp/dicom-series-context-menu.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-series-context-menu.png"))
 
     click(window, actions["2d"])
     assert workspace.activeTabType == "2d"
@@ -407,5 +407,5 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
     assert len(workspace.tabs) == tab_count and workspace.activeTabType == "tag"
     assert records[0].first_file.exists()
     QTest.qWait(40)
-    assert window.grabWindow().save("/private/tmp/dicom-series-removed.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-series-removed.png"))
     assert not warnings, warnings

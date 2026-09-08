@@ -140,7 +140,13 @@ def test_roi_single_dimension_toggle_changes_preview_and_live_card(scene, tmp_pa
     assert 'setting-roi-dimensions' in names and 'setting-roi-width' not in names and 'setting-roi-height' not in names
     size = find(window, 'roiGeometry-dimensions')
     area = find(window, 'roiGeometry-area')
-    assert size.mapToScene(QPointF()).y() == pytest.approx(area.mapToScene(QPointF()).y())
+    flow = size.parentItem()
+    if size.width() + area.width() + flow.property('spacing') <= flow.width():
+        assert size.mapToScene(QPointF()).y() == pytest.approx(area.mapToScene(QPointF()).y())
+    else:
+        # Larger platform font metrics wrap rather than overflow the preview.
+        assert area.y() >= size.y() + size.height()
+    assert max(size.x() + size.width(), area.x() + area.width()) <= flow.width() + .5
     assert window.grabWindow().save(str(tmp_path / 'roi-settings.png'))
     click(window, find(window, 'setting-roi-dimensions'))
     assert not app.settingsController.values['roi']['dimensions']

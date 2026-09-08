@@ -56,9 +56,10 @@ def test_missing_explicit_inno_compiler_does_not_fallback(builders, tmp_path):
         win.find_iscc(str(tmp_path / "missing.exe"))
 
 
-def test_dmg_has_app_applications_link_and_instructions(builders):
+def test_dmg_has_app_applications_link_and_instructions(builders, tmp_path):
     mac, _, _ = builders
-    defines = {"app": "/tmp/path with spaces/DICOMVision.app", "icon": "/tmp/app.icns", "readme": "/tmp/安装说明.txt"}
+    defines = {"app": str(tmp_path / "path with spaces/DICOMVision.app"),
+               "icon": str(tmp_path / "app.icns"), "readme": str(tmp_path / "安装说明.txt")}
     settings = runpy.run_path(str(ROOT / "packaging/macos/dmg_settings.py"), init_globals={"defines": defines})
     assert settings["symlinks"] == {"Applications": "/Applications"}
     assert set(settings["icon_locations"]) == {"DICOMVision.app", "Applications", "安装说明.txt"}

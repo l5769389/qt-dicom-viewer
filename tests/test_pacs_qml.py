@@ -101,7 +101,6 @@ def screenshot(window, tmp_path, name):
     shot = window.grabWindow()
     assert not shot.isNull()
     assert shot.save(str(tmp_path / (name + ".png")))
-    assert shot.save("/private/tmp/pacs-" + name + ".png")
 
 
 def test_sources_visibility_and_unconfigured_home(scene):

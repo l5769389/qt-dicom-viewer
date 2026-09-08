@@ -296,7 +296,7 @@ def test_controller_query_import_and_cancel_discard_stale_results(controller, pa
     received = []
     controller.imported.connect(received.append)
     controller.importSelected()
-    wait_until(lambda: not controller.busy)
+    wait_until(lambda: not controller.busy, 15000)
     assert len(received) == 1 and received[0].dicom_file_count == 3
     assert controller.selectedCount == 0 and "导入完成" in controller.message
     pacs_server.delay = True

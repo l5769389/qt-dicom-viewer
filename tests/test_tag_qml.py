@@ -156,7 +156,7 @@ def test_real_tag_click_search_paging_expand_and_layout(scene, tmp_path):
         screenshot = window.grabWindow()
         assert not screenshot.isNull()
         assert screenshot.save(str(tmp_path / f"tags-{name}.png"))
-        assert screenshot.save(f"/private/tmp/dicom-tags-{name}.png")
+        assert screenshot.save(str(tmp_path / f"dicom-tags-{name}.png"))
     assert not warnings, warnings
 
 
@@ -181,7 +181,7 @@ def assert_indentation(window, controller, expected):
     assert all(right - left == pytest.approx(16) for left, right in zip(positions, positions[1:]))
 
 
-def test_nested_indentation_survives_expand_search_and_tab_switch(scene):
+def test_nested_indentation_survives_expand_search_and_tab_switch(scene, tmp_path):
     window, workspace, series, warnings = scene
     controller = open_tags(window, workspace, series)
     root_id = "dataset/0040A043"
@@ -201,7 +201,7 @@ def test_nested_indentation_survives_expand_search_and_tab_switch(scene):
     assert_indentation(window, controller, expected)
     find(window, "tagList").setProperty("contentY", 0)
     QTest.qWait(30)
-    assert window.grabWindow().save("/private/tmp/dicom-tags-nested.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-tags-nested.png"))
     type_text(window, find(window, "tagSearch"), "")
     assert [(row["nodeId"], row["depth"], row["expanded"]) for row in rows(controller.tagModel)] == before
     click(window, find(window, "openView-2d"))
@@ -210,7 +210,7 @@ def test_nested_indentation_survives_expand_search_and_tab_switch(scene):
     assert not warnings, warnings
 
 
-def test_deep_indentation_never_flattens_at_narrow_width(scene):
+def test_deep_indentation_never_flattens_at_narrow_width(scene, tmp_path):
     window, workspace, series, warnings = scene
     path = series.instances[0].path
     dataset = pydicom.dcmread(path)
@@ -236,7 +236,7 @@ def test_deep_indentation_never_flattens_at_narrow_width(scene):
     header_vr = find(window, "tagVrHeader")
     assert leaf_vr.mapToScene(QPointF(0, 0)).x() == pytest.approx(
         header_vr.mapToScene(QPointF(0, 0)).x())
-    assert window.grabWindow().save("/private/tmp/dicom-tags-deep.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-tags-deep.png"))
     assert not warnings, warnings
 
 

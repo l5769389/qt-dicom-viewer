@@ -55,7 +55,7 @@ def test_export_dialog_defaults_formats_and_right_click_whole_series(scene, tmp_
         bottom = item.mapToScene(QPointF(item.width(), item.height()))
         assert 0 <= top.x() < bottom.x() <= window.width()
         assert 0 <= top.y() < bottom.y() <= window.height()
-    assert window.grabWindow().save("/private/tmp/dicom-export-dialog.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-export-dialog.png"))
     click(window, find(window, "startExport"))
     wait_until(lambda: not app.seriesExportController.busy)
     assert app.seriesExportController.outputDirectory
@@ -63,7 +63,7 @@ def test_export_dialog_defaults_formats_and_right_click_whole_series(scene, tmp_
     assert len(list(output.glob("*.png"))) == 4
     assert app.seriesExportController.completedCount == app.seriesExportController.totalCount == 4
     QTest.qWait(50)
-    assert window.grabWindow().save("/private/tmp/dicom-export-complete.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-export-complete.png"))
     click(window, find(window, "cancelExport"))
     QTest.qWait(100)
     click(window, find(window, "sidebarExport"))
@@ -84,7 +84,7 @@ def test_export_settings_ui_saves_destination_and_restores_default(scene, tmp_pa
     assert field.property("text") == path
     window.resize(1000, 600)
     QTest.qWait(50)
-    assert window.grabWindow().save("/private/tmp/dicom-export-settings.png")
+    assert window.grabWindow().save(str(tmp_path / "dicom-export-settings.png"))
     click(window, find(window, "resetDisplaySettings"))
     assert field.property("text") == app.settingsController.defaultExportDirectory
     assert not warnings, warnings

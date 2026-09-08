@@ -14,23 +14,19 @@ from test_tag_qml import find, click, type_text, descendants
 from test_dicom_tags import qt_app, make_dicom, wait_until
 from test_measurement_qml import viewport, _mouse_drag, _scene, _visual_children
 
-ARTIFACTS = Path('/private/tmp/display-settings-review')
-
-
-def shot(window, name):
-    ARTIFACTS.mkdir(exist_ok=True)
+def shot(window, name, directory):
     QTest.qWait(70)
-    assert window.grabWindow().save(str(ARTIFACTS / (name + '.png')))
+    assert window.grabWindow().save(str(directory / (name + '.png')))
 
 
 @pytest.mark.parametrize('category', ['colormap', 'window', 'crosshair', 'corners', 'scale', 'measurement', 'roi', 'export'])
-def test_settings_pages_load_resize_and_reset(scene, category):
+def test_settings_pages_load_resize_and_reset(scene, category, tmp_path):
     window, app, warnings = scene
     app.workspaceController.openSettings()
     QTest.qWait(50)
     click(window, find(window, 'settingsCategory-' + category))
     QTest.qWait(70)
-    shot(window, category)
+    shot(window, category, tmp_path)
     window.resize(1000, 600)
     QTest.qWait(70)
     reset = find(window, 'resetDisplaySettings')
@@ -38,7 +34,7 @@ def test_settings_pages_load_resize_and_reset(scene, category):
     bottom = reset.mapToScene(QPointF(reset.width(), reset.height()))
     assert 0 <= top.x() < bottom.x() <= 1000 and 0 <= top.y() < bottom.y() <= 600
     click(window, reset)
-    shot(window, category + '-1000')
+    shot(window, category + '-1000', tmp_path)
     assert not warnings, warnings
 
 
@@ -110,14 +106,14 @@ def test_real_image_color_map_window_templates_and_mpr(scene, tmp_path):
     assert len(layers) == 3
     assert sum(i.property('horizontalWidth') == 4 for i in layers) == 2
     assert sum(i.property('horizontalColor').name() == '#a855f7' for i in layers) == 2
-    shot(window, 'live-mpr')
+    shot(window, 'live-mpr', tmp_path)
     app.workspaceController.openSettings()
     QTest.qWait(50)
     assert find(window, 'settingsCategory-colormap').property('checked')
     assert not warnings, warnings
 
 
-def test_roi_styles_scale_and_arrow_are_applied_to_actual_viewport(viewport):
+def test_roi_styles_scale_and_arrow_are_applied_to_actual_viewport(viewport, tmp_path):
     window, controller, pixels, warnings = viewport
     settings = controller.settingsController
     controller._tool_controller.selectInteraction('measure:rect')
@@ -149,7 +145,7 @@ def test_roi_styles_scale_and_arrow_are_applied_to_actual_viewport(viewport):
     settings.setValue('measurement', 'annotationColor', '#a855f7')
     _mouse_drag(window, _scene(pixels, 125, 125), _scene(pixels, 130, 110))
     assert controller.measurementController.measurementItems[-1]['points'][-1]['column'] == pytest.approx(130, abs=.5)
-    shot(window, 'live-annotations')
+    shot(window, 'live-annotations', tmp_path)
     QTest.keyClick(window, Qt.Key_Delete)
     assert len(controller.measurementController.measurementItems) == 1
     assert not warnings, warnings
