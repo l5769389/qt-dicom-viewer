@@ -89,7 +89,8 @@ CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup
 
 - macOS arm64：完整回归 870 通过、15 跳过；生成 0.1.0 的 `.app` 和约 224 MiB 的 DMG。系统图标读取显示正确 DV 图标；bundle 的 ICNS 引用、Retina 图标、签名完整性与 DMG 完整性检查通过。只读挂载检查应用、安装说明与 Applications 链接后推出。冻结应用离屏运行 12 秒，无 Python 异常、图标错误或 QML 加载失败。
 - Windows x64：[main 推送自动构建](https://github.com/l5769389/qt-dicom-viewer/actions/runs/34181423224)成功，完整回归 870 通过、15 跳过；便携 EXE 和 Inno Setup 安装包生成成功。读取便携版及安装版应用的 PE 图标资源，7 个尺寸均与品牌 ICO 逐字节一致。两个 EXE 及 SHA-256 文件已上传为 `DICOMVision-windows-x64` Artifact。
-- [v0.1.0 预发布](https://github.com/l5769389/qt-dicom-viewer/releases/tag/v0.1.0)已上传 macOS arm64 DMG 与 SHA-256 文件，GitHub 附件摘要与本地一致；Release 同时提供 Windows 构建下载入口。
+- [v0.1.0 预发布](https://github.com/l5769389/qt-dicom-viewer/releases/tag/v0.1.0)已归档 macOS arm64 DMG、Windows x64 便携 EXE、安装向导 EXE 及各自 SHA-256，共 6 个附件；Windows 已通过 [Release 发布任务](https://github.com/l5769389/qt-dicom-viewer/actions/runs/34187595978)从原成功构建直接转存，构建提交与标签一致，GitHub 附件摘要与校验值一致。
+- Release 工作流通过 actionlint；版本不匹配、诊断版发布、摘要损坏、来源提交不一致、失败构建及其他工作流来源均有拒绝上传验证。新增标签构建配置的 [main 回归](https://github.com/l5769389/qt-dicom-viewer/actions/runs/34186709427)也已全部通过；日常 main 构建不会发布 Release。
 
 跳过项为需要外部 PACS / Docker 环境的测试。上述检查不等同于干净目标机的安装、升级、卸载或真实影像渲染验收；Windows 快捷方式的桌面视觉效果、Intel Mac 与商业签名 / 公证流程尚未实测。
 
