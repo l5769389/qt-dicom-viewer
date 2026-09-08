@@ -42,7 +42,8 @@ Item {
                 id: content
                 width: Math.min(scroll.availableWidth, page.category === "window" ? 760 : 1000)
                 sourceComponent: ({colormap: colorsPage, window: windowsPage, crosshair: crosshairPage,
-                    corners: cornersPage, scale: scalePage, measurement: measurementPage, roi: roiPage})[page.category]
+                    corners: cornersPage, scale: scalePage, measurement: measurementPage, roi: roiPage,
+                    export: exportPage})[page.category]
             }
         }
     }
@@ -53,4 +54,5 @@ Item {
     Component { id: scalePage; ScaleSettingsPage { settingsController: page.settingsController } }
     Component { id: measurementPage; MeasurementSettingsPage { settingsController: page.settingsController } }
     Component { id: roiPage; RoiSettingsPage { settingsController: page.settingsController } }
+    Component { id: exportPage; ExportSettingsPage { settingsController: page.settingsController } }
 }

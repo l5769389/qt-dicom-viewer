@@ -11,6 +11,7 @@ Item {
     required property var panelController
     property var pacsController: null
     property var workspaceController: null
+    property var exportController: null
     readonly property real minimumExpandedWidth: 200
     readonly property real maximumExpandedWidth: 350
     property real expandedWidth: 300
@@ -34,6 +35,7 @@ Item {
         panelController: sidebar.panelController
         pacsController: sidebar.pacsController
         workspaceController: sidebar.workspaceController
+        exportController: sidebar.exportController
     }
 
     Rectangle {

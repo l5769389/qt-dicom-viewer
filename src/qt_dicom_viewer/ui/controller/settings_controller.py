@@ -5,6 +5,7 @@ from pathlib import Path
 import uuid
 
 from PySide6.QtCore import QObject, Property, Signal, Slot, QStandardPaths, QSaveFile, QIODevice
+from PySide6.QtWidgets import QFileDialog
 
 from qt_dicom_viewer.core.color_maps import COLOR_MAPS
 from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
@@ -46,6 +47,21 @@ class SettingsController(QObject):
     @Property(str, notify=messageChanged)
     def message(self):
         return self._message
+
+    @Property(str, constant=True)
+    def defaultExportDirectory(self):
+        documents = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+        return str((Path(documents) if documents else Path.home() / "Documents") / "Qt DICOM Viewer" / "Exports")
+
+    @Property(str, notify=changed)
+    def exportDirectory(self):
+        return self._data["export"]["directory"] or self.defaultExportDirectory
+
+    @Slot()
+    def chooseExportDirectory(self):
+        folder = QFileDialog.getExistingDirectory(None, "选择导出目录", self.exportDirectory)
+        if folder:
+            self.setValue("export", "directory", folder)
 
     @Property("QVariantList", constant=True)
     def colorMaps(self):

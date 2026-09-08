@@ -375,9 +375,9 @@ def test_split_toolbar_and_series_context_menu(sidebar_scene):
     actions = {code: find(window, "seriesContextAction-" + code) for code in action_codes}
     assert all(action.height() <= 32 for action in actions.values())
     assert all(actions[code].property("actionEnabled")
-               for code in ["2d", "montage", "mpr", "fusion", "3d", "tag", "directory", "remove"])
+               for code in ["2d", "montage", "mpr", "fusion", "3d", "tag", "directory", "deidentify", "remove"])
     assert all(not actions[code].property("actionEnabled")
-               for code in ["4d", "deidentify"])
+               for code in ["4d"])
     assert not any(item.objectName() in {"seriesContextAction-compatibility", "seriesContextAction-compare"}
                    for item in descendants(window.contentItem()))
     for action in actions.values():

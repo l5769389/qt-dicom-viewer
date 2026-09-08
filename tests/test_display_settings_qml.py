@@ -23,7 +23,7 @@ def shot(window, name):
     assert window.grabWindow().save(str(ARTIFACTS / (name + '.png')))
 
 
-@pytest.mark.parametrize('category', ['colormap', 'window', 'crosshair', 'corners', 'scale', 'measurement', 'roi'])
+@pytest.mark.parametrize('category', ['colormap', 'window', 'crosshair', 'corners', 'scale', 'measurement', 'roi', 'export'])
 def test_settings_pages_load_resize_and_reset(scene, category):
     window, app, warnings = scene
     app.workspaceController.openSettings()

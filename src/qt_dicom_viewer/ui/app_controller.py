@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from qt_dicom_viewer.ui.controller.settings_controller import SettingsController
+from qt_dicom_viewer.ui.controller.export_controller import ExportController
 
 from qt_dicom_viewer.ui.controller.pacs_controller import PacsController
 from qt_dicom_viewer.core.volume_manager import VolumeManager
@@ -30,6 +31,7 @@ class AppController(QObject):
         if settings_path is None and pacs_config_path is not None:
             settings_path = Path(pacs_config_path).with_name("display-settings.json")
         self._settings_controller = SettingsController(self, path=settings_path)
+        self._export_controller = ExportController(self._series_catalog, self._settings_controller, self)
         self._workspace_controller = WorkspaceController(self._series_catalog,self._image_provider,parent= self)
         self._panel_controller = PanelController(parent=self, series_catalog=self._series_catalog, image_provider=image_provider)
         self._pacs_controller = PacsController(self, config_path=pacs_config_path, import_root=pacs_import_root)
@@ -59,6 +61,10 @@ class AppController(QObject):
 
 
     @Property(QObject, constant=True)
+    def exportController(self):
+        return self._export_controller
+
+    @Property(QObject, constant=True)
     def settingsController(self):
         return self._settings_controller
 
@@ -72,6 +78,7 @@ class AppController(QObject):
 
     @Slot()
     def shutdown(self) -> None:
+        self._export_controller.shutdown()
         self._pacs_controller.shutdown()
         self._panel_controller.shutdown()
         self._workspace_controller.shutdown()

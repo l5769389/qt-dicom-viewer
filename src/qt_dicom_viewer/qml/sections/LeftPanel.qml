@@ -12,6 +12,7 @@ Rectangle {
     required property var panelController
     property var pacsController: null
     property var workspaceController: null
+    property var exportController: null
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var primaryActions: [
@@ -333,18 +334,31 @@ Rectangle {
             }
         }
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.dividerColor }
-        Components.ToolbarAction {
-            buttonObjectName: "sidebarSettings"
-            Layout.preferredWidth: 36
-            Layout.preferredHeight: 36
+        RowLayout {
+            Layout.fillWidth: true
             Layout.leftMargin: 10
-            label: "工作区设置"
-            tooltipText: "工作区设置"
-            iconName: "settings"
-            iconSize: 20
-            checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
-            visible: leftPanel.workspaceController !== null
-            onTriggered: leftPanel.workspaceController.openSettings()
+            Layout.rightMargin: 10
+            Components.ToolbarAction {
+                buttonObjectName: "sidebarSettings"
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                label: "工作区设置"
+                tooltipText: "工作区设置"
+                iconName: "settings"
+                iconSize: 20
+                checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
+                visible: leftPanel.workspaceController !== null
+                onTriggered: leftPanel.workspaceController.openSettings()
+            }
+            Item { Layout.fillWidth: true }
+            Components.AppButton {
+                objectName: "sidebarExport"
+                text: "导出序列…"
+                compact: true
+                enabled: leftPanel.activeSeriesUid !== "" && !leftPanel.panelController.scanning
+                    && leftPanel.exportController !== null && !leftPanel.exportController.busy
+                onClicked: leftPanel.exportController.openSeries(leftPanel.activeSeriesUid, false)
+            }
         }
     }
 
@@ -467,6 +481,8 @@ Rectangle {
             } else if (action === "directory") {
                 if (!leftPanel.panelController.openSeriesDirectory(seriesUid))
                     directoryErrorDialog.open()
+            } else if (action === "deidentify") {
+                leftPanel.exportController.openSeries(seriesUid, true)
             } else if (action === "remove") {
                 leftPanel.panelController.removeSeries(seriesUid)
                 contextSeriesUid = ""
@@ -530,8 +546,9 @@ Rectangle {
         SeriesMenuItem {
             actionCode: "deidentify"
             iconName: "shield"
-            text: "脱敏导出"
-            actionEnabled: false
+            text: "脱敏导出整个序列…"
+            actionEnabled: !leftPanel.panelController.scanning && leftPanel.exportController !== null
+                && !leftPanel.exportController.busy
         }
 
         SeriesMenuSeparator { }
