@@ -99,6 +99,7 @@ jobs:
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
         run: uv run --locked --python 3.13 --group dev --group build python -m pytest -q
 
       - name: Build single-file EXE

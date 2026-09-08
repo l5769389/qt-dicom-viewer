@@ -131,7 +131,9 @@ def test_slow_worker_never_delays_or_rewinds_locator(qt_app, paired_series, monk
     try:
         workspace.createFusionTab(ct.series_instance_uid, pet.series_instance_uid)
         tab = workspace.activeTab
-        wait_until(lambda: tab.ready)
+        # Cold volume loading on a shared Windows runner is setup, not locator
+        # latency. Keep the 33 ms interaction assertion below independent of it.
+        wait_until(lambda: tab.ready, timeout=10_000)
         view = next(v for v in tab.viewports_by_id.values() if v.viewportRole == role)
         point = view.crosshairImagePosition
         view.beginInteraction(0, 0, 1, True, point.x(), point.y(), .01, .01)
