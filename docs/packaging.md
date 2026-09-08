@@ -78,6 +78,8 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 已有 Release 保留说明、macOS 附件和发布状态；没有时先创建草稿，便于与 macOS 包一并发布。重跑只更新对应版本的 Windows 附件。Release Assets 不受 Actions Artifact 的 14 天保留期影响。
 
 也可在手动运行时填写 `release_tag` 补建已有标签；工作流会检出该标签源码，而不是把当前 main 的产物放进旧版本。留空时保持普通构建。控制台诊断选项只生成诊断便携 EXE，禁止与 Release 发布组合使用。构建任务维持只读权限，只有发布任务获得 `contents: write`。**Build native installers** 保留为双平台手动入口。
+
+若已有测试通过的构建，可同时填写 `release_tag` 和 `artifact_run_id`，直接在 GitHub runner 上归档已有产物，不重复打包。发布任务会核验来源是本仓库的成功 Windows 工作流，且构建提交与版本标签完全一致；版本号或 SHA-256 不符、Artifact 过期时均停止上传。
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 

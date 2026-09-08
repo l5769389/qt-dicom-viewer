@@ -19,6 +19,11 @@ on:
         type: string
         required: false
         default: ""
+      artifact_run_id:
+        description: "可选：直接归档已有成功构建的 Run ID，须填写对应 release_tag"
+        type: string
+        required: false
+        default: ""
       console:
         description: "生成带控制台的诊断版本"
         type: boolean
@@ -35,6 +40,7 @@ concurrency:
 jobs:
   build:
     name: Test and package Windows x64
+    if: inputs.artifact_run_id == ''
     runs-on: windows-2022
     timeout-minutes: 60
     outputs:
@@ -148,7 +154,10 @@ jobs:
   release:
     name: Publish Windows Release assets
     needs: build
-    if: needs.build.outputs.release_tag != ''
+    if: >-
+      !cancelled() &&
+      ((needs.build.result == 'success' && needs.build.outputs.release_tag != '') ||
+       (github.event_name == 'workflow_dispatch' && inputs.artifact_run_id != ''))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -157,11 +166,51 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+      RELEASE_TAG: ${{ inputs.release_tag || needs.build.outputs.release_tag }}
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || github.run_id }}
 
     steps:
+      - name: Validate existing build provenance
+        if: inputs.artifact_run_id != ''
+        env:
+          BUILD_CONSOLE: ${{ inputs.console }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import subprocess
+          import tomllib
+
+          repo = os.environ["GH_REPO"]
+          tag = os.environ["RELEASE_TAG"]
+          run_id = os.environ["ARTIFACT_RUN_ID"]
+          if not re.fullmatch(r"v[0-9][A-Za-z0-9.+-]*", tag) or not run_id.isdecimal():
+              raise SystemExit("Provide a version release_tag and numeric artifact_run_id")
+          if os.environ["BUILD_CONSOLE"] == "true":
+              raise SystemExit("Console diagnostic builds cannot be published to a Release")
+
+          def api(endpoint):
+              return json.loads(subprocess.check_output(["gh", "api", f"repos/{repo}/{endpoint}"], text=True))
+
+          target = api(f"git/ref/tags/{tag}")["object"]
+          while target["type"] == "tag":
+              target = api(f"git/tags/{target['sha']}")["object"]
+          run = api(f"actions/runs/{run_id}")
+          if (target["type"] != "commit" or run["head_sha"] != target["sha"]
+                  or run["status"] != "completed" or run["conclusion"] != "success"
+                  or run["path"] != ".github/workflows/build-windows.yml"):
+              raise SystemExit("Artifact must come from a successful Windows build of this exact tag commit")
+          content = api(f"contents/pyproject.toml?ref={target['sha']}")
+          project = tomllib.loads(base64.b64decode(content["content"]).decode("utf-8"))
+          if tag != f"v{project['project']['version']}":
+              raise SystemExit("Release tag does not match the source project version")
+          print(f"Verified build {run_id} at {target['sha']} for {tag}")
+          PY
+
       - name: Download verified Windows packages
-        run: gh run download "$GITHUB_RUN_ID" --name DICOMVision-windows-x64 --dir windows-packages
+        run: gh run download "$ARTIFACT_RUN_ID" --name DICOMVision-windows-x64 --dir windows-packages
 
       - name: Prepare and verify Release assets
         run: |
