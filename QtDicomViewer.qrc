@@ -32,6 +32,7 @@
         <file>src/qt_dicom_viewer/qml/components/ToolbarAction.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/LeftPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/FusionSeriesDialog.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/ExportDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/SidebarContainer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/RightPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/CenterPanel.qml</file>
@@ -86,6 +87,7 @@
         <file>src/qt_dicom_viewer/qml/theme/Theme.qml</file>
         <file>src/qt_dicom_viewer/qml/theme/qmldir</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingsPage.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/settings/ExportSettingsPage.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/PacsProfileDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/pacs/PacsBrowser.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppTextField.qml</file>

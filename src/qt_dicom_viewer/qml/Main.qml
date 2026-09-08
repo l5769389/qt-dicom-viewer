@@ -10,6 +10,7 @@ ApplicationWindow {
     readonly property var panelController: appController.panelController
     readonly property var workspaceController: appController.workspaceController
     readonly property var pacsController: appController.pacsController ?? null
+    readonly property var seriesExportController: appController.seriesExportController ?? null
     readonly property bool hasTabs: workspaceController.tabs.length > 0
     readonly property var viewportController:
         workspaceController.activeViewport
@@ -37,6 +38,7 @@ ApplicationWindow {
             panelController: window.panelController
             pacsController: window.pacsController
             workspaceController: window.workspaceController
+            exportController: window.seriesExportController
         }
 
         CenterSections.CenterPanel {
@@ -71,5 +73,9 @@ ApplicationWindow {
             // }
 
         }
+    }
+    Sections.ExportDialog {
+        controller: window.seriesExportController
+        settingsController: appController.settingsController ?? null
     }
 }

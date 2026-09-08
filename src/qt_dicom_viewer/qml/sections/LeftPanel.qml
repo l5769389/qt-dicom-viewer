@@ -12,6 +12,7 @@ Rectangle {
     required property var panelController
     property var pacsController: null
     property var workspaceController: null
+    property var exportController: null
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var navigationActions: [
@@ -370,6 +371,18 @@ Rectangle {
             Layout.preferredHeight: 32
             Layout.topMargin: -6
             Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.dividerColor }
+            Components.AppButton {
+                objectName: "sidebarExport"
+                anchors.left: parent.left
+                anchors.leftMargin: 8
+                anchors.bottom: parent.bottom
+                height: 28
+                text: "导出序列…"
+                compact: true
+                enabled: leftPanel.activeSeriesUid !== "" && !leftPanel.panelController.scanning
+                    && leftPanel.exportController !== null && !leftPanel.exportController.busy
+                onClicked: leftPanel.exportController.openSeries(leftPanel.activeSeriesUid, false)
+            }
             Components.ToolbarAction {
                 buttonObjectName: "sidebarManual"
                 anchors.right: settingsEntry.left
@@ -523,6 +536,8 @@ Rectangle {
             } else if (action === "directory") {
                 if (!leftPanel.panelController.openSeriesDirectory(seriesUid))
                     directoryErrorDialog.open()
+            } else if (action === "deidentify") {
+                leftPanel.exportController.openSeries(seriesUid, true)
             } else if (action === "remove") {
                 leftPanel.panelController.removeSeries(seriesUid)
                 contextSeriesUid = ""
@@ -586,8 +601,9 @@ Rectangle {
         SeriesMenuItem {
             actionCode: "deidentify"
             iconName: "shield"
-            text: "脱敏导出"
-            actionEnabled: false
+            text: "脱敏导出整个序列…"
+            actionEnabled: !leftPanel.panelController.scanning && leftPanel.exportController !== null
+                && !leftPanel.exportController.busy
         }
 
         SeriesMenuSeparator { }

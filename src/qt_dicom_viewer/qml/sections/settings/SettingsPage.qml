@@ -14,6 +14,7 @@ Rectangle {
     readonly property string selectedCategory: settingsController.activeCategory
     readonly property var categories: [
         {key: "sources", title: "数据源", subtitle: "本地与 PACS", group: "连接"},
+        {key: "export", title: "导出", subtitle: "导出位置与匿名", group: "文件"},
         {key: "colormap", title: "伪彩", subtitle: "灰阶与 PET", group: "影像显示"},
         {key: "window", title: "窗模板", subtitle: "窗宽 / 窗位预设"},
         {key: "crosshair", title: "十字线", subtitle: "MPR 颜色与线宽"},

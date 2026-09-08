@@ -1,6 +1,7 @@
 """Validated JSON schema for user preferences (no image or patient data)."""
 from copy import deepcopy
 from math import isfinite
+from pathlib import Path
 import re
 
 from qt_dicom_viewer.core.color_maps import COLOR_MAPS
@@ -18,6 +19,7 @@ CORNERS = ("topLeft", "topRight", "bottomLeft", "bottomRight")
 METRICS = {"mean": "均值 Mean", "std": "标准差 StdDev", "minimum": "最小值 Min",
            "maximum": "最大值 Max", "area": "面积 Area", "dimensions": "宽度与高度", "count": "有效像素数"}
 DEFAULTS = {
+    "export": {"directory": ""},
     "colormap": {"gray": "grayscale", "pet": "grayscale"},
     "window": {"hidden": [], "custom": []},
     "crosshair": {"axialColor": "#ff0000", "coronalColor": "#008000", "sagittalColor": "#0000ff",
@@ -39,7 +41,16 @@ def validate_value(section, key, value):
     if section not in DEFAULTS or key not in DEFAULTS[section]:
         raise ValueError("未知设置项")
     default = DEFAULTS[section][key]
-    if isinstance(default, bool):
+    if section == "export" and key == "directory":
+        if not isinstance(value, str) or "\x00" in value:
+            raise ValueError("请选择有效的导出目录")
+        value = value.strip()
+        if value:
+            path = Path(value).expanduser()
+            if not path.is_absolute() or (path.exists() and not path.is_dir()):
+                raise ValueError("导出位置必须是绝对目录路径")
+            value = str(path)
+    elif isinstance(default, bool):
         if not isinstance(value, bool):
             raise ValueError("请选择启用或关闭")
     elif key.lower().endswith("color"):
