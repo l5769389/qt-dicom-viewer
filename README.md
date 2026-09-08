@@ -275,6 +275,8 @@ dist/DICOMVision.exe
    诊断版对应 `DICOMVision-windows-x64-debug`。
 
 同一分支的新构建会取消尚未完成的旧构建。Artifacts 保留 14 天；正式归档的版本从仓库 Releases 下载。
+推送与 `pyproject.toml` 版本一致的 `v*` 标签，会自动将 Windows 便携版、安装包和各自 SHA-256 上传到同名 Release；不存在时先创建草稿，已有 Release 的 macOS 附件与发布状态保留。
+补建已有版本时，可在 **Run workflow** 的 `release_tag` 中填写标签；工作流会检出该标签的源码。诊断版不能发布到 Release。
 私有仓库的查看和下载需要仓库访问权限，构建和产物存储会计入 GitHub Actions 对应额度。
 工作流配置位于 `.github/workflows/build-windows.yml`，复用本地打包脚本与锁定依赖。
 

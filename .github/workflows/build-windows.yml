@@ -3,6 +3,7 @@ name: Build Windows packages
 on:
   push:
     branches: [main]
+    tags: ["v*"]
     paths:
       - "src/**"
       - "scripts/**"
@@ -13,6 +14,11 @@ on:
       - ".github/workflows/build-windows.yml"
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: "可选：构建已有版本标签并上传到对应 Release，例如 v0.1.0"
+        type: string
+        required: false
+        default: ""
       console:
         description: "生成带控制台的诊断版本"
         type: boolean
@@ -23,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-packages-${{ github.ref }}
+  group: windows-packages-${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,6 +37,8 @@ jobs:
     name: Test and package Windows x64
     runs-on: windows-2022
     timeout-minutes: 60
+    outputs:
+      release_tag: ${{ steps.version.outputs.release_tag }}
     env:
       PYTHONUTF8: "1"
       UV_PROJECT_ENVIRONMENT: .venv-build-windows
@@ -41,6 +49,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
 
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -51,6 +60,29 @@ jobs:
           cache-dependency-glob: |
             pyproject.toml
             uv.lock
+
+      - name: Validate release version
+        id: version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
+          BUILD_CONSOLE: ${{ inputs.console }}
+        run: |
+          uv run --locked --python 3.13 --no-dev python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          if tag:
+              version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+              if tag != f"v{version}":
+                  raise SystemExit(f"Release tag {tag!r} does not match project version v{version}")
+              if os.environ["BUILD_CONSOLE"] == "true":
+                  raise SystemExit("Console diagnostic builds cannot be published to a Release")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write(f"release_tag={tag}\n")
+          PY
 
       - name: Run tests
         env:
@@ -112,3 +144,58 @@ jobs:
           # 单文件 EXE 已压缩，避免重复压缩消耗构建时间。
           compression-level: 0
           retention-days: 14
+
+  release:
+    name: Publish Windows Release assets
+    needs: build
+    if: needs.build.outputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+
+    steps:
+      - name: Download verified Windows packages
+        run: gh run download "$GITHUB_RUN_ID" --name DICOMVision-windows-x64 --dir windows-packages
+
+      - name: Prepare and verify Release assets
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import shutil
+          from pathlib import Path
+
+          version = os.environ["RELEASE_TAG"][1:]
+          source = Path("windows-packages")
+          destination = Path("release-assets")
+          destination.mkdir()
+          packages = {
+              source / "DICOMVision.exe": f"DICOMVision-{version}-windows-x64-portable.exe",
+              source / "installers" / f"DICOMVision-{version}-windows-x64-setup.exe": f"DICOMVision-{version}-windows-x64-setup.exe",
+          }
+          for package, name in packages.items():
+              checksum = package.with_suffix(".exe.sha256")
+              expected_hash, expected_name = checksum.read_text(encoding="utf-8-sig").strip().split(maxsplit=1)
+              with package.open("rb") as stream:
+                  actual_hash = hashlib.file_digest(stream, "sha256").hexdigest()
+              if expected_name != package.name or actual_hash != expected_hash:
+                  raise SystemExit(f"Checksum mismatch: {package}")
+              shutil.copyfile(package, destination / name)
+              (destination / f"{name}.sha256").write_text(f"{actual_hash}  {name}\n", encoding="utf-8")
+              print(f"Verified {name}: {actual_hash}")
+          PY
+
+      - name: Upload assets to matching Release
+        run: |
+          # 复用已有 Release；新标签先建立草稿，方便与 macOS 包一并发布。
+          if ! gh release view "$RELEASE_TAG" --json tagName > /dev/null; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "DICOMVision $RELEASE_TAG" --generate-notes
+          fi
+          # 仅替换本版本 Windows 文件，保留 macOS 附件、说明和发布状态。
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber

@@ -70,7 +70,14 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 
 **Build Windows packages** 在 `main` 的 `src/`、`scripts/`、`packaging/`、`tests/`、依赖文件或该工作流更新后自动触发。执行回归后生成便携 EXE、安装向导 EXE 及 SHA-256 校验文件，上传到该次运行的 Artifacts。仅修改文档不会启动构建；同一分支的新构建会取消未完成的旧构建。
 
-也可手动运行并选择控制台诊断版本，此时只生成诊断便携 EXE。**Build native installers** 保留为双平台手动入口。Artifacts 保留 14 天；工作流本身不创建 Release，需要长期保存的版本通过仓库 Release 归档。
+推送 `v*` 版本标签后，会构建该标签源码；标签必须与 `pyproject.toml` 中的版本一致（例如 `v0.1.0` 对应 `0.1.0`）。测试与图标校验成功后，独立发布任务下载本次 Artifact，再校验 SHA-256，并将以下四个附件上传到同名 Release：
+
+- `DICOMVision-<版本>-windows-x64-portable.exe` 与 `.exe.sha256`
+- `DICOMVision-<版本>-windows-x64-setup.exe` 与 `.exe.sha256`
+
+已有 Release 保留说明、macOS 附件和发布状态；没有时先创建草稿，便于与 macOS 包一并发布。重跑只更新对应版本的 Windows 附件。Release Assets 不受 Actions Artifact 的 14 天保留期影响。
+
+也可在手动运行时填写 `release_tag` 补建已有标签；工作流会检出该标签源码，而不是把当前 main 的产物放进旧版本。留空时保持普通构建。控制台诊断选项只生成诊断便携 EXE，禁止与 Release 发布组合使用。构建任务维持只读权限，只有发布任务获得 `contents: write`。**Build native installers** 保留为双平台手动入口。
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 
