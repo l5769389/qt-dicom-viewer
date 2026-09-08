@@ -91,10 +91,15 @@ Rectangle {
     Component {
         id: imageComponent
         ViewportSection.ViewportLayout {
-            viewportController: centerPanel.imageWorkspace ? centerPanel.viewportController : null
+            // Loader and workspace signals can update in different orders.
+            // Never hand a volume controller to a still-live image component.
+            viewportController: centerPanel.imageWorkspace
+                && centerPanel.viewportController?.setViewportSize !== undefined
+                ? centerPanel.viewportController : null
             hasTabs: centerPanel.hasTabs
             tabType: centerPanel.workspaceController.activeTabType
-            currentTabAllViewports: centerPanel.imageWorkspace ? centerPanel.currentTabAllViewports : []
+            currentTabAllViewports: centerPanel.imageWorkspace
+                ? centerPanel.currentTabAllViewports.filter(view => view?.setViewportSize !== undefined) : []
             onViewportActivated: viewportId => {
                 const activeTab = centerPanel.workspaceController.activeTab
                 if (activeTab) {

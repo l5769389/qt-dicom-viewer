@@ -89,6 +89,14 @@ Basic.Dialog {
         Text {
             Layout.fillWidth: true
             visible: text !== ""
+            text: [details.series.relationship, details.series.spatialStatus].filter(Boolean).join(" · ")
+            color: Theme.textMuted
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: text !== ""
             text: details.series.error || ""
             color: Theme.dangerColor
             font.pixelSize: 11
@@ -174,6 +182,7 @@ Basic.Dialog {
                 objectName: "fusionCandidate-" + modelData.seriesUid
                 width: candidates.width - 12
                 height: Math.max(100, candidateRow.implicitHeight + 20)
+                enabled: !modelData.error
                 padding: 10
                 hoverEnabled: true
                 highlighted: dialog.controller.fusionPartnerUid === modelData.seriesUid
@@ -202,12 +211,20 @@ Basic.Dialog {
                 anchors.centerIn: parent
                 width: parent.width - 24
                 visible: candidates.count === 0
-                text: "没有可配对的序列\n请先导入另一组 CT 或 PET 影像"
+                text: dialog.controller.fusionShowAllPatients ? "没有可配对的序列\n请先导入另一组 CT 或 PET 影像"
+                    : "未找到同患者的 " + dialog.controller.fusionTargetModality + " 序列\n请导入对应影像，或展开人工配对"
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 color: Theme.textMuted
                 font.pixelSize: 12
             }
+        }
+        Components.AppCheckBox {
+            objectName: "fusionShowAllPatients"
+            Layout.fillWidth: true
+            text: "显示其他患者 / 身份缺失的序列（人工配对）"
+            checked: dialog.controller.fusionShowAllPatients
+            onClicked: { identityCheck.checked = false; dialog.controller.setFusionShowAllPatients(checked) }
         }
         Text {
             Layout.fillWidth: true
@@ -261,7 +278,7 @@ Basic.Dialog {
                 hoverColor: Theme.primaryButtonHover
                 pressedColor: Theme.primaryButtonPressed
                 disabledColor: Theme.primaryButtonDisabled
-                enabled: dialog.controller.fusionPartnerUid !== ""
+                enabled: dialog.controller.fusionCanConfirm
                     && (dialog.controller.fusionIdentityWarning === "" || identityCheck.checked)
                 onClicked: dialog.controller.confirmFusion(identityCheck.checked)
             }

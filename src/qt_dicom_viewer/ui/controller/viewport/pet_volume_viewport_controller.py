@@ -1,0 +1,168 @@
+"""Independent 3D display, following committed PET/CT registration snapshots."""
+import numpy as np
+from PySide6.QtCore import Property, Signal, Slot
+
+from qt_dicom_viewer.core.pseudocolor import color_map_options, COLOR_MAP_SPECS
+from qt_dicom_viewer.core.volume_view import VolumeViewState
+from qt_dicom_viewer.model import ToolType
+from .volume_viewport_controller import VolumeViewportController
+
+
+class PetVolumeViewportController(VolumeViewportController):
+    sceneChanged = Signal()
+
+    def __init__(self, config, tools, source, parent=None):
+        self.scene = None
+        self.source_workspace = None
+        self._mode = "fusion"
+        self._ct_opacity, self._pet_opacity = .25, .8
+        self._threshold_fraction = .1
+        self._ct_preset = "bone"
+        self._palette = "hotIron"
+        self._source_open = False
+        super().__init__(config, tools, parent)
+        self.attach_source(source)
+
+    @Property(bool, constant=True)
+    def isFusionVolume(self): return True
+
+    @Property(str, notify=sceneChanged)
+    def volumeMode(self): return self._mode
+
+    @Property(str, notify=sceneChanged)
+    def sceneLabel(self):
+        mode = {"ct": "CT 3D", "pet": "PET 3D", "fusion": "PET/CT 融合 3D"}[self._mode]
+        return mode + (" · 同步融合视图" if self._source_open else " · 配准快照")
+
+    @Property(float, notify=sceneChanged)
+    def ctOpacity(self): return self._ct_opacity
+
+    @Property(float, notify=sceneChanged)
+    def petOpacity(self): return self._pet_opacity
+
+    @Property(float, notify=sceneChanged)
+    def petUpper(self):
+        return self.scene.pet_window.width if self.scene else 1.
+
+    @Property(float, notify=sceneChanged)
+    def petThreshold(self): return self._threshold_fraction * self.petUpper
+
+    @Property(str, notify=sceneChanged)
+    def petUnit(self):
+        return self.scene.pet_volume.pixel_value_meta.unit if self.scene else ""
+
+    @Property(str, notify=sceneChanged)
+    def ctPreset(self): return self._ct_preset
+
+    @Property(str, notify=sceneChanged)
+    def petPalette(self): return self._palette
+
+    @Property("QVariantList", constant=True)
+    def colorMapOptions(self): return color_map_options()
+
+    @Slot(str)
+    def setVolumeMode(self, mode):
+        if not self._disposed and mode in ("ct", "pet", "fusion") and mode != self._mode:
+            self._mode = mode
+            self.cancel_drag()
+            self._scene_changed()
+
+    @Slot(float)
+    def setCtOpacity(self, value):
+        if not self._disposed and np.isfinite(value):
+            self._ct_opacity = float(np.clip(value, 0, 1))
+            self._scene_changed()
+
+    @Slot(float)
+    def setPetOpacity(self, value):
+        if not self._disposed and np.isfinite(value):
+            self._pet_opacity = float(np.clip(value, 0, 1))
+            self._scene_changed()
+
+    @Slot(float)
+    def setPetThreshold(self, value):
+        if not self._disposed and np.isfinite(value):
+            self._threshold_fraction = float(np.clip(value / self.petUpper, 0, .99))
+            self._scene_changed()
+
+    @Slot(str)
+    def setCtPreset(self, value):
+        if not self._disposed and value in ("bone", "general", "lung"):
+            self._ct_preset = value
+            self._scene_changed()
+
+    @Slot(str)
+    def setPetPalette(self, value):
+        if not self._disposed and value in COLOR_MAP_SPECS:
+            self._palette = value
+            self._scene_changed()
+
+    def _scene_changed(self):
+        self.sceneChanged.emit()
+        self.displayStateChanged.emit()
+
+    def attach_source(self, source):
+        if self._disposed or source._closed:
+            return
+        self._detach_source()
+        self.source_workspace = source
+        self._source_open = True
+        source.snapshotCommitted.connect(self.accept_snapshot)
+        source.sourceClosed.connect(self._detach_source)
+        self.accept_snapshot(source._last_result)
+
+    def _detach_source(self):
+        if self.source_workspace is not None:
+            self.source_workspace.snapshotCommitted.disconnect(self.accept_snapshot)
+            self.source_workspace.sourceClosed.disconnect(self._detach_source)
+        self.source_workspace = None
+        self._source_open = False
+        self.sceneChanged.emit()
+
+    @Slot(object)
+    def accept_snapshot(self, result):
+        if self._disposed or result is None or result.ct_volume is None:
+            return
+        self.scene = result
+        self.volume = result.ct_volume
+        self._set_status("ready")
+        self._scene_changed()
+
+    @Slot()
+    def ensureNativeView(self):
+        if self._host is not None or self._disposed:
+            return
+        from qt_dicom_viewer.ui.volume_viewport_host import VolumeViewportHost
+        from qt_dicom_viewer.ui.pet_volume_render_backend import PetVolumeRenderBackend
+        self._host = VolumeViewportHost(self, lambda widget: PetVolumeRenderBackend(widget, self))
+        self.nativeWindowChanged.emit()
+        self._host.sync_status()
+
+    def request_render(self):
+        # Both volumes have already been decoded by the linked workspace.
+        if self.scene is not None and not self._disposed:
+            self._set_status("ready")
+            self._scene_changed()
+
+    @Slot()
+    def resetSceneDisplay(self):
+        if self._disposed:
+            return
+        self._ct_opacity, self._pet_opacity = .25, .8
+        self._threshold_fraction, self._ct_preset, self._palette = .1, "bone", "hotIron"
+        self._scene_changed()
+
+    def reset_tool_state(self, tool):
+        if tool == ToolType.VOLUME_PRESET:
+            self.resetSceneDisplay()
+        else:
+            super().reset_tool_state(tool)
+
+    def reset_all_view_state(self):
+        self._set_state(VolumeViewState())
+        self.resetSceneDisplay()
+
+    def dispose(self):
+        self._detach_source()
+        super().dispose()
+        self.scene = None

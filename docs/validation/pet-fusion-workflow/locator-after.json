@@ -1,0 +1,114 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.14",
+  "source": "/Users/jun/Documents/git-repo/qt-dicom-viewer-pet-fusion/src/qt_dicom_viewer",
+  "ct_shape": [
+    457,
+    512,
+    512
+  ],
+  "pet_shape": [
+    104,
+    128,
+    128
+  ],
+  "measurement": "QTest mouse event to actual QML locator position; excludes compositor/vsync",
+  "scenarios": {
+    "in_plane": {
+      "events": 30,
+      "artificial_delay_ms": 0.0,
+      "immediate_feedback_events": 30,
+      "feedback_ms": {
+        "p50": 0.378,
+        "p95": 1.651,
+        "max": 2.452
+      },
+      "render_ms": {
+        "p50": 7.398,
+        "p95": 12.214,
+        "max": 12.749
+      },
+      "request_to_presented_batch_ms": {
+        "p50": 8.485,
+        "p95": 13.031,
+        "max": 13.536
+      },
+      "counts": {
+        "submitted": 2,
+        "reconstructions": 2,
+        "volume_validations": 4,
+        "image_copies": 0
+      }
+    },
+    "slow_backend": {
+      "events": 30,
+      "artificial_delay_ms": 120.0,
+      "immediate_feedback_events": 30,
+      "feedback_ms": {
+        "p50": 0.197,
+        "p95": 0.384,
+        "max": 1.556
+      },
+      "render_ms": {
+        "p50": 128.435,
+        "p95": 129.008,
+        "max": 129.072
+      },
+      "request_to_presented_batch_ms": {
+        "p50": 190.718,
+        "p95": 246.618,
+        "max": 252.829
+      },
+      "counts": {
+        "submitted": 2,
+        "reconstructions": 2,
+        "volume_validations": 4,
+        "image_copies": 0
+      }
+    },
+    "continuous_slow_backend": {
+      "events": 100,
+      "artificial_delay_ms": 120.0,
+      "immediate_feedback_events": 100,
+      "feedback_ms": {
+        "p50": 0.674,
+        "p95": 2.544,
+        "max": 3.108
+      },
+      "render_ms": {
+        "p50": 125.846,
+        "p95": 127.544,
+        "max": 127.669
+      },
+      "request_to_presented_batch_ms": {
+        "p50": 151.166,
+        "p95": 219.091,
+        "max": 257.019
+      },
+      "counts": {
+        "submitted": 27,
+        "reconstructions": 9,
+        "volume_validations": 4,
+        "image_copies": 0
+      }
+    },
+    "subvoxel_plane_change": {
+      "events": 12,
+      "image_update_ms": {
+        "p50": 39.683,
+        "p95": 54.609,
+        "max": 64.107
+      },
+      "counts": {
+        "submitted": 12,
+        "reconstructions": 12,
+        "volume_validations": 24,
+        "sample_planes": 24,
+        "window_conversions": 24,
+        "image_copies": 36,
+        "image_source_updates": 36,
+        "roi_refreshes": 24
+      }
+    }
+  }
+}

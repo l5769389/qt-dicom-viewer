@@ -10,7 +10,7 @@ from PySide6.QtQuick import QQuickItem, QQuickView
 from PySide6.QtTest import QTest
 from shiboken6 import delete
 
-from qt_dicom_viewer.model import ToolType
+from qt_dicom_viewer.model import TabType, ToolType
 from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
 from test_measurement_qml import qt_app, _mouse_drag, _scene, _visual_children
 from test_mtf_controller import bead_render, wait_result
@@ -20,7 +20,9 @@ from test_viewport_transform import _controller
 
 @pytest.fixture
 def workspace(qt_app, request):
-    controller = _controller()
+    # Exercise the actual 2D toolbar; the unscoped catalog also includes tools
+    # belonging only to PET fusion and 3D workspaces.
+    controller = _controller(tab_type=TabType.TWO_D)
     frame = bead_render(controller)
     controller.handleRenderResult(frame)
     controller._tool_controller.resetRequested.connect(lambda tool: controller.reset_tool_state(ToolType(tool)))

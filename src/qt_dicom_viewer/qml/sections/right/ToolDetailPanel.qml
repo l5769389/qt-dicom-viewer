@@ -56,10 +56,17 @@ Rectangle {
                         && detailPanel.viewportController.reconstructionController
                         ? petWorkspaceComponent : detailPanel.petIntensityMode
                         ? petIntensityComponent : windowLevelComponent
+                if (detailPanel.activePanel === "pseudocolor")
+                    return detailPanel.viewportController?.reconstructionController
+                        ? petColorComponent : pseudoColorComponent
                 const map = {
                     'export': exportComponent,
                     'segmentation': voiComponent,
                     'voi': voiComponent,
+                    'ct-window': ctWindowComponent,
+                    'pet-window': petWorkspaceComponent,
+                    'registration': petRegistrationComponent,
+                    'fusion-blend': fusionBlendComponent,
                     'rotate': rotatePanelComponent,
                     'mip': mipPanelComponent,
                     'measure': measureComponent,
@@ -107,9 +114,18 @@ Rectangle {
 
     Component {
         id: volumePresetComponent
-        Panels.VolumePresetPanel {
-            viewportController: detailPanel.viewportController
+        Loader {
+            sourceComponent: detailPanel.viewportController?.isFusionVolume === true
+                ? petVolumeComponent : genericVolumePresetComponent
         }
+    }
+    Component {
+        id: genericVolumePresetComponent
+        Panels.VolumePresetPanel { viewportController: detailPanel.viewportController }
+    }
+    Component {
+        id: petVolumeComponent
+        Panels.PetVolumePanel { controller: detailPanel.viewportController }
     }
 
     Component {
@@ -132,9 +148,38 @@ Rectangle {
     }
 
     Component {
+        id: petColorComponent
+        Panels.PetColorPanel {
+            controller: detailPanel.viewportController.reconstructionController
+            Component.onCompleted: fusionTarget = detailPanel.viewportController.viewportRole === "fusion"
+        }
+    }
+
+    Component {
+        id: fusionBlendComponent
+        Panels.FusionBlendPanel {
+            controller: detailPanel.viewportController.reconstructionController
+        }
+    }
+
+    Component {
+        id: petRegistrationComponent
+        Panels.PetRegistrationPanel {
+            controller: detailPanel.viewportController.reconstructionController
+        }
+    }
+
+    Component {
+        id: ctWindowComponent
+        Panels.FusionCtWindowPanel {
+            controller: detailPanel.viewportController?.reconstructionController ?? null
+        }
+    }
+
+    Component {
         id: petWorkspaceComponent
         Panels.PetWorkspacePanel {
-            controller: detailPanel.viewportController.reconstructionController
+            controller: detailPanel.viewportController?.reconstructionController ?? null
         }
     }
 

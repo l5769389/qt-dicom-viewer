@@ -41,6 +41,7 @@ class PanelController(QObject):
         self._fusion_partner_uid = ""
         self._fusion_dialog_open = False
         self._fusion_error = ""
+        self._fusion_show_all = False
         self._patient_search = ""
         self._collapsed_groups: set[str] = set()
         self._thumbnails: dict[str, str] = {}
@@ -199,6 +200,50 @@ class PanelController(QObject):
     def fusionPartnerUid(self):
         return self._fusion_partner_uid
 
+    @staticmethod
+    def _same_patient(a, b):
+        return bool(a.patient_id and b.patient_id and
+                    (a.patient_id, a.patient_id_issuer) == (b.patient_id, b.patient_id_issuer))
+
+    @Property("QVariantMap", notify=fusionDialogChanged)
+    def fusionAnchor(self):
+        record = self._scan_series_record.get(self._fusion_anchor_uid)
+        return self._fusion_record_item(record) if record else {}
+
+    @Property(str, notify=fusionDialogChanged)
+    def fusionTargetModality(self):
+        return "CT" if self.seriesModality(self._fusion_anchor_uid) == "PT" else "PET"
+
+    @Property(bool, notify=fusionDialogChanged)
+    def fusionShowAllPatients(self):
+        return self._fusion_show_all
+
+    @Slot(bool)
+    def setFusionShowAllPatients(self, enabled):
+        self._fusion_show_all = bool(enabled)
+        if self._fusion_partner_uid not in {r["seriesUid"] for r in self.fusionCandidates}:
+            self._fusion_partner_uid = ""
+        self._fusion_error = ""
+        self.fusionDialogChanged.emit()
+
+    def _fusion_record_item(self, record):
+        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
+        return dict(seriesUid=record.series_instance_uid, patientName=record.patient_name,
+                    patientId=record.patient_id, studyDate=record.study_date,
+                    description=record.series_description or record.modality,
+                    modality="PET" if record.modality.upper() == "PT" else record.modality,
+                    count=record.dicom_file_count,
+                    thumbnailUrl=self._thumbnails.get(record.series_instance_uid, ""),
+                    error=fusion_series_error(record))
+
+    @Property(bool, notify=fusionDialogChanged)
+    def fusionCanConfirm(self):
+        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
+        a = self._scan_series_record.get(self._fusion_anchor_uid)
+        b = self._scan_series_record.get(self._fusion_partner_uid)
+        return bool(a and b and {a.modality.upper(), b.modality.upper()} == {"CT", "PT"}
+                    and not fusion_series_error(a) and not fusion_series_error(b))
+
     @Property(str, notify=fusionDialogChanged)
     def fusionIdentityWarning(self):
         a = self._scan_series_record.get(self._fusion_anchor_uid)
@@ -212,18 +257,6 @@ class PanelController(QObject):
         return (f"请核对所选数据：{a.patient_name} / {a.patient_id or 'ID 缺失'} 与 "
                 f"{b.patient_name} / {b.patient_id or 'ID 缺失'}。患者身份不同或无法确认。")
 
-    def _fusion_series_item(self, record):
-        from qt_dicom_viewer.core.pet_fusion import fusion_series_error
-        return dict(seriesUid=record.series_instance_uid, patientName=record.patient_name,
-                    patientId=record.patient_id, studyDate=record.study_date,
-                    description=record.series_description, count=record.dicom_file_count,
-                    modality=record.modality.upper(), error=fusion_series_error(record))
-
-    @Property("QVariantMap", notify=fusionDialogChanged)
-    def fusionAnchor(self):
-        record = self._scan_series_record.get(self._fusion_anchor_uid)
-        return self._fusion_series_item(record) if record else {}
-
     @Property("QVariantMap", notify=sidebarItemsChanged)
     def fusionThumbnails(self):
         # Update images independently of the candidates model: a late thumbnail
@@ -236,18 +269,31 @@ class PanelController(QObject):
         if anchor is None:
             return []
         target = "CT" if anchor.modality.upper() == "PT" else "PT"
-        records = [r for r in self._scan_series_record.values() if r.modality.upper() == target]
+        records = [r for r in self._scan_series_record.values() if r.modality.upper() == target
+                   and (self._fusion_show_all or self._same_patient(anchor, r))]
         def rank(r):
-            same = bool(anchor.patient_id and r.patient_id and
-                        (anchor.patient_id, anchor.patient_id_issuer) == (r.patient_id, r.patient_id_issuer))
+            same = self._same_patient(anchor, r)
             return (0 if same and r.study_instance_uid == anchor.study_instance_uid else 1 if same else 2,
+                    0 if anchor.frame_of_reference_uid and anchor.frame_of_reference_uid == r.frame_of_reference_uid else 1,
                     r.study_date, r.series_description, r.series_instance_uid)
-        return [self._fusion_series_item(r) for r in sorted(records, key=rank)]
+        items = []
+        for record in sorted(records, key=rank):
+            item = self._fusion_record_item(record)
+            same = self._same_patient(anchor, record)
+            item["relationship"] = ("同患者 · 同检查" if same and anchor.study_instance_uid
+                                    and anchor.study_instance_uid == record.study_instance_uid else
+                                    "同患者 · 其他检查" if same else "需核对患者身份")
+            item["spatialStatus"] = ("共享空间坐标" if anchor.frame_of_reference_uid
+                                     and anchor.frame_of_reference_uid == record.frame_of_reference_uid
+                                     else "需核对配准")
+            items.append(item)
+        return items
 
     @Slot()
     def requestFusionView(self):
         self._fusion_error = ""
         self._fusion_partner_uid = ""
+        self._fusion_show_all = False
         selected = self._selected_series_uids or ([self._active_series_uid] if self._active_series_uid else [])
         self._fusion_anchor_uid = selected[0] if selected else ""
         self._fusion_dialog_open = True
@@ -256,14 +302,27 @@ class PanelController(QObject):
             self._fusion_anchor_uid = ""
         elif len(selected) == 2:
             self._fusion_partner_uid = selected[1]
+            a = self._scan_series_record.get(selected[0])
+            b = self._scan_series_record.get(selected[1])
+            self._fusion_show_all = bool(a and b and not self._same_patient(a, b))
             self.confirmFusion(False)
         elif self.seriesModality(selected[0]) not in ("CT", "PT"):
             self._fusion_error = "融合仅支持 CT 和 PET 序列"
             self._fusion_anchor_uid = ""
+        else:
+            from qt_dicom_viewer.core.pet_fusion import fusion_series_error
+            self._fusion_error = fusion_series_error(self._scan_series_record[selected[0]])
+            self._fusion_partner_uid = next((item["seriesUid"] for item in self.fusionCandidates
+                                             if not item["error"]), "")
         self.fusionDialogChanged.emit()
 
     @Slot(str)
     def selectFusionPartner(self, uid):
+        if uid not in {item["seriesUid"] for item in self.fusionCandidates if not item["error"]}:
+            self._fusion_error = "请选择列表中可用的一个 CT 和一个 PET 序列"
+            self._fusion_partner_uid = ""
+            self.fusionDialogChanged.emit()
+            return
         self._fusion_partner_uid = uid
         self._fusion_error = ""
         self.fusionDialogChanged.emit()

@@ -19,6 +19,8 @@ Item {
     readonly property bool isPseudocolorIcon: ["pseudocolor", "pseudocolor-gray"].includes(iconName)
     readonly property string rasterSource: ""
     readonly property var mdiPathMap: ({
+        "pet-window": "M3,3H5V19H22V21H3ZM6,15C9,15 8,7 11,7C14,7 13,17 16,17C18,17 18,12 21,12V14C19,14 20,19 16,19C11,19 12,9 11,9C10,9 11,17 6,17ZM15,3H22V5H15ZM18,2H20V8H18Z",
+        "registration": "M3,2H9V4H5V8H3ZM15,2H21V8H19V4H15ZM3,16H5V20H9V22H3ZM19,16H21V22H15V20H19ZM11,6H13V11H18V13H13V18H11V13H6V11H11Z",
         "chevron-down": "M6,9L12,15L18,9L16.6,7.6L12,12.2L7.4,7.6Z",
         "check": "M9,16.2L4.8,12L3.4,13.4L9,19L21,7L19.6,5.6Z",
         "settings": "M19.4,13A7.6,7.6 0 0,0 19.4,11L21.5,9.4L19.5,6L17,7A7.6,7.6 0 0,0 15.3,6L15,3H9L8.7,6A7.6,7.6 0 0,0 7,7L4.5,6L2.5,9.4L4.6,11A7.6,7.6 0 0,0 4.6,13L2.5,14.6L4.5,18L7,17A7.6,7.6 0 0,0 8.7,18L9,21H15L15.3,18A7.6,7.6 0 0,0 17,17L19.5,18L21.5,14.6ZM12,8A4,4 0 1,1 12,16A4,4 0 1,1 12,8Z",

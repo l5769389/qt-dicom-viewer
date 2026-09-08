@@ -10,6 +10,11 @@ Item {
     required property real minimumValue
     required property real maximumValue
 
+    function formatValue(value) {
+        const precision = Math.abs(value) >= 100 ? 0 : Math.abs(value) >= 1 ? 1 : 3
+        return Number(value).toFixed(precision)
+    }
+
     width: 58
     height: Math.min(230, parent ? parent.height * 0.42 : 230)
 
@@ -43,7 +48,7 @@ Item {
         anchors.left: colorRamp.right
         anchors.leftMargin: 6
         anchors.top: parent.top
-        text: Number(colorBar.maximumValue).toFixed(1)
+        text: colorBar.formatValue(colorBar.maximumValue)
         color: Theme.overlayText
         font.pixelSize: 10
         style: Text.Outline
@@ -54,7 +59,7 @@ Item {
         anchors.left: colorRamp.right
         anchors.leftMargin: 6
         anchors.bottom: parent.bottom
-        text: Number(colorBar.minimumValue).toFixed(1)
+        text: colorBar.formatValue(colorBar.minimumValue)
         color: Theme.overlayText
         font.pixelSize: 10
         style: Text.Outline

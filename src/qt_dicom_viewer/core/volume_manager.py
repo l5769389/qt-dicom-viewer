@@ -212,6 +212,8 @@ class VolumeManager:
         reference_dataset = None
         loader = DicomLoader()
         default_window: WindowLevel | None = None
+        pet_windows: list[WindowLevel] = []
+        pet_source_windows: list[WindowLevel] = []
         representative_meta: InstanceDisplayMeta | None = None
 
         for _, instance in positioned_instances:
@@ -249,6 +251,13 @@ class VolumeManager:
                     dataset
                 )
 
+            if series.modality.upper() == "PT":
+                pet_windows.append(loader.resolve_window(dataset, None, display_pixels,
+                                                          value_meta, value_scale))
+                if source_meta is not None:
+                    pet_source_windows.append(loader.resolve_window(dataset, None, modality_pixels,
+                                                                     source_meta, 1.0))
+
             frames.append(display_pixels)
 
         value_meta = value_metas[0]
@@ -267,7 +276,7 @@ class VolumeManager:
                                           unit_options=options)
                     value_meta = source_meta
                     frames = source_frames
-                    default_window = loader.resolve_window(reference_dataset, None, frames[0], value_meta)
+                    pet_windows = pet_source_windows
                 elif not np.allclose([m.scale_from_source for m in value_metas], value_meta.scale_from_source,
                                      rtol=1e-6, atol=0):
                     warning = "各切片 SUV 换算比例不同；显示上限按初始参考切片换算，切换单位后局部亮度可能变化"
@@ -275,6 +284,11 @@ class VolumeManager:
                     source_meta = replace(source_meta, warning=warning)
             elif len({(m.unit, m.suv_type) for m in value_metas}) != 1:
                 raise VolumeBuildError("PET SUV 类型在同一体积中不一致")
+            # A first slice with little uptake may carry a very narrow DICOM
+            # window. Choose a single range covering the per-slice presets in
+            # the final quantitative domain, then keep it fixed while browsing.
+            upper = max(window.center + window.width / 2 for window in pet_windows)
+            default_window = WindowLevel(upper / 2, upper)
 
         # 体数据轴顺序：(slice, row, column)
         volume_pixels = np.ascontiguousarray(

@@ -245,7 +245,8 @@ class VolumeRenderBackend:
         if self.volume is None:
             return
         width, height = max(1, self.widget.width()), max(1, self.widget.height())
-        p = camera_parameters(self.volume.geometry, state, (width, height))
+        geometry = getattr(self, "camera_geometry", self.volume.geometry)
+        p = camera_parameters(geometry, state, (width, height))
         camera = self.renderer.GetActiveCamera()
         camera.SetPosition(*p["position"])
         camera.SetFocalPoint(*p["focal"])

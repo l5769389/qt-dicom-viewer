@@ -42,7 +42,43 @@ class MprReslicer:
         projection_mode: MprProjectionMode | None = None,
         slab_thickness_mm: float = 0.0,
     ) -> MprSlice:
-        """从任意朝向的源 Volume 中重采样一个 MPR 平面。
+        """Build a physical plane and sample its pixels, optionally through a slab."""
+        plane_geometry, navigation_index, navigation_count = self.prepare_plane(
+            volume, plane, frame, view_roll_radians, grid_spec, grid_anchor)
+        if (
+            not np.isfinite(slab_thickness_mm)
+            or not 0 <= slab_thickness_mm <= 100
+        ):
+            raise MprResliceError(
+                "Slab thickness must be between 0 and 100 mm"
+            )
+
+        # 关闭投影或厚度为零时仍走原有单平面路径，保证结果与旧版本一致。
+        if projection_mode is None or slab_thickness_mm == 0:
+            modality_pixels = self._sample_plane(
+                volume=volume,
+                geometry=plane_geometry,
+            )
+        else:
+            modality_pixels = self._sample_slab(
+                volume=volume,
+                geometry=plane_geometry,
+                mode=projection_mode,
+                thickness_mm=slab_thickness_mm,
+            )
+
+        return MprSlice(
+            modality_pixels=modality_pixels,
+            geometry=plane_geometry,
+            slice_index=navigation_index,
+            slice_count=navigation_count,
+        )
+
+    def prepare_plane(self, volume: DicomVolume, plane: MprPlane,
+                      frame: MprFrame | None = None, view_roll_radians: float = 0.0,
+                      grid_spec: MprGridSpec | None = None,
+                      grid_anchor: MprGridAnchor | None = None) -> tuple[MprImageGeometry, int, int]:
+        """计算物理采样网格和导航范围，不读取或重采样像素。
 
         先在 MPR 物理坐标系中定义二维采样网格，再依次映射到患者
         LPS 和源 Volume 连续体素坐标，最后通过插值得到模态像素值。
@@ -223,34 +259,7 @@ class MprReslicer:
                 navigation_direction_mpr
             ),
         )
-        if (
-            not np.isfinite(slab_thickness_mm)
-            or not 0 <= slab_thickness_mm <= 100
-        ):
-            raise MprResliceError(
-                "Slab thickness must be between 0 and 100 mm"
-            )
-
-        # 关闭投影或厚度为零时仍走原有单平面路径，保证结果与旧版本一致。
-        if projection_mode is None or slab_thickness_mm == 0:
-            modality_pixels = self._sample_plane(
-                volume=volume,
-                geometry=plane_geometry,
-            )
-        else:
-            modality_pixels = self._sample_slab(
-                volume=volume,
-                geometry=plane_geometry,
-                mode=projection_mode,
-                thickness_mm=slab_thickness_mm,
-            )
-
-        return MprSlice(
-            modality_pixels=modality_pixels,
-            geometry=plane_geometry,
-            slice_index=navigation_index,
-            slice_count=navigation_count,
-        )
+        return plane_geometry, navigation_index, navigation_count
 
     def create_view_grids(
         self,

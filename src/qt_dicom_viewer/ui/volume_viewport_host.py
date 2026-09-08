@@ -74,7 +74,7 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
 
 
 class VolumeViewportHost(QWidget):
-    def __init__(self, controller):
+    def __init__(self, controller, backend_factory=VolumeRenderBackend):
         super().__init__(None, Qt.FramelessWindowHint)
         self.controller = controller
         self._active = False
@@ -111,7 +111,7 @@ class VolumeViewportHost(QWidget):
         self.stack.addWidget(self.status_page)
         self.vtk_widget = VolumeInteractor(self)
         self.stack.addWidget(self.vtk_widget)
-        self.backend = VolumeRenderBackend(self.vtk_widget)
+        self.backend = backend_factory(self.vtk_widget)
         self.winId()
         self.windowHandle().installEventFilter(self)
         self.vtk_widget.windowHandle().installEventFilter(self)

@@ -21,7 +21,7 @@ from qt_dicom_viewer.ui.controller.viewport.image_2d.stack_viewport_controller i
 )
 
 
-def _controller() -> StackViewportController:
+def _controller(*, tab_type=None) -> StackViewportController:
     series_meta = SeriesDisplayMeta(
         patient_name="Example Patient",
         patient_id="P001",
@@ -38,7 +38,7 @@ def _controller() -> StackViewportController:
             series_uid=series_meta.series_uid,
             series_meta=series_meta,
         ),
-        tool_controller=ToolController(),
+        tool_controller=ToolController(tab_type=tab_type),
     )
 
 

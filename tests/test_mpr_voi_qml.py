@@ -130,7 +130,10 @@ def test_real_mpr_draw_edit_threshold_depth_and_voi(qt_app, paired_series, tmp_p
             assert controller.selected["unit"] == "kBq/ml"
 
         before = r["region"]
-        _mouse_drag(view, _scene(layer, *center), _scene(layer, *(center + [.2, .1])))
+        # PET's compact locator owns a hit at its center. Grab the region body
+        # away from that marker to exercise moving the VOI itself.
+        move_start = center + [.6, .4] if modality == "PT" else center
+        _mouse_drag(view, _scene(layer, *move_start), _scene(layer, *(move_start + [.2, .1])))
         settle(controller)
         assert not np.allclose(before.center, r["region"].center)
         assert len(controller.records) == 1
@@ -141,7 +144,8 @@ def test_real_mpr_draw_edit_threshold_depth_and_voi(qt_app, paired_series, tmp_p
         assert viewport.voiOverlays == []
         controller.setEnabled(True)
         tab.toolController.activateTool("voi")
-        _mouse_drag(view, _scene(layer, *center), _scene(layer, *(center + [1, 0])))
+        voi_start = center + [.5, .6] if modality == "PT" else center
+        _mouse_drag(view, _scene(layer, *voi_start), _scene(layer, *(voi_start + [1, 0])))
         settle(controller)
         assert len(controller.records) == 2
         assert controller.records[-1]["kind"] == "voi"
@@ -151,21 +155,21 @@ def test_real_mpr_draw_edit_threshold_depth_and_voi(qt_app, paired_series, tmp_p
         assert controller.evaluations[controller.selectedId].threshold is None
         interaction = next(x for x in _visual_children(view.rootObject())
                            if x.objectName() == "viewportInteractionLayer" and _owner(x) is viewport)
-        QTest.mouseMove(view, _scene(layer, *center), 20)
+        QTest.mouseMove(view, _scene(layer, *voi_start), 20)
         QTest.qWait(30)
         assert interaction.property("hoverCursorKind") == "pan"
-        QTest.mouseMove(view, _scene(layer, *(center + [1, 0])), 20)
+        QTest.mouseMove(view, _scene(layer, *(voi_start + [1, 0])), 20)
         QTest.qWait(30)
         assert interaction.property("hoverCursorKind") == "resize"
-        # Editing stays a resize as it crosses a crosshair. No raster/icon reloads.
-        QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, _scene(layer, *(center + [1, 0])))
-        QTest.mouseMove(view, _scene(layer, *(center + [1.1, .1])), 20)
+        # A captured resize remains a resize throughout the drag.
+        QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, _scene(layer, *(voi_start + [1, 0])))
+        QTest.mouseMove(view, _scene(layer, *(voi_start + [1.1, .1])), 20)
         QTest.qWait(30)
         assert interaction.property("effectiveCursorKind") == "resize"
-        QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, _scene(layer, *(center + [1.1, .1])))
+        QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, _scene(layer, *(voi_start + [1.1, .1])))
         settle(controller)
         controller.setEnabled(False)
-        QTest.mouseMove(view, _scene(layer, *center), 20)
+        QTest.mouseMove(view, _scene(layer, *voi_start), 20)
         QTest.qWait(30)
         assert interaction.property("hoverCursorKind") == "default"
         controller.setEnabled(True)

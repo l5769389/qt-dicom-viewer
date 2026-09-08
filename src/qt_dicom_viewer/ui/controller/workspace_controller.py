@@ -268,6 +268,8 @@ class WorkspaceController(QObject):
         self._tag_read_service.shutdown()
 
     def connect_signal(self, tab: TabController):
+        if isinstance(tab, PetWorkspaceController):
+            tab.volumeViewRequested.connect(self._open_fusion_volume)
         tab.renderRequested.connect(
             self.renderRequested.emit
         )
@@ -318,7 +320,7 @@ class WorkspaceController(QObject):
         if isinstance(result, PetBatchRenderResult):
             for frame in result.frames:
                 if frame.image is not None:
-                    self._image_provider.set_array(frame.viewport_id, frame.image)
+                    self._image_provider.set_array(frame.viewport_id, frame.image, frame.content_key)
         elif not isinstance(result, VolumeLoadResult) and result.image is not None:
             image_key = getattr(result, "image_key", result.viewport_id)
             self._image_provider.set_array(image_key, result.image)
@@ -351,7 +353,36 @@ class WorkspaceController(QObject):
         tab = self._find_tab_by_viewport_id(failure.viewport_id)
         if tab is None:
             return
+        # Interactive PET previews can already be visible when refinement fails.
+        # Restore pixels before the controller refreshes the committed frame URLs.
+        if (isinstance(tab, PetWorkspaceController) and not tab._closed
+                and failure.request_id == tab._latest and tab._last_result is not None):
+            for frame in tab._last_result.frames:
+                if frame.image is not None:
+                    self._image_provider.set_array(frame.viewport_id, frame.image)
         tab.handleRenderFailure(failure)
+
+    def createFusionVolumeTab(self, source):
+        from qt_dicom_viewer.ui.controller.tab.pet_volume_tab_controller import PetVolumeTabController
+        if source._closed or not source.ready or not source.isFusion:
+            return
+        tab_id = source._tab_config.tab_id + ":volume"
+        if tab_id not in self._tab_dict:
+            config = TabConfig(tab_id=tab_id, tab_label=source._tab_config.tab_label + " · 3D", tab_type=TabType.THREE_D,
+                               series_metas=source._tab_config.series_metas)
+            tab = PetVolumeTabController(config, source, self)
+            self.connect_signal(tab)
+            self._tab_dict[tab_id] = tab
+            self.tabsChanged.emit()
+        else:
+            self._tab_dict[tab_id].activeViewport.attach_source(source)
+        self.activateTabId(tab_id)
+
+    @Slot()
+    def _open_fusion_volume(self):
+        source = self.sender()
+        if isinstance(source, PetWorkspaceController):
+            self.createFusionVolumeTab(source)
 
     @Slot(str, int, float, float, bool)
     def openSeriesSlice(

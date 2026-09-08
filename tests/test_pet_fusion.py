@@ -117,6 +117,42 @@ def test_blending_preserves_ct_for_invalid_and_zero_pet():
     np.testing.assert_array_equal(blend_pet_ct(ct, pet, values, 0.), np.repeat(ct[..., None], 3, -1))
 
 
+def test_mip_preview_is_bounded_and_does_not_replace_full_precision_cache(paired_series, monkeypatch):
+    catalog, _, pet = paired_series
+    volumes = VolumeManager()
+    base = volumes.get_or_build(pet)
+    z, y, x = np.indices((72, 140, 152), dtype=np.float32)
+    pixels = np.exp(-((z-35)**2 + (y-70)**2 + (x-75)**2) / 30)
+    volume = replace(base, modality_pixels=pixels, fingerprint="large-preview",
+        geometry=replace(base.geometry, slice_count=72, rows=140, columns=152))
+    monkeypatch.setattr(volumes, "get_or_build", lambda series: volume)
+    renderer = PetReconstructor(catalog, volumes)
+    sample = renderer.reslicer._sample_plane
+    calls = []
+    def counted(*args, **kwargs):
+        calls.append(True)
+        return sample(*args, **kwargs)
+    monkeypatch.setattr(renderer.reslicer, "_sample_plane", counted)
+    request = PetBatchRenderRequest(request_id="preview", viewport_id="t",
+        series_uid=pet.series_instance_uid, viewports=(("mip", "mip"),), preview=True)
+    preview = renderer.render(request).frames[0]
+    assert preview.preview
+    assert max(preview.image.shape[:2]) <= 128
+    assert len(calls) <= 65  # Initial plane plus at most 64 projection samples.
+    preview_count = len(calls)
+    calls.clear()
+    full = renderer.render(replace(request, request_id="full", preview=False)).frames[0]
+    assert not full.preview and len(calls) > preview_count
+    assert max(full.image.shape[:2]) > 128
+    for field, count in (("row_spacing", "rows"), ("column_spacing", "columns")):
+        assert getattr(preview.plane_geometry, field) * getattr(preview.plane_geometry, count) == pytest.approx(
+            getattr(full.plane_geometry, field) * getattr(full.plane_geometry, count))
+    calls.clear()
+    again = renderer.render(replace(request, request_id="full2", preview=False)).frames[0]
+    assert not calls
+    np.testing.assert_array_equal(again.modality_pixel, full.modality_pixel)
+
+
 def test_registration_rigid_direction_and_file_round_trip(paired_series):
     _, ct_series, pet_series = paired_series
     volumes = VolumeManager()
@@ -316,6 +352,7 @@ def test_stale_batches_failure_rollback_and_registration_files(qt_app, paired_se
     assert tab.petController.petActiveUnitId == "suvbw"
     tab.setRegistrationActive(True)
     tab.setRegistrationParameter(3, 30)
+    tab.finishRegistrationPreview()
     tab.handleRenderResult(renderer.render(requests[-1]))
     matrix, pivot = tab.matrix.copy(), tab.pivot.copy()
     path = tmp_path / "registration.json"
@@ -352,6 +389,8 @@ def test_selection_flows_and_identity_confirmation(qt_app, paired_series):
     assert len(opened) == 1
     panel._scan_series_record[pet.series_instance_uid] = replace(pet, patient_id="")
     panel.requestFusionView()
+    assert not panel.fusionCandidates
+    panel.setFusionShowAllPatients(True)
     panel.selectFusionPartner(pet.series_instance_uid)
     panel.confirmFusion(False)
     assert panel.fusionDialogOpen and panel.fusionIdentityWarning
@@ -366,10 +405,123 @@ def test_selection_flows_and_identity_confirmation(qt_app, paired_series):
     assert len(opened) == 2
     panel.requestFusionView()
     panel.selectFusionPartner(ct.series_instance_uid)
-    panel.confirmFusion(True)
     assert "一个 CT" in panel.fusionError
+    assert not panel.fusionCanConfirm
+    panel.confirmFusion(True)
+    assert len(opened) == 2
     panel.selectFusionPartner(pet.series_instance_uid)
     panel.removeSeries(pet.series_instance_uid)
     panel.confirmFusion(True)
     assert panel.fusionError
     panel.shutdown()
+
+
+def test_pair_candidates_only_offer_complementary_patient_series(qt_app, paired_series):
+    from qt_dicom_viewer.ui.controller.panel_controller import PanelController
+    catalog, ct, pet = paired_series
+    other = replace(ct, series_instance_uid="unrelated", patient_id="other-patient")
+    old = replace(ct, series_instance_uid="prior", study_instance_uid="prior-study")
+    invalid = replace(ct, series_instance_uid="localizer", instances=ct.instances[:1])
+    panel = PanelController(series_catalog=catalog)
+    panel._scan_series_record = {r.series_instance_uid: r for r in (other, old, ct, invalid, pet)}
+    panel.selectSeries(pet.series_instance_uid)
+    panel.requestFusionView()
+    assert panel.fusionTargetModality == "CT"
+    assert panel.fusionAnchor["seriesUid"] == pet.series_instance_uid
+    assert {r["seriesUid"] for r in panel.fusionCandidates} == {ct.series_instance_uid, "prior", "localizer"}
+    assert panel.fusionPartnerUid == ct.series_instance_uid
+    assert panel.fusionCanConfirm
+    panel.selectFusionPartner("localizer")
+    assert not panel.fusionCanConfirm
+    panel.setFusionShowAllPatients(True)
+    panel.selectFusionPartner("unrelated")
+    assert panel.fusionIdentityWarning
+    panel.setFusionShowAllPatients(False)
+    assert not panel.fusionPartnerUid
+    assert not panel.fusionCanConfirm
+    panel.selectSeries(ct.series_instance_uid)
+    panel.requestFusionView()
+    assert panel.fusionTargetModality == "PET"
+    assert [r["seriesUid"] for r in panel.fusionCandidates] == [pet.series_instance_uid]
+    panel.shutdown()
+
+
+def test_registration_tool_and_window_are_independent(qt_app, paired_series):
+    from qt_dicom_viewer.model import ToolType, PointerPosition, ImagePoint, Point
+    from qt_dicom_viewer.utils.utils import _display_number
+    catalog, ct, pet = paired_series
+    workspace = WorkspaceController(catalog, DicomImageProvider())
+    renderer = PetReconstructor(catalog, VolumeManager())
+    workspace.renderRequested.connect(lambda r: workspace.handleRenderResult(renderer.render(r)))
+    workspace.createFusionTab(ct.series_instance_uid, pet.series_instance_uid)
+    tab = next(iter(workspace._tab_dict.values()))
+    fusion = next(v for v in tab.viewports_by_id.values() if v.viewportRole == "fusion")
+    ct_view = next(v for v in tab.viewports_by_id.values() if v.viewportRole == "ct")
+    mip = next(v for v in tab.viewports_by_id.values() if v.viewportRole == "mip")
+    assert tab.petColorMap == "grayscale-inverted"
+    assert mip.canvasBackgroundColor == "#ffffff"
+    assert fusion.canvasBackgroundColor != "#ffffff"
+    assert fusion.crosshairStyle["armLength"] == mip.crosshairStyle["armLength"] == 8
+    center = fusion._crosshair_image_position
+    distant_line = PointerPosition(Point(0, 0), ImagePoint(center.column + 100, center.row))
+    assert fusion._crosshair_hit_test(distant_line, 1, 1) is None
+    tab.setCompactCrosshair(False)
+    assert fusion._crosshair_hit_test(distant_line, 1, 1) is not None
+    tab.setCompactCrosshair(True)
+    tab.toolController.activateTool("registration")
+    assert tab.registrationActive
+    assert tab.toolController.activePanel == "registration"
+    tab.setRegistrationParameter(0, 1)
+    transform = tab.matrix.copy()
+    tab.toolController.activateTool("ct-window")
+    assert not tab.registrationActive
+    assert tab.toolController.activePanel == "ct-window"
+    tab.setCtWindow(1999.72, 1589.13)
+    np.testing.assert_array_equal(tab.matrix, transform)
+    assert ct_view.overlayInfo["windowCenter"] == "2000"
+    assert _display_number(29.9, 0) == "30"
+    pet_window = tab.pet_display.target
+    ct_view.applyColorMap("cardiac")
+    assert ct_view.activeColorMap == "grayscale"
+    assert tab.petColorMap == "grayscale-inverted"
+    tab.setPetColorMap("cardiac")
+    tab.setFusionColorMap("hotMetal")
+    tab.setOpacity(.75)
+    tab.toolController.activateTool("pseudocolor")
+    tab.toolController.resetActiveTool()
+    assert tab.petColorMap == "grayscale-inverted" and tab.fusionColorMap == "hotIron"
+    assert tab.opacity == .75 and tab.pet_display.target == pet_window
+    assert tab.ctCenter == 1999.72
+    np.testing.assert_array_equal(tab.matrix, transform)
+    tab.toolController.activateTool("fusion-blend")
+    tab.toolController.resetActiveTool()
+    assert tab.opacity == .5 and tab.pet_display.target == pet_window
+    np.testing.assert_array_equal(tab.matrix, transform)
+    assert [item["toolType"] for item in tab.toolController.tools][:5] == [
+        "ct-window", "pet-window", "pseudocolor", "fusion-blend", "registration"]
+    tab.toolController.activateTool("registration")
+    tab.toolController.resetActiveTool()
+    np.testing.assert_array_equal(tab.matrix, np.eye(4))
+    assert tab.pet_display.target == pet_window
+    assert tab.ctCenter == 1999.72
+    tab.toolController.activateTool("pan")
+    assert not tab.registrationActive
+    assert ToolType.REGISTRATION.value in {t["toolType"] for t in tab.toolController.tools}
+    tab.setCompactCrosshair(False)
+    assert "armLength" not in fusion.crosshairStyle
+    workspace.shutdown()
+
+
+@pytest.mark.parametrize("missing_weight", [False, True])
+def test_pet_volume_window_accounts_for_later_slice_uptake(paired_series, missing_weight):
+    _, _, pet = paired_series
+    for instance, upper in zip(pet.instances, (1000., 14000., 3000.)):
+        ds = pydicom.dcmread(instance.path)
+        ds.WindowCenter = upper / 2
+        ds.WindowWidth = upper
+        if missing_weight and upper == 14000:
+            del ds.PatientWeight
+        ds.save_as(instance.path, enforce_file_format=True)
+    volume = VolumeManager().get_or_build(pet)
+    scale = volume.pixel_value_meta.scale_from_source
+    assert volume.default_window.width == pytest.approx(14000 * scale)

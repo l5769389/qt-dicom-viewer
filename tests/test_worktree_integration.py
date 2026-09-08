@@ -12,6 +12,7 @@ from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
 from test_measurement_qml import qt_app
 from test_pet_fusion import paired_series
 from test_viewport_transform import _controller, _render_result
+from test_series_sidebar import sidebar_scene
 
 
 def test_ct_rejects_stale_frame_after_latest_frame_is_committed(qt_app):
@@ -94,3 +95,34 @@ def test_window_template_updates_notify_open_ct_but_leave_pet_presets_empty(qt_a
         assert pet_view.windowPresets == []
     finally:
         workspace.shutdown()
+
+
+def test_image_and_volume_tab_transitions_keep_controller_types_separate(sidebar_scene, monkeypatch):
+    from PySide6.QtTest import QTest
+    from qt_dicom_viewer.model import TabType
+    from qt_dicom_viewer.ui.controller.viewport.volume_viewport_controller import VolumeViewportController
+    from test_dicom_tags import wait_until
+
+    # Rendering itself is covered by the native smoke test. Here the real QML
+    # Loader must never feed a volume controller to an outgoing image layout.
+    monkeypatch.setattr(VolumeViewportController, 'ensureNativeView', lambda self: None)
+    monkeypatch.setattr(VolumeViewportController, 'setNativeVisible', lambda self, visible: None)
+    window, app, records, warnings = sidebar_scene
+    workspace = app.workspaceController
+    workspace.createTab(records[0].series_instance_uid, 'Image', TabType.TWO_D)
+    image_id, image_view = workspace.activeTabId, workspace.activeViewport
+    wait_until(lambda: image_view.loadState == 'ready')
+    workspace.createTab(records[0].series_instance_uid, 'Volume', TabType.THREE_D)
+    volume_id, volume_view = workspace.activeTabId, workspace.activeViewport
+    wait_until(lambda: volume_view.loadState == 'ready')
+    for _ in range(3):
+        for tab_id, expected in ((image_id, image_view), (volume_id, volume_view)):
+            workspace.activateTabId(tab_id)
+            QTest.qWait(40)
+            assert workspace.activeViewport is expected
+    workspace.closeTab(volume_id)
+    QTest.qWait(40)
+    assert workspace.activeViewport is image_view
+    workspace.createTab(records[0].series_instance_uid, 'Volume reopened', TabType.THREE_D)
+    QTest.qWait(60)
+    assert not warnings, warnings

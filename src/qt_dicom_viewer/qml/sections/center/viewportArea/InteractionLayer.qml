@@ -14,6 +14,8 @@ Item {
 
     signal pointerMoved(point position)
     signal pointerExited()
+    signal pointerPressedAt(point position, int buttons)
+    signal pointerTapFinished()
 
     signal tapped(point position)
 
@@ -49,13 +51,15 @@ Item {
     property string measurementCursorKind: ""
     property string regionCursorKind: ""
     property string activeInteraction: ""
+    property bool registrationInteraction: false
+    property bool locatorPressed: false
     property string dragCursorKind: ""
     // 从按下到释放持续为 true，不受 DragHandler 拖动阈值影响。
     readonly property bool pointerPressed: pressTracker.active
     // ROI 和箭头标注需要从第一个像素位移就反馈。其他视图操作继续沿用
     // 平台拖动阈值，避免一次普通点击被解释成调窗、平移或缩放。
     readonly property bool immediateRoiDrag:
-        activeInteraction === "mpr:segmentation"
+        locatorPressed || registrationInteraction || activeInteraction === "mpr:segmentation"
         || activeInteraction === "mpr:voi"
         || activeInteraction === "measure:rect"
         || activeInteraction === "measure:ellipse"
@@ -63,8 +67,9 @@ Item {
         || activeInteraction === "annotate:text"
         || activeInteraction === "service:qa"
 
-    readonly property string hoverCursorKind: CursorPolicy.resolve(
-        activeInteraction, regionCursorKind, crosshairHoverTarget, measurementCursorKind)
+    readonly property string hoverCursorKind: locatorPressed ? "crosshair-move"
+        : registrationInteraction ? (crosshairHoverTarget === "center" ? "crosshair-move" : "pan")
+        : CursorPolicy.resolve(activeInteraction, regionCursorKind, crosshairHoverTarget, measurementCursorKind)
     onActiveInteractionChanged: {
         dragCursorKind = ""
         if (hoverHandler.hovered && !pointerPressed)
@@ -101,6 +106,12 @@ Item {
         acceptedButtons: Qt.LeftButton
             | Qt.RightButton
             | Qt.MiddleButton
+        onActiveChanged: {
+            if (active) {
+                interactionLayer.locatorPressed = false
+                interactionLayer.pointerPressedAt(point.position, point.pressedButtons)
+            }
+        }
     }
 
     HoverHandler {
@@ -200,10 +211,16 @@ Item {
             // 只有左键点击执行测量选择等 tapped 逻辑。
             if (button !== Qt.LeftButton)
                 return
+            if (interactionLayer.locatorPressed) {
+                interactionLayer.locatorPressed = false
+                interactionLayer.pointerTapFinished()
+                return
+            }
 
             interactionLayer.tapped(
                 eventPoint.position
             )
+            interactionLayer.pointerTapFinished()
         }
     }
 

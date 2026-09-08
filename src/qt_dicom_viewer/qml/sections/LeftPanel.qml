@@ -211,7 +211,7 @@ Rectangle {
             Layout.leftMargin: 10
             color: Theme.textMuted
             font.pixelSize: 11
-            text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · Cmd/Ctrl 单击多选"
+            text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · 勾选可多选"
         }
 
 
@@ -255,20 +255,10 @@ Rectangle {
                         color: Theme.textMuted
                         font.pixelSize: 13
                     }
-                    Rectangle {
+                    Item {
                         visible: entry.isSeries
                         Layout.preferredWidth: 16
                         Layout.preferredHeight: 16
-                        radius: 8
-                        color: entry.selected ? Theme.primaryStrong : "transparent"
-                        border.color: entry.selected ? Theme.primaryStrong : Theme.borderStrong
-                        Text {
-                            anchors.centerIn: parent
-                            visible: entry.selected
-                            text: "✓"
-                            color: Theme.textOnPrimary
-                            font.pixelSize: 11
-                        }
                     }
                     Rectangle {
                         visible: entry.isSeries
@@ -348,6 +338,19 @@ Rectangle {
                         if (entry.isSeries && event.button === Qt.LeftButton)
                             leftPanel.panelController.openSeriesView(entry.modelData.seriesInstanceUid, "2d")
                     }
+                }
+                Components.AppCheckBox {
+                    objectName: "selectSeries-" + entry.modelData.seriesInstanceUid
+                    visible: entry.isSeries
+                    x: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 28
+                    height: 40
+                    z: 2
+                    checked: entry.selected
+                    onClicked: leftPanel.panelController.selectSeriesWithModifiers(entry.modelData.seriesInstanceUid, true)
+                    Basic.ToolTip.visible: hovered
+                    Basic.ToolTip.text: "勾选序列，选中 CT 和 PET 后点击融合浏览"
                 }
                 Basic.ToolTip.visible: mouse.containsMouse
                 Basic.ToolTip.delay: 900
