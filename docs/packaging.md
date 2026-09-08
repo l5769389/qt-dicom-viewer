@@ -70,16 +70,19 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 
 **Build Windows packages** 在 `main` 的 `src/`、`scripts/`、`packaging/`、`tests/`、依赖文件或该工作流更新后自动触发。执行回归后生成便携 EXE、安装向导 EXE 及 SHA-256 校验文件，上传到该次运行的 Artifacts。仅修改文档不会启动构建；同一分支的新构建会取消未完成的旧构建。
 
-也可手动运行并选择控制台诊断版本，此时只生成诊断便携 EXE。**Build native installers** 保留为双平台手动入口。工作流本身不创建 Release；需要长期保存的版本通过仓库 Release 归档。
+也可手动运行并选择控制台诊断版本，此时只生成诊断便携 EXE。**Build native installers** 保留为双平台手动入口。Artifacts 保留 14 天；工作流本身不创建 Release，需要长期保存的版本通过仓库 Release 归档。
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 
 ## 验收清单
 
-本次本地验证（2026-09-06，macOS arm64）：448 项测试通过；成功生成 0.1.0 的 `.app` 和约 223 MiB 的 DMG；
-应用签名完整性、DMG 校验和通过。已只读挂载并检查 Finder 图标、拖拽箭头、安装说明与 Applications 链接，随后推出。
-打包应用离屏运行 10 秒，无 Python 异常或 QML 加载失败；这不等同于真实影像渲染验收。
-Windows 安装器仅做脚本/配置回归检查，尚未在 Windows 编译或执行安装、升级、卸载；Intel Mac 与商业签名/公证流程也未实测。
+本次验证（2026-09-08，版本提交 `d8ae41b`）：
+
+- macOS arm64：完整回归 870 通过、15 跳过；生成 0.1.0 的 `.app` 和约 224 MiB 的 DMG。系统图标读取显示正确 DV 图标；bundle 的 ICNS 引用、Retina 图标、签名完整性与 DMG 完整性检查通过。只读挂载检查应用、安装说明与 Applications 链接后推出。冻结应用离屏运行 12 秒，无 Python 异常、图标错误或 QML 加载失败。
+- Windows x64：[main 推送自动构建](https://github.com/l5769389/qt-dicom-viewer/actions/runs/34181423224)成功，完整回归 870 通过、15 跳过；便携 EXE 和 Inno Setup 安装包生成成功。读取便携版及安装版应用的 PE 图标资源，7 个尺寸均与品牌 ICO 逐字节一致。两个 EXE 及 SHA-256 文件已上传为 `DICOMVision-windows-x64` Artifact。
+- [v0.1.0 预发布](https://github.com/l5769389/qt-dicom-viewer/releases/tag/v0.1.0)已上传 macOS arm64 DMG 与 SHA-256 文件，GitHub 附件摘要与本地一致；Release 同时提供 Windows 构建下载入口。
+
+跳过项为需要外部 PACS / Docker 环境的测试。上述检查不等同于干净目标机的安装、升级、卸载或真实影像渲染验收；Windows 快捷方式的桌面视觉效果、Intel Mac 与商业签名 / 公证流程尚未实测。
 
 构建成功不代表目标机验证完成。每个准备发布的 OS / 架构都应单独验证：
 
