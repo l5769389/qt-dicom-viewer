@@ -37,11 +37,11 @@ dcm4chee 使用独立的 PostgreSQL 和 LDAP 服务。共运行 6 个容器，�
 
 ```bash
 open -a OrbStack
-uv run python scripts/pacs_lab.py prepare
+uv run python tests/manual/pacs_lab.py prepare
 docker --context orbstack compose -f docker/pacs/compose.yaml up -d
-uv run python scripts/pacs_lab.py seed
-uv run python scripts/pacs_lab.py install-profiles
-uv run python scripts/pacs_lab.py launch
+uv run python tests/manual/pacs_lab.py seed
+uv run python tests/manual/pacs_lab.py install-profiles
+uv run python tests/manual/pacs_lab.py launch
 ```
 
 `prepare` 保留已经存在的凭据，并生成固定 UID 的合成 DICOM；`seed` 等待服务就绪后通过
@@ -74,7 +74,7 @@ PACS_LAB_TEST=1 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software uv run --gro
 PACS_LAB_TEST=1 PACS_LAB_NATIVE=1 QT_QPA_PLATFORM=cocoa uv run --group dev pytest tests/test_pacs_live.py -q -k native --junitxml=docker/pacs/artifacts/native-tests.xml
 
 # 短暂停止 Basic 实例，验证错误提示、恢复连接和数据持久化
-uv run python scripts/pacs_lab.py check-restart
+uv run python tests/manual/pacs_lab.py check-restart
 ```
 
 真实测试使用实验库的固定数据和数量断言；追加自己的测试数据前可先完成上述验证。

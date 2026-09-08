@@ -14,7 +14,7 @@ import pytest
 from PySide6.QtCore import Qt, QMetaObject, Q_ARG
 from PySide6.QtTest import QTest
 
-from scripts.pacs_lab import ARTIFACTS, PRIMARY_STUDY, PRIMARY_SERIES, MR_SERIES, profiles
+from manual.pacs_lab import ARTIFACTS, PRIMARY_STUDY, PRIMARY_SERIES, MR_SERIES, profiles
 from qt_dicom_viewer.pacs.client import Cancelled, DicomWebClient, PacsError
 from qt_dicom_viewer.pacs.config import PacsProfile
 from qt_dicom_viewer.pacs.importer import import_series

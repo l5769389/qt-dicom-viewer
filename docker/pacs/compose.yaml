@@ -28,7 +28,7 @@ services:
     environment:
       ORTHANC__NAME: 'PACS Lab · Orthanc Basic'
       ORTHANC__AUTHENTICATION_ENABLED: 'true'
-      ORTHANC__REGISTERED_USERS: '{"pacs-lab":"${PACS_LAB_PASSWORD:?Run scripts/pacs_lab.py prepare first}"}'
+      ORTHANC__REGISTERED_USERS: '{"pacs-lab":"${PACS_LAB_PASSWORD:?Run tests/manual/pacs_lab.py prepare first}"}'
       DICOM_WEB_PLUGIN_ENABLED: 'true'
       ORTHANC__DEFAULT_ENCODING: Utf8
     volumes: [orthanc-basic:/var/lib/orthanc/db]
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
     ports: ['127.0.0.1:8044:8080']
     environment:
-      PACS_LAB_BEARER_TOKEN: '${PACS_LAB_BEARER_TOKEN:?Run scripts/pacs_lab.py prepare first}'
+      PACS_LAB_BEARER_TOKEN: '${PACS_LAB_BEARER_TOKEN:?Run tests/manual/pacs_lab.py prepare first}'
       NGINX_ENVSUBST_FILTER: '^PACS_LAB_BEARER_TOKEN$$'
     volumes: ['./bearer.conf.template:/etc/nginx/templates/default.conf.template:ro']
     depends_on:
@@ -65,7 +65,7 @@ services:
     environment:
       POSTGRES_DB: pacsdb
       POSTGRES_USER: pacs
-      POSTGRES_PASSWORD: '${PACS_LAB_DB_PASSWORD:?Run scripts/pacs_lab.py prepare first}'
+      POSTGRES_PASSWORD: '${PACS_LAB_DB_PASSWORD:?Run tests/manual/pacs_lab.py prepare first}'
     volumes: [postgres-data:/var/lib/postgresql/data]
     healthcheck:
       test: [CMD-SHELL, 'pg_isready -U pacs -d pacsdb']
@@ -84,7 +84,7 @@ services:
       POSTGRES_HOST: db
       POSTGRES_DB: pacsdb
       POSTGRES_USER: pacs
-      POSTGRES_PASSWORD: '${PACS_LAB_DB_PASSWORD:?Run scripts/pacs_lab.py prepare first}'
+      POSTGRES_PASSWORD: '${PACS_LAB_DB_PASSWORD:?Run tests/manual/pacs_lab.py prepare first}'
       WILDFLY_CHOWN: /storage
       WILDFLY_WAIT_FOR: 'ldap:389 db:5432'
       JAVA_OPTS: '-Xms256m -Xmx1024m -Djava.net.preferIPv4Stack=true -Djava.awt.headless=true'

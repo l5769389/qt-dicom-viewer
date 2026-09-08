@@ -44,4 +44,4 @@ QA 保留在当前 viewport。切换普通工具后轮廓仍随图像显示，�
 
 `tests/test_water_qa.py` 覆盖物理定位、形状/完整性拒绝、自动与手动五区采样和逐像素公式；`tests/test_water_qa_controller.py` 覆盖线程、缓存、快速翻页、拖动预览/提交/取消、越界/重叠、重置和数据快照；`tests/test_water_qa_qml.py` 用真实 QML 点击与拖动验证五个 ROI、变换后坐标、Esc、说明弹窗、参数和小窗口滚动。
 
-`scripts/smoke_water_qa.py` 创建三个不同水 CT 均值、带噪声和外壳/支撑物的合成 DICOM，设置非等距 PixelSpacing 及 `RescaleSlope=2, RescaleIntercept=-1024`，通过完整文件加载、worker 和实际桌面 UI 验证 HU、QA、切层、显示变换和重置。测试使用合成数据，实际水模图像的识别表现仍需结合设备与扫描协议检验。
+`tests/manual/smoke_water_qa.py` 创建三个不同水 CT 均值、带噪声和外壳/支撑物的合成 DICOM，设置非等距 PixelSpacing 及 `RescaleSlope=2, RescaleIntercept=-1024`，通过完整文件加载、worker 和实际桌面 UI 验证 HU、QA、切层、显示变换和重置。测试使用合成数据，实际水模图像的识别表现仍需结合设备与扫描协议检验。

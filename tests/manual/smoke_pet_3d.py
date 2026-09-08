@@ -1,6 +1,6 @@
 """Native PET/CT multivolume smoke test; requires a desktop OpenGL session.
 
-PYTHONPATH=src python scripts/smoke_pet_3d.py /tmp/pet-3d
+PYTHONPATH=src python tests/manual/smoke_pet_3d.py /tmp/pet-3d
 Uses only generated phantom data. Also saves four-pane and 3D screenshots.
 """
 from importlib.resources import files
@@ -19,7 +19,10 @@ from vtkmodules.vtkRenderingCore import vtkWindowToImageFilter
 from vtkmodules.vtkIOImage import vtkPNGWriter
 from vtkmodules.util.numpy_support import vtk_to_numpy
 
-from smoke_3d import make_series
+if __package__:
+    from .smoke_3d import make_series
+else:
+    from smoke_3d import make_series
 from qt_dicom_viewer.app import bind_controller
 from qt_dicom_viewer.core.dicom_scanner import _read_instance, _build_series_record
 from qt_dicom_viewer.core.volume_view import VolumeViewState

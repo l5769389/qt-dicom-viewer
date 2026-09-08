@@ -12,7 +12,7 @@
 
 ```sh
 PYTHONPATH=src QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider
-PYTHONPATH=src python scripts/smoke_pet_3d.py /tmp/pet-3d-validation
+PYTHONPATH=src python tests/manual/smoke_pet_3d.py /tmp/pet-3d-validation
 ```
 
 PACS 测试需要本机临时 HTTP 服务绑定 `127.0.0.1`。测试全部使用合成数据；尚未获得用户截图中的原始 DICOM，因此没有声称完成真实设备或临床验证。
@@ -69,14 +69,14 @@ CT 为 **457×512×512**、PET 为 **104×128×128** 的 float32 合成体积。
 复现：
 
 ```sh
-PYTHONPATH=src python scripts/benchmark_pet_locator.py /tmp/pet-locator-after.json
+PYTHONPATH=src python tests/manual/benchmark_pet_locator.py /tmp/pet-locator-after.json
 # 优化前比较需指向改动前 qt_dicom_viewer 包的父目录
-PYTHONPATH=/path/to/before python scripts/benchmark_pet_locator.py /tmp/pet-locator-before.json
+PYTHONPATH=/path/to/before python tests/manual/benchmark_pet_locator.py /tmp/pet-locator-before.json
 ```
 
 ## 截图
 
-[最新四宫格](four-pane-latest.png)、CT/PET 调窗和[英文详细信息](english-overlay-detail.png)使用 48×64×64 合成 CT/PET，已更新本轮字号、英文标签和中央定位小十字。其余面板 QML 验证使用 3×4×4 合成体积，重点是布局和事件；不代表临床影像质量。
+[最新四宫格](ct-window.png)、CT/PET 调窗和[英文详细信息](english-overlay-detail.png)使用 48×64×64 合成 CT/PET，已更新本轮字号、英文标签和中央定位小十字。其余面板 QML 验证使用 3×4×4 合成体积，重点是布局和事件；不代表临床影像质量。
 
 - [CT 调窗](ct-window.png)、[PET 调窗](pet-window.png)：独立一级工具、复用 2D 内容区、强度曲线图标与独立重置。
 - [视口设置](viewport-settings.png)：四格参考线、互斥选择和键盘焦点状态。

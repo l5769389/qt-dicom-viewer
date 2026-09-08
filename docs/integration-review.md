@@ -31,7 +31,7 @@
 - 新增跨分支回归：**3 passed**，覆盖 CT 旧帧拒绝、全局/单视口/PET 融合色表和已打开 CT 窗模板通知。
 - 四个真实 PACS 入口与原生 3D：**15 passed**，补全上述跳过项。
 - 最后界面调整的关联回归：**19 passed**，包括 PET 色表状态、标注与显示设置。
-- `scripts/smoke_3d.py`：真实 OpenGL 的旋转、六种模板、去床板、自由裁剪、分项/全局重置、视图切换与关闭重开全部通过。
+- `tests/manual/smoke_3d.py`：真实 OpenGL 的旋转、六种模板、去床板、自由裁剪、分项/全局重置、视图切换与关闭重开全部通过。
 - Python 编译、QRC 编译、资源完整性、重复方法扫描、`git diff --check` 通过。
 
 唯一现有测试警告为 VTK/NumPy 的数组 shape 弃用提示。
@@ -48,7 +48,7 @@ PACS 的 `.env` 和合成测试数据迁至 main 的 `docker/pacs/`，继续被 
 cd /Users/jun/Documents/git-repo/qt-dicom-viewer
 uv run qt-dicom-viewer
 # 使用本机 PACS 实验凭据：
-uv run python scripts/pacs_lab.py launch
+uv run python tests/manual/pacs_lab.py launch
 ```
 
 已经运行的旧窗口不会自动切换源码版本，需重新启动才能使用合并后的代码。

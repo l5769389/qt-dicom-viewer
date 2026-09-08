@@ -1,6 +1,6 @@
 """Desktop integration: synthetic rescaled DICOM -> loader -> QA worker -> QML.
 
-    PYTHONPATH=src uv run python scripts/smoke_water_qa.py /tmp/water-qa.png
+    PYTHONPATH=src uv run python tests/manual/smoke_water_qa.py /tmp/water-qa.png
 
 No patient data is used. The optional screenshot shows the five measured ROIs.
 """

@@ -127,12 +127,12 @@ PET 2D、PET MPR 与 PET/CT 融合的使用方法、定量边界及配准格式�
 
 ```bash
 uv run --group dev pytest -q
-uv run python scripts/smoke_3d.py
+uv run python tests/manual/smoke_3d.py
 ```
 
 第二条命令需要真实桌面会话和 OpenGL。它临时生成合成 DICOM 序列，验证后台加载、
 QML 工具按钮、六面方向同步、六类模板、拖动调窗及重置、交互/静止帧画质一致性、窗口缩放、2D/3D 切换、多 Tab、关闭和重新打开，
-完成后自动退出。可附加 PNG 路径导出 VTK 视口，例如 `scripts/smoke_3d.py /tmp/volume.png`。
+完成后自动退出。可附加 PNG 路径导出 VTK 视口，例如 `tests/manual/smoke_3d.py /tmp/volume.png`。
 普通 pytest 验证视角数学、斜向坐标映射、输入校验、异步结果隔离和现有功能回归，
 不能替代目标系统的显卡、窗口合成及高 DPI 验证。
 ## 4D MPR

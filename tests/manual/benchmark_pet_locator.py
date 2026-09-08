@@ -1,6 +1,6 @@
 """Compare locator feedback using real QML and representative decoded volumes.
 
-PYTHONPATH=src python scripts/benchmark_pet_locator.py /tmp/pet-locator-after.json
+PYTHONPATH=src python tests/manual/benchmark_pet_locator.py /tmp/pet-locator-after.json
 Run the same script with PYTHONPATH pointing to a pre-change source snapshot for
 the baseline. CT: 457 x 512 x 512; PET: 104 x 128 x 128, float32. First decode is
 excluded: generated volume arrays are injected into the ordinary VolumeManager
@@ -24,7 +24,10 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 from shiboken6 import delete
 
-from smoke_pet_3d import make_pair
+if __package__:
+    from .smoke_pet_3d import make_pair
+else:
+    from smoke_pet_3d import make_pair
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.core.volume_manager import VolumeManager, series_fingerprint
 from qt_dicom_viewer.core.dicom_loader import DicomLoader

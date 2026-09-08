@@ -1,9 +1,9 @@
 """Reproducible local Orthanc/dcm4chee lab. Uses synthetic DICOM only.
 
-    uv run python scripts/pacs_lab.py prepare
+    uv run python tests/manual/pacs_lab.py prepare
     docker compose -f docker/pacs/compose.yaml up -d
-    uv run python scripts/pacs_lab.py seed
-    uv run python scripts/pacs_lab.py install-profiles
+    uv run python tests/manual/pacs_lab.py seed
+    uv run python tests/manual/pacs_lab.py install-profiles
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ import numpy as np
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import CTImageStorage, MRImageStorage, ExplicitVRLittleEndian
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 LAB = ROOT / "docker/pacs"
 ARTIFACTS = LAB / "artifacts"
 UID_ROOT = "1.2.826.0.1.3680043.10.5432.20260906"

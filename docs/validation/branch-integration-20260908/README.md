@@ -44,7 +44,7 @@ PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen PYTHONPATH=src \
   --basetemp=/tmp/qt-merge-final-regression --tb=short
 ```
 
-原生验证执行 `scripts/smoke_3d.py` 和 `scripts/smoke_pet_3d.py` 的 `main()`；启动包装器将 `bind_controller` 替换为使用 `settings_path=False`、临时 PACS 配置与导入目录的同一 `AppController`，避免修改用户设置。使用本机 macOS Qt / OpenGL 和合成数据，截图为 48×64×64 合成 CT/PET，不代表真实设备影像验证。本轮重新运行定位性能回归，完整规模的性能基准仍参见 [PET 工作流原始验证记录](../pet-fusion-workflow/README.md)。
+原生验证执行 `tests/manual/smoke_3d.py` 和 `tests/manual/smoke_pet_3d.py` 的 `main()`；启动包装器将 `bind_controller` 替换为使用 `settings_path=False`、临时 PACS 配置与导入目录的同一 `AppController`，避免修改用户设置。使用本机 macOS Qt / OpenGL 和合成数据，截图为 48×64×64 合成 CT/PET，不代表真实设备影像验证。本轮重新运行定位性能回归，完整规模的性能基准仍参见 [PET 工作流原始验证记录](../pet-fusion-workflow/README.md)。
 
 ## 合并后截图
 

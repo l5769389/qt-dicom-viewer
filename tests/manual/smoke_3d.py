@@ -1,6 +1,6 @@
 """Real-window 3D smoke test. Run separately from headless pytest.
 
-    uv run python scripts/smoke_3d.py
+    uv run python tests/manual/smoke_3d.py
 
 Creates temporary synthetic DICOM files and exercises the actual QML/worker/VTK
 path. Requires a desktop session and OpenGL. No patient data is used.
