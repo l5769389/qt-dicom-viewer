@@ -89,9 +89,14 @@ CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup
 
 ### Voxenra 0.2.0（2026-09-08）
 
+版本标签 `v0.2.0` 指向提交 `8748f2f`；macOS 构建源码与标签中的应用、打包脚本、资源及依赖文件完全一致。
+
 - macOS arm64：完整回归 870 通过、15 跳过。Voxenra.app 和 223 MiB DMG 已构建；系统图标、新名称、0.2.0 版本、Retina 图标及签名完整性检查通过。只读挂载检查安装内容后推出；冻结应用运行 12 秒，无 Python 异常或 QML 加载失败。
 - 真实 Qt/QML 窗口验证 2D、MPR、4D、CT 3D、PET/CT 融合及融合 3D，并保存六张 README 截图；无 QML 警告。使用本地匿名化 DICOM 副本，PET SUV 换算比例与原数据一致；未提交原始影像。
+- Windows x64：[标签自动构建及 Release 上传](https://github.com/l5769389/qt-dicom-viewer/actions/runs/34192544207)成功，完整回归 870 通过、15 跳过。便携 EXE 与安装版应用的 7 个 PE 图标尺寸均与新品牌 ICO 逐字节一致。
+- [Voxenra v0.2.0](https://github.com/l5769389/qt-dicom-viewer/releases/tag/v0.2.0)提供 macOS arm64 DMG、Windows x64 便携版及安装器；三个包及各自 SHA-256 共 6 个附件，GitHub 摘要与校验文件一致。macOS DMG 约 223 MiB，Windows 便携版约 221 MiB、安装器约 149 MiB。
 - 两个工作流通过 actionlint；README 图片链接、QRC 资源及依赖锁文件一致性检查通过。
+- Windows CI 改用 Qt 软件渲染执行离屏 QML 测试。首次尝试出现一次标签页 incubation 警告，下一次未复现该警告但 PET 首次加载超过 3 秒；现将首次体积加载与定位计时分开，加载等待 10 秒，拖动反馈第 95 百分位低于 33 ms 的断言保留。调整后 Windows 完整回归通过；本地标签 QML 连续 12 轮（60 项）及针对性回归 25 项通过。
 
 ### DICOMVision 0.1.0 历史验证
 
