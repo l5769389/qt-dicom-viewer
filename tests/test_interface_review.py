@@ -16,7 +16,7 @@ from test_measurement_qml import _visual_children
 @pytest.mark.parametrize("tab_type, expected", [
     (TabType.TWO_D, set()),
     (TabType.MPR, set()),
-    (TabType.THREE_D, {"voi"}),
+    (TabType.THREE_D, set()),
     (TabType.FOUR_D, set()),
 ])
 def test_placeholder_catalog_is_view_specific(tab_type, expected):

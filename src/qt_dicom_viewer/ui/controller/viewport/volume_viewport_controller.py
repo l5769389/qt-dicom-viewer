@@ -29,6 +29,7 @@ class VolumeViewportController(ViewportController):
     editStateChanged = Signal()
     maskChanged = Signal()
     selectionChanged = Signal()
+    cropModeChanged = Signal()
 
     def __init__(self, viewport_config, tool_controller, parent=None):
         super().__init__(viewport_config, parent)
@@ -55,6 +56,7 @@ class VolumeViewportController(ViewportController):
         self._selection_size = None
         self._selection_state = None
         self._drawing = False
+        self._crop_mode = "inside"
         self._tools.activeInteractionChanged.connect(self._tool_changed)
 
     def snapshot_image(self):
@@ -148,9 +150,9 @@ class VolumeViewportController(ViewportController):
     def hasCrop(self):
         return self.crop_mask is not None
 
-    @Property(bool, notify=selectionChanged)
-    def hasCropSelection(self):
-        return not self._drawing and polygon_area(self._selection) >= 9
+    @Property(str, notify=cropModeChanged)
+    def cropMode(self):
+        return self._crop_mode
 
     @property
     def selection_points(self):
@@ -168,13 +170,12 @@ class VolumeViewportController(ViewportController):
         self._update_mask()
 
     @Slot(str)
-    def applyCrop(self, mode):
-        if (self._disposed or self._load_state != "ready" or self.editBusy
-                or not self.hasCropSelection or mode not in ("inside", "outside")):
+    def setCropMode(self, mode):
+        if (self._disposed or self.editBusy or self._drawing
+                or mode not in ("inside", "outside") or mode == self._crop_mode):
             return
-        self._start_edit("crop", crop_keep_mask, self.volume.geometry,
-                         self._selection_state, self._selection_size,
-                         tuple(self._selection), mode, self.crop_mask)
+        self._crop_mode = mode
+        self.cropModeChanged.emit()
 
     def _start_edit(self, kind, function, *args):
         self._edit_token += 1
@@ -198,7 +199,6 @@ class VolumeViewportController(ViewportController):
                 self._bed_mask, self._bed_enabled = mask, True
             else:
                 self.crop_mask = mask
-                self.clearCropSelection()
             self._update_mask()
         else:
             self.editStateChanged.emit()
@@ -220,8 +220,7 @@ class VolumeViewportController(ViewportController):
         self.maskChanged.emit()
         self.editStateChanged.emit()
 
-    @Slot()
-    def clearCropSelection(self):
+    def _clear_crop_selection(self):
         self._drawing = False
         self._selection = []
         self._selection_state = self._selection_size = None
@@ -234,15 +233,15 @@ class VolumeViewportController(ViewportController):
         if self._edit_kind == "crop":
             self._cancel_edit()
         self.crop_mask = None
-        self.clearCropSelection()
+        self._clear_crop_selection()
         self._update_mask()
 
     def cancel_drag(self):
         self._drag = None
-        self.clearCropSelection()
+        self._clear_crop_selection()
 
     def viewport_resized(self):
-        # A pending screen selection belongs to exactly one camera/viewport.
+        # An unfinished stroke belongs to exactly one camera/viewport.
         self.cancel_drag()
 
     @Slot(str)
@@ -316,7 +315,7 @@ class VolumeViewportController(ViewportController):
             self._cancel_edit()
             self._bed_enabled = False
             self._bed_mask = self.crop_mask = self.visible_mask = None
-            self.clearCropSelection()
+            self._clear_crop_selection()
             self._update_mask()
         self.volume = result.volume
         if self.display_state.window is None:
@@ -343,6 +342,9 @@ class VolumeViewportController(ViewportController):
 
     def _tool_changed(self):
         self.cancel_drag()
+        if self.activeInteraction == InteractionType.VOLUME_CROP and self._crop_mode != "inside":
+            self._crop_mode = "inside"
+            self.cropModeChanged.emit()
         self.activeInteractionChanged.emit()
 
     def begin_drag(self, point, size):
@@ -350,7 +352,7 @@ class VolumeViewportController(ViewportController):
             if self.activeInteraction == InteractionType.VOLUME_CROP:
                 if self.editBusy:
                     return
-                self.clearCropSelection()
+                self._clear_crop_selection()
                 self._selection_size, self._selection_state = size, self.state
                 self._selection = [self._clamp_selection_point(point)]
                 self._drawing = True
@@ -390,12 +392,15 @@ class VolumeViewportController(ViewportController):
 
     def end_drag(self):
         if self._drawing:
-            self._drawing = False
-            self._selection = [tuple(p) for p in simplify_polygon(self._selection)]
-            if not self.hasCropSelection:
-                self.clearCropSelection()
-            else:
-                self.selectionChanged.emit()
+            polygon = tuple(tuple(p) for p in simplify_polygon(self._selection))
+            state, size = self._selection_state, self._selection_size
+            self._clear_crop_selection()
+            if (not self._disposed and self._load_state == "ready" and not self.editBusy
+                    and polygon_area(polygon) >= 9):
+                # Commit once on release. Workers retain the drawing camera,
+                # geometry and mode even if the user subsequently changes tools.
+                self._start_edit("crop", crop_keep_mask, self.volume.geometry,
+                                 state, size, polygon, self._crop_mode, self.crop_mask)
         self._drag = None
         if self._host is not None:
             self._host.request_render(interactive=False)
@@ -408,7 +413,7 @@ class VolumeViewportController(ViewportController):
 
     def _set_state(self, state):
         if state != self.state:
-            self.clearCropSelection()
+            self._clear_crop_selection()
             self.state = state
             face = nearest_face(state, self._current_face)
             if face != self._current_face:
@@ -440,7 +445,10 @@ class VolumeViewportController(ViewportController):
         self._cancel_edit()
         self._bed_enabled = False
         self.crop_mask = None
-        self.clearCropSelection()
+        self._clear_crop_selection()
+        if self._crop_mode != "inside":
+            self._crop_mode = "inside"
+            self.cropModeChanged.emit()
         self._update_mask()
         self._set_state(VolumeViewState())
         if self.volume is not None:
@@ -453,7 +461,7 @@ class VolumeViewportController(ViewportController):
         self._request_id = None
         self._drag = None
         self._cancel_edit()
-        self.clearCropSelection()
+        self._clear_crop_selection()
         host, self._host = self._host, None
         if host is not None:
             host.set_active(False)

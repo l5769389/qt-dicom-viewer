@@ -132,8 +132,8 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
     ),
     ToolDefinition(
         tool_type=ToolType.VOLUME_CROP,
-        label="裁剪",
-        icon_name="volume-crop",
+        label="分割",
+        icon_name="segmentation",
         behavior=ToolBehavior.INTERACTION_PANEL,
         default_interaction=InteractionType.VOLUME_CROP,
         supported_tab_types=frozenset((TabType.THREE_D,)),
@@ -206,9 +206,7 @@ class PlaceholderToolDefinition:
     supported_tab_types: frozenset[TabType]
 
 
-PLACEHOLDER_TOOLS = (
-    PlaceholderToolDefinition("voi", "VOI", frozenset((TabType.THREE_D,))),
-)
+PLACEHOLDER_TOOLS: tuple[PlaceholderToolDefinition, ...] = ()
 
 @dataclass(frozen=True, slots=True)
 class ToolActionDefinition:

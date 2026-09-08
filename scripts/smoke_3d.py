@@ -165,9 +165,14 @@ def main():
         QTest.mousePress(widget, Qt.LeftButton, pos=points[0])
         for point in points[1:]:
             QTest.mouseMove(widget, point, 20)
-        QTest.mouseRelease(widget, Qt.LeftButton, pos=points[-1])
         pump(80)
-        assert first.hasCropSelection
+        assert first._drawing and first._host.backend.selection_actor.GetVisibility()
+        if len(sys.argv) > 1:
+            capture(first, Path(sys.argv[1]).with_stem("volume-crop-"+first.cropMode+"-selection"))
+        QTest.mouseRelease(widget, Qt.LeftButton, pos=points[-1])
+        assert not first.selection_points
+        edit_ready(first)
+        assert first.hasCrop
 
     def exercise():
         try:
@@ -301,14 +306,11 @@ def main():
             without_bed = capture(first, None)
             assert np.mean(np.abs(with_bed.astype(float)-without_bed.astype(float))) > 0.1
             select_tool("volume-crop")
-            assert not find_item("volumeCrop-inside").isEnabled()
+            assert find_item("volumeCrop-inside").isEnabled()
+            assert find_item("volumeCrop-inside").property("checked")
+            assert "voi" not in {t["toolType"] for t in workspace.activeTab.toolController.tools}
             draw_crop(widget, [(0.34, 0.30), (0.62, 0.29), (0.55, 0.48), (0.63, 0.65), (0.36, 0.68)])
-            assert first._host.backend.selection_actor.GetVisibility()
-            if len(sys.argv) > 1:
-                capture(first, Path(sys.argv[1]).with_stem("volume-crop-selection"))
-            click_item("volumeCrop-inside")
-            edit_ready(first)
-            assert first.hasCrop and not first.hasCropSelection
+            assert first.hasCrop and not first.selection_points
             assert np.count_nonzero(first.visible_mask) < np.count_nonzero(bed_mask)
             inside_mask = first.crop_mask.copy()
             cropped = capture(first, None, allow_empty=True)
@@ -321,9 +323,10 @@ def main():
             select_tool("volume-bed")
             assert first.bedRemovalEnabled
             select_tool("volume-crop")
-            draw_crop(widget, [(0.03, 0.03), (0.12, 0.03), (0.10, 0.12), (0.03, 0.10)])
+            assert first.cropMode == "inside"
             click_item("volumeCrop-outside")
-            edit_ready(first)
+            assert first.cropMode == "outside"
+            draw_crop(widget, [(0.03, 0.03), (0.12, 0.03), (0.10, 0.12), (0.03, 0.10)])
             assert not first.visible_mask.any()
             # A completely excluded volume must remain invisible in every blend
             # mode and after transfer-function edits, not just look like air.

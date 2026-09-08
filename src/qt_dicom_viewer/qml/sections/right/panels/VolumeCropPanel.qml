@@ -21,49 +21,60 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            text: "按住左键自由圈选，松开后闭合选区，再选择裁剪方式。裁剪沿当前视线贯穿影像。"
+            text: "先选择裁剪方式，再按住左键圈选。松开鼠标后立即裁剪，范围沿当前视线贯穿影像。"
             wrapMode: Text.Wrap
             color: Theme.textSecondary
             font.pixelSize: 13
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Repeater {
-                model: [
-                    {
-                        mode: "inside",
-                        label: "裁剪内部 · 移除圈选区域内的影像"
-                    },
-                    {
-                        mode: "outside",
-                        label: "裁剪外部 · 移除圈选区域外的影像"
+        Repeater {
+            model: [
+                { mode: "inside", label: "内部裁剪", hint: "移除圈选区域内的影像" },
+                { mode: "outside", label: "外部裁剪", hint: "保留圈选区域内的影像" }
+            ]
+            delegate: Basic.Button {
+                id: action
+                required property var modelData
+                objectName: "volumeCrop-" + modelData.mode
+                Layout.fillWidth: true
+                Layout.preferredHeight: 60
+                enabled: !!root.controller && root.controller.loadState === "ready"
+                    && !root.controller.editBusy
+                checked: !!root.controller && root.controller.cropMode === modelData.mode
+                Accessible.name: modelData.label
+                onClicked: root.controller.setCropMode(modelData.mode)
+                contentItem: Column {
+                    spacing: 4
+                    Text {
+                        width: parent.width
+                        text: action.modelData.label
+                        color: action.enabled ? Theme.textPrimary : Theme.textDisabled
+                        font.pixelSize: 14
+                        horizontalAlignment: Text.AlignHCenter
                     }
-                ]
-                delegate: Controls.ToolActionButton {
-                    required property var modelData
-                    objectName: "volumeCrop-" + modelData.mode
-                    Layout.fillWidth: true
-                    iconName: "crop-" + modelData.mode
-                    label: modelData.label
-                    enabled: !!root.controller && root.controller.loadState === "ready" && root.controller.hasCropSelection && !root.controller.editBusy
-                    onClicked: root.controller.applyCrop(modelData.mode)
+                    Text {
+                        width: parent.width
+                        text: action.modelData.hint
+                        color: action.enabled ? Theme.textSecondary : Theme.textDisabled
+                        font.pixelSize: 11
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                }
+                background: Rectangle {
+                    radius: 6
+                    color: action.checked || action.down ? Theme.selectionBackground
+                        : action.hovered && action.enabled ? Theme.controlHover : Theme.controlBackground
+                    border.width: 1
+                    border.color: action.checked ? Theme.selectionBorder : Theme.controlBorder
                 }
             }
-        }
-        Controls.ToolActionButton {
-            objectName: "volumeCrop-clear"
-            Layout.fillWidth: true
-            label: "取消选区"
-            iconName: "clear"
-            enabled: !!root.controller && root.controller.hasCropSelection && !root.controller.editBusy
-            onClicked: root.controller.clearCropSelection()
         }
 
         Text {
             Layout.fillWidth: true
-            text: root.controller && root.controller.hasCrop ? "已裁剪，可继续圈选。底部“重置裁剪”恢复全部裁剪，保留去床板状态。" : "Esc 取消选区。旋转、缩放或改变视口大小后，请重新圈选。"
+            text: root.controller && root.controller.hasCrop
+                ? "已裁剪，可继续圈选。底部“重置裁剪”恢复全部裁剪，保留去床板状态。"
+                : "默认内部裁剪。切换裁剪方式只影响下一次圈选。"
             wrapMode: Text.Wrap
             color: Theme.textSecondary
             font.pixelSize: 12

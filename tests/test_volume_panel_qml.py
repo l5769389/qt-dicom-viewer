@@ -119,22 +119,32 @@ def test_freehand_crop_actions_and_bottom_reset(panel, qt_app, tmp_path):
     view, controller, tools, warnings = panel
     click(view, "primaryTool-volume-crop")
     assert tools.activePanel == "volume-crop" and tools.activeInteraction == "volume:crop"
-    assert not find(view, "volumeCrop-inside").isEnabled()
-    assert not find(view, "volumeCrop-outside").isEnabled()
-    draw(controller)
-    qt_app.processEvents()
+    assert "voi" not in {t["toolType"] for t in tools.tools}
+    assert tools.activeToolLabel == "分割"
+    assert not any(x.objectName() == "volumeCrop-clear" for x in _visual_children(view.rootObject()))
     assert find(view, "volumeCrop-inside").isEnabled()
     assert find(view, "volumeCrop-outside").isEnabled()
-    assert view.grabWindow().save(str(tmp_path/"volume-crop-panel.png"))
+    assert find(view, "volumeCrop-inside").property("checked")
+    assert not find(view, "volumeCrop-outside").property("checked")
     click(view, "volumeCrop-outside")
+    assert controller.cropMode == "outside"
+    assert find(view, "volumeCrop-outside").property("checked")
+    assert not find(view, "volumeCrop-inside").property("checked")
+    assert not controller.hasCrop and not controller.editBusy
+    draw(controller)
+    assert not find(view, "volumeCrop-inside").isEnabled()
+    assert not find(view, "volumeCrop-outside").isEnabled()
     wait_edit(qt_app, controller)
-    assert controller.hasCrop and not controller.hasCropSelection
+    assert view.grabWindow().save(str(tmp_path/"volume-crop-panel.png"))
+    assert controller.hasCrop and not controller.selection_points
     click(view, "activeToolReset")
     assert not controller.hasCrop
+    click(view, "primaryTool-pan")
+    click(view, "primaryTool-volume-crop")
+    assert controller.cropMode == "inside"
     draw(controller)
-    qt_app.processEvents()
-    click(view, "volumeCrop-clear")
-    assert not controller.hasCropSelection
+    wait_edit(qt_app, controller)
+    assert controller.hasCrop and not controller.selection_points
     assert not warnings, warnings
 
 
