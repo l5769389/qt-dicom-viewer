@@ -1,0 +1,38 @@
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+........................................................................ [ 32%]
+........................................................................ [ 40%]
+........................................................................ [ 48%]
+.............sssssssssssssss............................................ [ 57%]
+........................................................................ [ 65%]
+........................................................................ [ 73%]
+........................................................................ [ 81%]
+........................................................................ [ 89%]
+........................................................................ [ 97%]
+..................                                                       [100%]
+=============================== warnings summary ===============================
+tests/test_mtf_qml.py: 2 warnings
+tests/test_pet_volume.py: 3 warnings
+tests/test_service_panel_qml.py: 1 warning
+tests/test_volume_edit.py: 529 warnings
+tests/test_volume_view.py: 1 warning
+tests/test_water_qa.py: 21 warnings
+tests/test_water_qa_controller.py: 19 warnings
+tests/test_water_qa_qml.py: 9 warnings
+  /Users/jun/Documents/git-repo/qt-dicom-viewer/.venv/lib/python3.13/site-packages/vtkmodules/util/numpy_support.py:244: DeprecationWarning: Setting the shape on a NumPy array has been deprecated in NumPy 2.5.
+  As an alternative, you can create a new view using np.reshape (with copy=False if needed).
+    result.shape = shape
+
+tests/test_series_export.py::test_anonymous_dicom_preserves_pixels_geometry_and_uid_references[implicit]
+  /Users/jun/Documents/git-repo/qt-dicom-viewer/.venv/lib/python3.13/site-packages/pydicom/hooks.py:199: UserWarning: VR lookup failed for the raw element with tag (7776,1234) - setting VR to 'UN'
+    warn_and_log(f"{msg} - setting VR to 'UN'")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [4] tests/test_pacs_live.py:48: Opt-in Docker PACS lab
+SKIPPED [4] tests/test_pacs_live.py:72: Opt-in Docker PACS lab
+SKIPPED [2] tests/test_pacs_live.py:85: Opt-in Docker PACS lab
+SKIPPED [4] tests/test_pacs_live.py:120: Opt-in Docker PACS lab
+SKIPPED [1] tests/test_pacs_live.py:178: Needs native desktop and OpenGL
+867 passed, 15 skipped, 586 warnings in 158.70s (0:02:38)

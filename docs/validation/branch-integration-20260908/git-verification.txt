@@ -1,0 +1,9 @@
+PASS: codex/export (0706d4a1f0d49538ebc1400a33e7ac18daa45b1b) is included in main (0e004def353dcc963203be444bd87105a5b360bc)
+PASS: codex/mpr-segmentation-voi (c2c3862e07a4de83df34c1e657cb7393f9a5679d) is included in main (0e004def353dcc963203be444bd87105a5b360bc)
+PASS: codex/pet-fusion-workflow (74d0eb88da6862f2e807c88e8b9ac4e8bb64a40c) is included in main (0e004def353dcc963203be444bd87105a5b360bc)
+PASS: main (0e004def353dcc963203be444bd87105a5b360bc) is included in main (0e004def353dcc963203be444bd87105a5b360bc)
+PASS: all 17 original main untracked files are byte-for-byte unchanged
+PASS: export source worktree is clean
+PASS: mpr-voi source worktree is clean
+PASS: pet-fusion source worktree is clean
+PASS: main has no outstanding tracked changes or merge conflicts

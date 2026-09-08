@@ -1,0 +1,5 @@
+3D loaded and embedded PySide6.QtCore.QSize(810, 690)
+PASS: fixed interaction quality (pixel delta 0.0000, interactive 9.0 ms, settled 11.5 ms)
+PASS: six faces, QML direction tracking, all six presets, drag window/reset
+PASS: bed toggle coexists, native freehand preview, inside/outside crops, all six masked presets, scoped/global resets, original pixels unchanged
+PASS: render, drag tools, cube, resize, 2D/3D switching, independent tabs, close/reopen

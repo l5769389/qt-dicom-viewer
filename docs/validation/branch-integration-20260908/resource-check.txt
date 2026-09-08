@@ -1,0 +1,3 @@
+PASS: 178 unique resource entries exist
+PASS: 95 QML components load from compiled qrc
+PASS: 190 tracked Python files parse; no accidental duplicate methods
