@@ -111,13 +111,15 @@ def test_concave_polygon_and_boundary_are_selected():
     np.testing.assert_array_equal(actual, [True, True, False, True, True])
 
 
-def draw(view, points=((180, 100), (430, 110), (400, 330), (200, 350))):
+def draw(view, points=((180, 100), (430, 110), (400, 330), (200, 350)), mode=None):
     view._tools.activateTool("volume-crop")
+    if mode is not None:
+        view.setCropMode(mode)
     view.begin_drag(points[0], (640, 480))
     for point in points[1:]:
         view.update_drag(point)
     view.end_drag()
-    assert view.hasCropSelection
+    assert not view.selection_points and view.editBusy
 
 
 def wait_edit(app, view):
@@ -141,11 +143,10 @@ def test_bed_toggle_coexists_with_tools_and_crop_reset(qt_app, loaded_tab, ct_vo
     bed = view.visible_mask.copy()
     draw(view)
     assert tools.resetLabel == "重置裁剪"
-    view.applyCrop("inside")
     wait_edit(qt_app, view)
     crop = view.crop_mask.copy()
     np.testing.assert_array_equal(view.visible_mask, bed & crop)
-    assert not view.hasCropSelection
+    assert not view.selection_points
     tools.activateTool("volume-bed")
     assert not view.bedRemovalEnabled and tools.activePanel == "volume-crop"
     np.testing.assert_array_equal(view.visible_mask, crop)
@@ -164,29 +165,64 @@ def test_bed_toggle_coexists_with_tools_and_crop_reset(qt_app, loaded_tab, ct_vo
     assert not view.bedRemovalEnabled and view.visible_mask is None
 
 
-def test_cancel_invalid_selection_changes_to_camera_and_repeated_crops(qt_app, loaded_tab):
+def test_invalid_or_interrupted_strokes_do_not_apply_and_crops_accumulate(qt_app, loaded_tab):
     view = loaded_tab.activeViewport
     tools = loaded_tab.toolController
     tools.activateTool("volume-crop")
     view.begin_drag((200, 200), (640, 480))
     view.update_drag((201, 201))
     view.end_drag()
-    assert not view.hasCropSelection
-    view.applyCrop("inside")
+    assert not view.selection_points
     assert not view.editBusy
-    draw(view)
-    view.applyCrop("outside")
+    draw(view, mode="outside")
     wait_edit(qt_app, view)
     first = view.crop_mask.copy()
-    draw(view, ((0, 0), (340, 0), (340, 480), (0, 480)))
-    view.applyCrop("inside")
+    draw(view, ((0, 0), (340, 0), (340, 480), (0, 480)), mode="inside")
     wait_edit(qt_app, view)
     assert np.all(view.crop_mask <= first)
     for change in (view.cancel_drag, view.viewport_resized, lambda: view.wheel_zoom(120, 0),
                    lambda: tools.activateTool("pan"), lambda: view.setNativeVisible(False)):
-        draw(view)
+        tools.activateTool("volume-crop")
+        view.begin_drag((100, 100), (640, 480))
+        view.update_drag((300, 100))
+        view.update_drag((300, 300))
+        before = view.crop_mask
         change()
-        assert not view.hasCropSelection
+        view.end_drag()
+        assert not view.selection_points and not view.editBusy
+        assert view.crop_mask is before
+
+
+def test_crop_mode_is_chosen_before_drawing_and_each_release_applies_once(qt_app, loaded_tab):
+    view, tools = loaded_tab.activeViewport, loaded_tab.toolController
+    tools.activateTool("volume-crop")
+    assert view.cropMode == "inside"
+    points = ((180, 100), (430, 110), (400, 330), (200, 350))
+    for mode in ("inside", "outside"):
+        view.resetCrop()
+        view.setCropMode(mode)
+        assert not view.editBusy and not view.hasCrop
+        expected = crop_keep_mask(view.volume.geometry, view.state, (640, 480), points, mode)
+        draw(view, points)
+        token = view._edit_token
+        view.end_drag()
+        assert view._edit_token == token
+        view.setCropMode("inside" if mode == "outside" else "outside")
+        view.begin_drag((0, 0), (640, 480))
+        assert view.cropMode == mode and not view.selection_points
+        wait_edit(qt_app, view)
+        np.testing.assert_array_equal(view.crop_mask, expected)
+    view.setCropMode("invalid")
+    assert view.cropMode == "outside"
+    tools.activateTool("pan")
+    tools.activateTool("volume-crop")
+    assert view.cropMode == "inside"
+    view.resetCrop()
+    expected = crop_keep_mask(view.volume.geometry, view.state, (640, 480), points, "inside")
+    draw(view, points)
+    view.wheel_zoom(120, 0)
+    wait_edit(qt_app, view)
+    np.testing.assert_array_equal(view.crop_mask, expected)
 
 
 @pytest.mark.parametrize("action", ["reset", "dispose", "render-error"])

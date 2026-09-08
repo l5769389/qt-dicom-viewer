@@ -61,21 +61,15 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
         event.accept()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
-            self.host.controller.cancel_drag()
-        else:
-            QWidget.keyPressEvent(self, event)
+        QWidget.keyPressEvent(self, event)
 
     def keyReleaseEvent(self, event):
         QWidget.keyReleaseEvent(self, event)
 
     def focusOutEvent(self, event):
-        # Clicking a crop action transfers focus to QML; keep a completed
-        # selection, but never finalize a stroke interrupted by focus loss.
-        if self.host.controller._drawing:
-            self.host.controller.cancel_drag()
-        else:
-            self.host.controller.end_drag()
+        # Focus loss must never commit an unfinished stroke. A crop already
+        # dispatched on mouse release continues independently of keyboard focus.
+        self.host.controller.cancel_drag()
         super().focusOutEvent(event)
 
 
