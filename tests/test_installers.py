@@ -26,6 +26,8 @@ def test_macos_command_preserves_qml_and_vtk(builders):
     assert command[command.index("--distpath") + 1] == str(ROOT / "dist/macos")
     assert command[command.index("--codesign-identity") + 1] == "Developer ID: Test"
     assert "vtkmodules.vtkRenderingVolumeOpenGL2" in command
+    assert command.count("--icon") == 1
+    assert command[command.index("--icon") + 1] == str(ROOT / "build/installer assets/app.icns")
     assert "qt_dicom_viewer/qml" in command[command.index("--add-data") + 1]
 
 
@@ -93,3 +95,24 @@ def test_installer_is_per_user_and_does_not_delete_user_data():
     assert "skipifsilent" in source
     assert "ChineseSimplified.isl" in source
     assert "WizardStyle=modern dynamic" in source
+    assert source.count('AppUserModelID: "com.junliu.dicomvision"') == 2
+
+
+def test_generated_icons_include_small_and_retina_images(builders, tmp_path):
+    import shutil
+    Image = pytest.importorskip("PIL.Image")
+    _, _, utils = builders
+    brand = "src/qt_dicom_viewer/qml/assets/brand/dicomvision-mark.png"
+    (tmp_path / brand).parent.mkdir(parents=True)
+    shutil.copyfile(ROOT / brand, tmp_path / brand)
+    assets = utils.prepare_assets(tmp_path)
+    with Image.open(assets / "app.ico") as icon:
+        assert icon.ico.sizes() == {(s, s) for s in (16, 24, 32, 48, 64, 128, 256)}
+        for size in icon.ico.sizes():
+            frame = icon.ico.getimage(size).convert("RGBA")
+            assert frame.getextrema()[3] == (0, 255)
+    with Image.open(assets / "app.icns") as icon:
+        assert (512, 512, 2) in icon.info["sizes"]
+        icon.load()
+        assert icon.size == (1024, 1024)
+        assert icon.convert("RGBA").getextrema()[3] == (0, 255)

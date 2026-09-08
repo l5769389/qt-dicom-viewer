@@ -17,12 +17,11 @@ def pyinstaller_command(root: Path, assets: Path, *, identity: str | None = None
     from build_windows import pyinstaller_command as base_command
 
     # 共用经过验证的 QML、Qt 插件、VTK 隐式导入清单。
-    command = base_command(root, installer=True)
+    command = base_command(root, installer=True, icon=assets / "app.icns")
     command[command.index("--distpath") + 1] = str(root / "dist" / "macos")
     command[command.index("--workpath") + 1] = str(root / "build" / "macos" / APP_NAME)
     command[command.index("--specpath") + 1] = str(root / "build" / "macos")
-    options = ["--icon", str(assets / "app.icns"),
-               "--osx-bundle-identifier", BUNDLE_ID,
+    options = ["--osx-bundle-identifier", BUNDLE_ID,
                "--target-architecture", platform.machine(),
                "--codesign-identity", identity or "-"]
     return command[:-1] + options + command[-1:]
@@ -61,8 +60,12 @@ def main(argv: list[str] | None = None) -> int:
         plist_path = application / "Contents/Info.plist"
         with plist_path.open("rb") as stream:
             metadata = plistlib.load(stream)
+        icon_name = metadata.get("CFBundleIconFile", "")
+        if not icon_name or not (application / "Contents/Resources" / icon_name).is_file():
+            raise FileNotFoundError("应用包缺少 Info.plist 声明的 ICNS 图标。")
         metadata.update(CFBundleShortVersionString=app_version(PROJECT_ROOT),
-                        CFBundleVersion=app_version(PROJECT_ROOT))
+                        CFBundleVersion=app_version(PROJECT_ROOT),
+                        CFBundleDisplayName=APP_NAME, CFBundleName=APP_NAME)
         with plist_path.open("wb") as stream:
             plistlib.dump(metadata, stream)
         signing = ["codesign", "--force", "--sign", args.sign_identity or "-"]

@@ -10,7 +10,7 @@
 
 脚本可以从任意工作目录调用。需要完整源码、uv，以及首次构建时的网络访问。
 使用锁定的 Python 3.13 依赖，分别创建 `.venv-build-macos` / `.venv-build-windows`，不修改开发虚拟环境。
-图标由现有品牌 PNG 导出 ICO / ICNS；所有 QML、导航及操作图标随应用收集。
+图标由现有品牌 PNG 导出 ICO / ICNS；ICO 包含 16～256 像素表示，ICNS 包含最高 1024 像素的 Retina 表示。Windows 便携版、安装版与安装器均嵌入图标；开始菜单和桌面快捷方式与运行进程使用同一 AppUserModelID。Qt 窗口和 macOS Dock 使用同一品牌图标，macOS 应用包会检查 Info.plist 引用的 ICNS 存在。所有 QML、导航及操作图标随应用收集。
 只收集源码和依赖，不收集本地 DICOM 文件。产物包含 Python、Qt、VTK；解码器能力仍由项目依赖决定。
 
 ## macOS
@@ -68,8 +68,9 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 
 ## GitHub Actions
 
-保留原有 **Build Windows EXE** 便携版工作流，新增 **Build native installers**，只允许手动触发。
-后者分别使用 macOS 和 Windows runner，测试后上传安装包，不创建 Release、不自动发布。
+**Build Windows packages** 在 `main` 的 `src/`、`scripts/`、`packaging/`、`tests/`、依赖文件或该工作流更新后自动触发。执行回归后生成便携 EXE、安装向导 EXE 及 SHA-256 校验文件，上传到该次运行的 Artifacts。仅修改文档不会启动构建；同一分支的新构建会取消未完成的旧构建。
+
+也可手动运行并选择控制台诊断版本，此时只生成诊断便携 EXE。**Build native installers** 保留为双平台手动入口。工作流本身不创建 Release；需要长期保存的版本通过仓库 Release 归档。
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 
@@ -91,3 +92,4 @@ Windows 安装器仅做脚本/配置回归检查，尚未在 Windows 编译或�
 PyInstaller 必须在目标 OS 上构建，参见 [PyInstaller 使用文档](https://www.pyinstaller.org/en/stable/usage.html)。
 原生安装窗口分别参考 [dmgbuild 设置](https://dmgbuild.readthedocs.io/en/latest/settings.html) 和
 [Inno Setup WizardStyle](https://jrsoftware.org/ishelp/topic_setup_wizardstyle.htm)。
+运行图标与任务栏标识分别采用 [Qt 应用图标 API](https://doc.qt.io/qt-6/qguiapplication.html#windowIcon-prop) 和 [Windows AppUserModelID](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-setcurrentprocessexplicitappusermodelid)。

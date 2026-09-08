@@ -51,8 +51,8 @@ Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Add
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\DICOMVision"; Filename: "{app}\DICOMVision.exe"
-Name: "{autodesktop}\DICOMVision"; Filename: "{app}\DICOMVision.exe"; Tasks: desktopicon
+Name: "{autoprograms}\DICOMVision"; Filename: "{app}\DICOMVision.exe"; IconFilename: "{app}\DICOMVision.exe"; AppUserModelID: "com.junliu.dicomvision"
+Name: "{autodesktop}\DICOMVision"; Filename: "{app}\DICOMVision.exe"; IconFilename: "{app}\DICOMVision.exe"; AppUserModelID: "com.junliu.dicomvision"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\DICOMVision.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent

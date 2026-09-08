@@ -6,6 +6,7 @@ import importlib.util
 import io
 import logging
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,7 +19,11 @@ spec = importlib.util.spec_from_file_location(
     "build_windows", PROJECT_ROOT / "scripts" / "build_windows.py"
 )
 build_windows = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(build_windows)
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+try:
+    spec.loader.exec_module(build_windows)
+finally:
+    sys.path.pop(0)
 
 
 def test_onefile_build_keeps_package_resource_layout() -> None:
@@ -32,6 +37,7 @@ def test_onefile_build_keeps_package_resource_layout() -> None:
         f"{PROJECT_ROOT / 'src/qt_dicom_viewer/qml'}:qt_dicom_viewer/qml"
     )
     assert command[-1] == str(PROJECT_ROOT / "scripts/windows_entry.py")
+    assert command[command.index("--icon") + 1] == str(PROJECT_ROOT / "build/installer-assets/app.ico")
     assert {"PySide6.QtQuick", "PySide6.QtQuickControls2", "PySide6.QtSvg"} <= set(command)
     assert {
         "vtkmodules.qt.QVTKRenderWindowInteractor", "vtkmodules.vtkRenderingOpenGL2",
@@ -83,6 +89,7 @@ def simulated_windows(monkeypatch):
     monkeypatch.setattr(build_windows.sys, "version_info", (3, 13, 0))
     monkeypatch.setattr(build_windows.sys, "maxsize", 2**63 - 1)
     monkeypatch.setattr(build_windows.platform, "machine", lambda: "AMD64")
+    monkeypatch.setattr(build_windows, "prepare_assets", lambda root: root / "build/installer-assets")
 
 
 def test_build_failure_preserves_nonzero_exit_code(simulated_windows, monkeypatch) -> None:

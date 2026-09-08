@@ -45,8 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         compiler = find_iscc(args.iscc)  # 先检查，避免冻结结束后才发现编译器缺失。
         assets = prepare_assets(PROJECT_ROOT)
-        command = pyinstaller_command(PROJECT_ROOT, installer=True)
-        command[-1:-1] = ["--icon", str(assets / "app.ico")]
+        command = pyinstaller_command(PROJECT_ROOT, installer=True, icon=assets / "app.ico")
         subprocess.run(command, cwd=PROJECT_ROOT, check=True)
         executable = PROJECT_ROOT / "dist/windows" / APP_NAME / f"{APP_NAME}.exe"
         if not executable.is_file():

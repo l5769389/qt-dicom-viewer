@@ -19,6 +19,8 @@ uv run python tests/manual/benchmark_pet_locator.py /tmp/pet-locator.json
 
 PET 基准使用接近实际规模的体积，需要足够内存。各项验收范围见 [三维编辑](../docs/volume-editing.md)、[PET 验证](../docs/validation/pet-fusion-workflow/README.md)和[水模 QA](../docs/water-qa.md)。
 
+Windows 构建完成后，`manual/verify_windows_icons.py --icon <ICO> <EXE...>` 逐帧检查 PE 图标资源与品牌 ICO 一致，需要 build 依赖组；Windows 自动打包工作流会执行此检查。
+
 ## PACS 联调
 
 入口为 `uv run python tests/manual/pacs_lab.py --help`。工具仍使用 `docker/pacs/` 下的 Compose、配置和产物目录，迁移不改变已有实验环境。启动服务及选择性运行端到端用例的步骤见 [PACS 联调说明](../docs/pacs-lab.md)。

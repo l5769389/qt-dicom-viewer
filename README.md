@@ -229,7 +229,7 @@ Montage 调窗使用后台模态像素缓存并合并连续请求；离开可视
 - macOS：运行 `bash scripts/build_macos.sh`，生成 `.app` 和带 Applications 拖拽入口的 DMG。
 - Windows：安装 uv 和 Inno Setup 6.6+ 后，在 PowerShell 运行 `./scripts/build_windows.ps1`，生成中英文安装向导 EXE。
 - 成品输出到 `dist/installers/`；版本号读取 `pyproject.toml`。构建环境与开发环境隔离。
-- GitHub Actions 的 **Build native installers** 可手动构建两个平台，不会自动发布。
+- GitHub Actions 的 **Build Windows packages** 在 main 的代码或打包配置更新后自动生成 Windows 便携版和安装包；**Build native installers** 保留双平台手动构建。
 - 默认构建未使用商业签名证书；正式分发前需要签名、公证（macOS）及目标机安装验收。
 ## 标注、伪彩与视口设置
 
@@ -267,14 +267,14 @@ dist/DICOMVision.exe
 
 无需本地安装 Windows：工作流会在 GitHub 提供的 Windows x64 环境中执行测试和打包。
 
-1. 将要打包的代码推送到仓库。
-2. 打开仓库的 [Build Windows EXE](https://github.com/l5769389/qt-dicom-viewer/actions/workflows/build-windows.yml) 页面。
-3. 点击 **Run workflow**，选择分支；需要诊断版本时勾选控制台选项。
+1. 将应用代码、打包配置或测试改动推送到 `main`，自动触发构建；仅修改文档不会触发。
+2. 打开仓库的 [Build Windows packages](https://github.com/l5769389/qt-dicom-viewer/actions/workflows/build-windows.yml) 页面查看进度。
+3. 也可点击 **Run workflow** 选择分支；勾选控制台选项时只生成诊断便携版。
 4. 等待测试、打包和上传步骤全部成功。
-5. 在该次运行页面的 **Artifacts** 中下载 `DICOMVision-windows-x64`，解压即可得到 EXE。
+5. 在该次运行页面的 **Artifacts** 中下载 `DICOMVision-windows-x64`，解压得到便携 EXE、安装向导 EXE 和 SHA-256 校验文件。
    诊断版对应 `DICOMVision-windows-x64-debug`。
 
-工作流仅手动触发，不会在每次推送时自动构建。下载产物保留 14 天；需要长期保存时请自行下载归档。
+同一分支的新构建会取消尚未完成的旧构建。Artifacts 保留 14 天；正式归档的版本从仓库 Releases 下载。
 私有仓库的查看和下载需要仓库访问权限，构建和产物存储会计入 GitHub Actions 对应额度。
 工作流配置位于 `.github/workflows/build-windows.yml`，复用本地打包脚本与锁定依赖。
 

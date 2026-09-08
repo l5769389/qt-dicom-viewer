@@ -1,7 +1,16 @@
-name: Build Windows EXE
+name: Build Windows packages
 
-# 仅手动触发，日常推送不自动启动 Windows 构建。
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "packaging/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/build-windows.yml"
   workflow_dispatch:
     inputs:
       console:
@@ -13,11 +22,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-packages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Test and package Windows x64
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       PYTHONUTF8: "1"
       UV_PROJECT_ENVIRONMENT: .venv-build-windows
@@ -42,7 +55,7 @@ jobs:
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: uv run --locked --python 3.13 --group dev python -m pytest -q
+        run: uv run --locked --python 3.13 --group dev --group build python -m pytest -q
 
       - name: Build single-file EXE
         shell: pwsh
@@ -56,11 +69,45 @@ jobs:
           }
           exit $LASTEXITCODE
 
-      - name: Upload EXE
+      - name: Prepare Inno Setup
+        if: inputs.console != true
+        shell: pwsh
+        run: |
+          choco upgrade innosetup --yes --no-progress
+          exit $LASTEXITCODE
+
+      - name: Build Windows installer
+        if: inputs.console != true
+        shell: pwsh
+        run: ./scripts/build_windows.ps1
+
+      - name: Verify embedded application icons
+        shell: pwsh
+        run: |
+          $apps = @(Get-ChildItem dist/*.exe | ForEach-Object { $_.FullName })
+          if (Test-Path dist/windows/DICOMVision/DICOMVision.exe) {
+            $apps += (Resolve-Path dist/windows/DICOMVision/DICOMVision.exe).Path
+          }
+          uv run --locked --python 3.13 --no-dev --group build python tests/manual/verify_windows_icons.py --icon build/installer-assets/app.ico @apps
+          exit $LASTEXITCODE
+
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist/*.exe, dist/installers/*.exe -ErrorAction SilentlyContinue | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Set-Content "$($_.FullName).sha256" -Encoding utf8NoBOM
+          }
+
+      - name: Upload Windows packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: DICOMVision-windows-x64${{ inputs.console && '-debug' || '' }}
-          path: dist/*.exe
+          path: |
+            dist/*.exe
+            dist/*.sha256
+            dist/installers/*.exe
+            dist/installers/*.sha256
           if-no-files-found: error
           # 单文件 EXE 已压缩，避免重复压缩消耗构建时间。
           compression-level: 0

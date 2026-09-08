@@ -8,10 +8,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+from packaging_utils import prepare_assets
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = False) -> list[str]:
+def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = False,
+                        icon: Path | None = None) -> list[str]:
     """集中声明打包参数，资源位置不依赖调用者的工作目录。"""
     root = root.resolve()
     qml_directory = root / "src" / "qt_dicom_viewer" / "qml"
@@ -30,6 +33,7 @@ def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = 
         # 不使用 UPX 压缩 Qt DLL，避免插件损坏和额外的工具依赖。
         "--noupx",
         "--name", name,
+        "--icon", str(icon or root / "build/installer-assets/app.ico"),
         "--distpath", str(root / "dist" / "windows" if installer else root / "dist"),
         "--workpath", str(root / "build" / "windows" / name),
         "--specpath", str(root / "build" / "windows"),
@@ -70,12 +74,13 @@ def main(argv: list[str] | None = None) -> int:
         print("请使用 scripts\\build_windows.bat，以 Python 3.13 和锁定依赖打包。", file=sys.stderr)
         return 1
 
-    command = pyinstaller_command(PROJECT_ROOT, console=args.console)
     try:
+        prepare_assets(PROJECT_ROOT)
+        command = pyinstaller_command(PROJECT_ROOT, console=args.console)
         subprocess.run(command, cwd=PROJECT_ROOT, check=True)
-    except subprocess.CalledProcessError as error:
-        print("打包失败，请检查上方错误信息。", file=sys.stderr)
-        return error.returncode
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f"打包失败：{error}", file=sys.stderr)
+        return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
 
     name = "DICOMVision-debug" if args.console else "DICOMVision"
     executable = PROJECT_ROOT / "dist" / f"{name}.exe"

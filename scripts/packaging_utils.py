@@ -27,7 +27,10 @@ def prepare_assets(root: Path = PROJECT_ROOT) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     with Image.open(root / "src/qt_dicom_viewer/qml/assets/brand/dicomvision-mark.png") as source:
         icon = source.convert("RGBA")
+        if icon.width != icon.height:
+            raise ValueError("应用品牌图标必须是正方形。")
         icon.save(output / "app.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
-        icon.save(output / "app.icns")
-        icon.resize((256, 256)).save(output / "wizard-logo.png")
+        # Include Retina representations explicitly; keep the shared brand and alpha.
+        icon.resize((1024, 1024), Image.Resampling.LANCZOS).save(output / "app.icns")
+        icon.resize((256, 256), Image.Resampling.LANCZOS).save(output / "wizard-logo.png")
     return output

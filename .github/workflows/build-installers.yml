@@ -26,7 +26,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           PYTHONUTF8: "1"
-        run: uv run --locked --python 3.13 --group dev python -m pytest -q
+        run: uv run --locked --python 3.13 --group dev --group build python -m pytest -q
       - name: Build macOS DMG (ad-hoc signed)
         if: runner.os == 'macOS'
         run: bash scripts/build_macos.sh
