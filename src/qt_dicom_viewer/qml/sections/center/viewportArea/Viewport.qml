@@ -105,6 +105,7 @@ Item {
 
     // 四角信息
     Overlay {
+        id: metadataOverlay
         anchors.fill: parent
         z: 10
         anchors.margins: 8
@@ -120,7 +121,8 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 32
+        anchors.bottomMargin: metadataOverlay.visible && metadataOverlay.petWorkspace
+            ? Math.max(32, metadataOverlay.bottomTextHeight + 20) : 32
         z: 11
         pixelsPerMm: imageCanvas.pixelsPerMillimeter
         visible: viewportRoot.viewportController?.showScaleBar === true && lengthMm > 0
@@ -185,12 +187,16 @@ Item {
     }
 
     ColorBar {
+        id: viewportColorBar
+        readonly property bool avoidCornerText: metadataOverlay.visible && metadataOverlay.petWorkspace
+        readonly property real topInset: avoidCornerText ? metadataOverlay.topLeftTextHeight + 20 : 0
+        readonly property real bottomInset: avoidCornerText ? metadataOverlay.bottomLeftTextHeight + 20 : 0
         anchors.left: parent.left
         anchors.leftMargin: 14
-        anchors.verticalCenter: parent.verticalCenter
+        height: Math.max(0, Math.min(230, parent.height * 0.42, parent.height - topInset - bottomInset))
+        y: Math.max(topInset, Math.min((parent.height - height) / 2, parent.height - bottomInset - height))
         z: 15
-        visible: viewportRoot.viewportController
-            ? viewportRoot.viewportController.showColorBar : false
+        visible: viewportRoot.viewportController?.showColorBar === true && height >= 32
         stops: viewportRoot.viewportController
             ? viewportRoot.viewportController.activeColorMapStops : []
         minimumValue: viewportRoot.viewportController
@@ -204,6 +210,18 @@ Item {
         anchors.fill: parent
         z: 20
         enabled: viewportRoot.viewportController !== null
+        onPointerPressedAt: (position, buttons) => {
+            const controller = viewportRoot.viewportController
+            if (controller?.captureLocatorPress === undefined) return
+            const hit = imageCanvas.mapToDicomPixel(interactionLayer, position)
+            interactionLayer.locatorPressed = controller.captureLocatorPress(
+                position.x, position.y, buttons, hit.valid, hit.column, hit.row,
+                imageCanvas.pointHitToleranceInImagePixels, imageCanvas.lineHitToleranceInImagePixels)
+        }
+        onPointerTapFinished: viewportRoot.viewportController?.clearLocatorPress?.()
+        registrationInteraction: viewportRoot.viewportController !== null
+            && viewportRoot.viewportController.reconstructionController?.registrationActive === true
+            && ["pet", "fusion"].includes(viewportRoot.viewportController.viewportRole)
         crosshairHoverTarget:
             viewportRoot.viewportController
                 ? viewportRoot.viewportController.crosshairHoverTarget

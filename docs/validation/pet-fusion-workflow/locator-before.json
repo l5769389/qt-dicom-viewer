@@ -1,0 +1,122 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.14",
+  "source": "/tmp/pet-fusion-before-0927/qt_dicom_viewer",
+  "ct_shape": [
+    457,
+    512,
+    512
+  ],
+  "pet_shape": [
+    104,
+    128,
+    128
+  ],
+  "measurement": "QTest mouse event to actual QML locator position; excludes compositor/vsync",
+  "scenarios": {
+    "in_plane": {
+      "events": 30,
+      "artificial_delay_ms": 0.0,
+      "immediate_feedback_events": 0,
+      "feedback_ms": {
+        "p50": 40.474,
+        "p95": 44.012,
+        "max": 56.344
+      },
+      "render_ms": {
+        "p50": 35.618,
+        "p95": 39.0,
+        "max": 49.479
+      },
+      "request_to_presented_batch_ms": {
+        "p50": 38.683,
+        "p95": 42.46,
+        "max": 53.546
+      },
+      "counts": {
+        "submitted": 31,
+        "reconstructions": 31,
+        "volume_validations": 62,
+        "sample_planes": 60,
+        "window_conversions": 217,
+        "image_copies": 124,
+        "image_source_updates": 124,
+        "roi_refreshes": 93
+      }
+    },
+    "slow_backend": {
+      "events": 30,
+      "artificial_delay_ms": 120.0,
+      "immediate_feedback_events": 0,
+      "feedback_ms": {
+        "p50": 178.399,
+        "p95": 182.366,
+        "max": 188.065
+      },
+      "render_ms": {
+        "p50": 172.939,
+        "p95": 176.539,
+        "max": 182.093
+      },
+      "request_to_presented_batch_ms": {
+        "p50": 176.801,
+        "p95": 180.729,
+        "max": 186.538
+      },
+      "counts": {
+        "submitted": 31,
+        "reconstructions": 31,
+        "volume_validations": 62,
+        "sample_planes": 60,
+        "window_conversions": 217,
+        "image_copies": 124,
+        "image_source_updates": 124,
+        "roi_refreshes": 93
+      }
+    },
+    "continuous_slow_backend": {
+      "events": 100,
+      "artificial_delay_ms": 120.0,
+      "immediate_feedback_events": 0,
+      "feedback_ms": null,
+      "render_ms": {
+        "p50": 177.92,
+        "p95": 178.812,
+        "max": 178.885
+      },
+      "request_to_presented_batch_ms": {
+        "p50": 229.546,
+        "p95": 229.546,
+        "max": 229.546
+      },
+      "counts": {
+        "submitted": 101,
+        "reconstructions": 6,
+        "volume_validations": 12,
+        "sample_planes": 12,
+        "window_conversions": 42,
+        "image_copies": 4,
+        "image_source_updates": 4,
+        "roi_refreshes": 3
+      }
+    },
+    "subvoxel_plane_change": {
+      "events": 12,
+      "image_update_ms": {
+        "p50": 39.826,
+        "p95": 44.213,
+        "max": 46.527
+      },
+      "counts": {
+        "submitted": 12,
+        "reconstructions": 12,
+        "volume_validations": 24,
+        "sample_planes": 24,
+        "window_conversions": 84,
+        "image_copies": 48,
+        "image_source_updates": 48,
+        "roi_refreshes": 36
+      }
+    }
+  }
+}

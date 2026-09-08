@@ -9,11 +9,12 @@ ColumnLayout {
     id: pseudoColorPanel
     objectName: "pseudoColorPanel"
     required property var viewportController
+    property string description: "选择用于当前视口的显示色表"
     spacing: 6
 
     Text {
         Layout.fillWidth: true
-        text: "选择用于当前视口的显示色表"
+        text: pseudoColorPanel.description
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap

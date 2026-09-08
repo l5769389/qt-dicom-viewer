@@ -123,31 +123,25 @@ ColumnLayout {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "控制上限"
+                    text: "滑杆上限"
                     color: Theme.textMuted
                     font.pixelSize: 12
                 }
 
-                Components.AppTextField {
+                Components.AppNumberField {
                     objectName: "petControlUpperInput"
+                    // Partial digits must not repeatedly clamp the PET display
+                    // upper limit while editing the slider's allowed range.
+                    commitOnFinish: true
                     Layout.preferredWidth: 92
                     implicitHeight: 32
                     horizontalAlignment: Text.AlignRight
-                    text: petPanel.formatValue(
-                        petPanel.viewportController
-                            ? petPanel.viewportController.petControlUpper
-                            : 0
-                    )
+                    numberValue: petPanel.viewportController ? petPanel.viewportController.petControlUpper : 0
                     color: Theme.textPrimary
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
-                    validator: DoubleValidator { bottom: 0.001 }
-                    onEditingFinished: {
-                        const value = Number(text)
-                        if (Number.isFinite(value))
-                            petPanel.viewportController.setPetControlUpper(value)
-                        text = Qt.binding(() => petPanel.formatValue(petPanel.viewportController.petControlUpper))
-                    }
+                    minimum: 0.001; maximum: 1e12; decimals: 3
+                    onEdited: value => petPanel.viewportController.setPetControlUpper(value)
                 }
             }
 
@@ -167,7 +161,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         compact: true
                         checkable: true
-                        checked: Math.abs(
+                        checked: petPanel.viewportController !== null && Math.abs(
                             Number(modelData)
                             - petPanel.viewportController.petControlUpper
                         ) < 0.000001

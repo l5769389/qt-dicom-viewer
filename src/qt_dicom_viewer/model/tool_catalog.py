@@ -19,6 +19,28 @@ class ToolDefinition:
 
 
 TOOL_CATALOG: tuple[ToolDefinition, ...] = (
+    ToolDefinition(ToolType.CT_WINDOW, "CT 调窗", "window", ToolBehavior.INTERACTION_PANEL,
+                   default_interaction=InteractionType.WINDOW,
+                   supported_tab_types=frozenset((TabType.PETCT_FUSION,)), reset_label="重置 CT 调窗"),
+    ToolDefinition(ToolType.PET_WINDOW, "PET 调窗", "pet-window", ToolBehavior.INTERACTION_PANEL,
+                   default_interaction=InteractionType.WINDOW,
+                   supported_tab_types=frozenset((TabType.PETCT_FUSION,)), reset_label="重置 PET 调窗"),
+    ToolDefinition(
+        tool_type=ToolType.REGISTRATION,
+        label="配准",
+        icon_name="registration",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.PETCT_FUSION,)),
+        reset_label="重置配准",
+    ),
+    ToolDefinition(
+        tool_type=ToolType.FUSION_BLEND,
+        label="融合比例",
+        icon_name="fusion",
+        behavior=ToolBehavior.PANEL,
+        supported_tab_types=frozenset((TabType.PETCT_FUSION,)),
+        reset_label="重置融合比例",
+    ),
     ToolDefinition(
         tool_type=ToolType.WINDOW,
         label="调窗",

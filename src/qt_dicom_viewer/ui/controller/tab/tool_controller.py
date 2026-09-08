@@ -64,6 +64,8 @@ class ToolController(QObject):
         self._active_tool = ToolType.WINDOW
         self._active_panel: ToolType | None = ToolType.WINDOW
         self._active_interaction = InteractionType.WINDOW
+        if tab_type == TabType.PETCT_FUSION:
+            self._active_tool = self._active_panel = ToolType.CT_WINDOW
         self._active_service = ""
         self._mpr_projection_settings = MprProjectionSettings()
         self._locked_tool: ToolType | None = None
@@ -129,8 +131,10 @@ class ToolController(QObject):
 
     @Property(str, notify=resetStateChanged)
     def resetLabel(self) -> str:
+        if self._modality == "PETCT3D" and self._active_tool == ToolType.VOLUME_PRESET:
+            return "重置三维显示"
         if self._modality == "PT" and self._active_tool == ToolType.WINDOW:
-            return "重置 PET 显示"
+            return "重置 PET 强度"
         if self._active_tool == ToolType.SERVICE and self._active_service == "service:mtf":
             return "重置 MTF"
         if self._active_tool == ToolType.SERVICE and self._active_service == "service:qa":
@@ -213,6 +217,10 @@ class ToolController(QObject):
             logger.warning("Unknown interaction type: %s", interaction_value)
             return
 
+        if self._modality == "PETCT3D" and interaction not in (
+            InteractionType.PAN, InteractionType.ZOOM, InteractionType.VOLUME_ROTATE,
+        ):
+            return
         if self._tab_type == TabType.THREE_D and interaction not in (
             InteractionType.PAN, InteractionType.ZOOM, InteractionType.VOLUME_ROTATE, InteractionType.WINDOW,
             InteractionType.VOLUME_CROP,
@@ -413,6 +421,7 @@ def build_tool_items(
                 "PET 强度"
                 if modality.upper() == "PT"
                 and definition.tool_type == ToolType.WINDOW
+                else "三维显示" if modality == "PETCT3D" and definition.tool_type == ToolType.VOLUME_PRESET
                 else definition.label
             ),
             "iconName": definition.icon_name,
@@ -423,10 +432,13 @@ def build_tool_items(
         for definition in TOOL_CATALOG
         if tool_available(definition.tool_type, tab_type, modality)
     ]
+    if tab_type == TabType.PETCT_FUSION:
+        priority = {"ct-window": 0, "pet-window": 1, "pseudocolor": 2, "fusion-blend": 3, "registration": 4}
+        items.sort(key=lambda item: priority.get(item["toolType"], 5))
     placeholders = [
         {"toolType": item.key, "label": item.label, "iconName": item.key,
          "behavior": "placeholder", "available": False}
-        for item in PLACEHOLDER_TOOLS if tab_type in item.supported_tab_types
+        for item in PLACEHOLDER_TOOLS if tab_type in item.supported_tab_types and modality != "PETCT3D"
     ]
     # 重置始终位于最后；未实现入口不会改变工具控制器的状态或触发命令。
     reset_index = next((i for i, item in enumerate(items)
@@ -439,6 +451,14 @@ def tool_available(
     tab_type: TabType | None,
     modality: str = "",
 ) -> bool:
+    if modality == "PETCT3D":
+        return tool in (ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
+                        ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)
+    if tab_type == TabType.PETCT_FUSION:
+        return tool in (ToolType.REGISTRATION, ToolType.FUSION_BLEND, ToolType.CT_WINDOW, ToolType.PET_WINDOW, ToolType.SCROLL,
+                        ToolType.PAN, ToolType.ZOOM, ToolType.MEASURE, ToolType.ROTATE,
+                        ToolType.ANNOTATE, ToolType.PSEUDOCOLOR, ToolType.VIEWPORT_SETTINGS,
+                        ToolType.RESET)
     if modality.upper() == "PT" and tool in (ToolType.SERVICE, ToolType.MIP):
         return False
     if tab_type == TabType.MONTAGE:

@@ -9,12 +9,16 @@ class DicomImageProvider(QQuickImageProvider):
     def __init__(self) -> None:
         super().__init__(QQuickImageProvider.Image)
         self._images: dict[str, QImage] = {}
+        self._content_keys: dict[str, tuple] = {}
 
     def set_array(
         self,
         viewport_id: str,
         pixels: np.ndarray,
+        content_key: tuple | None = None,
     ) -> None:
+        if content_key is not None and self._content_keys.get(viewport_id) == content_key:
+            return
         pixels = np.ascontiguousarray(
             pixels,
             dtype=np.uint8,
@@ -44,12 +48,18 @@ class DicomImageProvider(QQuickImageProvider):
 
         # 必须 copy，让 QImage 脱离 NumPy 内存生命周期
         self._images[viewport_id] = image.copy()
+        if content_key is not None:
+            self._content_keys[viewport_id] = content_key
+        else:
+            self._content_keys.pop(viewport_id, None)
 
     def set_image(self, image_id: str, image: QImage) -> None:
         self._images[image_id] = image.copy()
+        self._content_keys.pop(image_id, None)
 
     def remove_image(self, viewport_id: str) -> None:
         self._images.pop(viewport_id, None)
+        self._content_keys.pop(viewport_id, None)
 
     def requestImage(
         self,

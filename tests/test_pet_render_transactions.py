@@ -11,6 +11,11 @@ from qt_dicom_viewer.core.dicom_loader import DicomLoader
 from qt_dicom_viewer.core.volume_manager import VolumeManager
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
 from qt_dicom_viewer.service.render_serivce import RenderService
+from test_pet_fusion import paired_series
+from qt_dicom_viewer.ui.controller.workspace_controller import WorkspaceController
+from qt_dicom_viewer.ui.dicom_image_provider import DicomImageProvider
+from qt_dicom_viewer.core.pet_reconstruction import PetReconstructor
+import numpy as np
 
 
 def test_stack_decode_cache_reused_for_unit_and_window(tmp_path, monkeypatch):
@@ -89,3 +94,175 @@ def test_render_queue_has_only_running_and_latest_request(qt_app, monkeypatch, f
     finally:
         release.set()
         service.shutdown()
+
+
+def test_registration_presents_completed_preview_with_a_newer_transform_queued(qt_app, paired_series, monkeypatch):
+    catalog, ct, pet = paired_series
+    provider = DicomImageProvider()
+    workspace = WorkspaceController(catalog, provider)
+    service = RenderService(catalog, VolumeManager())
+    workspace.renderRequested.connect(service.submit)
+    service.rendered.connect(workspace.handleRenderResult)
+    service.failed.connect(workspace.handleRenderFailure)
+    entered, release, second_entered, second_release = Event(), Event(), Event(), Event()
+    render = service._worker._pet_reconstructor.render
+    reads = []
+
+    def held_render(request):
+        if request.preview:
+            reads.append(request)
+            if len(reads) == 1:
+                entered.set()
+                assert release.wait(10)
+            elif len(reads) == 2:
+                second_entered.set()
+                assert second_release.wait(10)
+        return render(request)
+
+    monkeypatch.setattr(service._worker._pet_reconstructor, "render", held_render)
+    try:
+        workspace.createFusionTab(ct.series_instance_uid, pet.series_instance_uid)
+        tab = next(iter(workspace._tab_dict.values()))
+        wait_until(lambda: tab.ready)
+        committed = tab._committed_request
+        fusion = tab.activeViewport
+        old_image = provider._images[fusion.viewportId].copy()
+        tab.setRegistrationActive(True)
+        fusion.beginInteraction(0, 0, 1, True, 1., 1., .01, .01)
+        fusion.updateRegistrationDrag(1.5, 1.)
+        wait_until(entered.is_set)
+        # Continuous movement coalesces to the latest transform, but must not
+        # starve presentation of the completed first transform.
+        for column in (1.6, 1.7, 1.8, 1.9, 2.):
+            fusion.updateRegistrationDrag(column, 1.)
+        target = tab.matrix.copy()
+        latest = tab._requested
+        release.set()
+        wait_until(second_entered.is_set)
+        wait_until(lambda: tab._presented_revision == reads[0].revision)
+        assert provider._images[fusion.viewportId] != old_image
+        np.testing.assert_array_equal(tab.matrix, target)
+        assert tab._committed_request is committed
+        assert reads[1] == latest
+        assert len(reads) == 2
+        second_release.set()
+        fusion.endInteraction(0, 0, True, 2.2, 1.)
+        wait_until(lambda: tab._committed_request == tab._requested)
+        assert not tab._committed_request.preview
+        assert tab.matrix[0, 3] == pytest.approx(1.2 * fusion._plane_geometry.column_spacing)
+        assert all(not getattr(v, "_mip_result", None) or not v._mip_result.preview
+                   for v in tab.viewports_by_id.values())
+    finally:
+        release.set()
+        second_release.set()
+        service.shutdown()
+        workspace.shutdown()
+
+
+@pytest.mark.parametrize("change", ["plane", "unit", "color", "window", "opacity", "gesture"])
+def test_registration_preview_cannot_overwrite_a_new_context(qt_app, paired_series, change):
+    catalog, ct, pet = paired_series
+    provider = DicomImageProvider()
+    workspace = WorkspaceController(catalog, provider)
+    requests = []
+    workspace.renderRequested.connect(requests.append)
+    renderer = PetReconstructor(catalog, VolumeManager())
+    try:
+        workspace.createFusionTab(ct.series_instance_uid, pet.series_instance_uid)
+        tab = next(iter(workspace._tab_dict.values()))
+        workspace.handleRenderResult(renderer.render(requests[-1]))
+        tab.setRegistrationActive(True)
+        tab.setRegistrationParameter(0, 1.)
+        stale = renderer.render(requests[-1])
+        if change == "plane": tab.setPlane("coronal")
+        elif change == "unit": tab.petController.setPetUnit("kbqml")
+        elif change == "color": tab.setFusionColorMap("hotMetal")
+        elif change == "window": tab.setCtWindow(40, 400)
+        elif change == "opacity": tab.setOpacity(.75)
+        else:
+            tab.begin_registration_drag()
+            tab.setRegistrationParameter(0, 2.)
+        images = provider._images.copy()
+        assert not tab.accepts_render_result(stale)
+        workspace.handleRenderResult(stale)
+        assert provider._images == images
+        assert tab._committed_request.revision == 1
+    finally:
+        workspace.shutdown()
+
+
+def test_failed_registration_refinement_restores_pixels_geometry_and_mip(qt_app, paired_series):
+    catalog, ct, pet = paired_series
+    provider = DicomImageProvider()
+    workspace = WorkspaceController(catalog, provider)
+    requests = []
+    workspace.renderRequested.connect(requests.append)
+    renderer = PetReconstructor(catalog, VolumeManager())
+    try:
+        workspace.createFusionTab(ct.series_instance_uid, pet.series_instance_uid)
+        tab = next(iter(workspace._tab_dict.values()))
+        original = renderer.render(requests[-1])
+        workspace.handleRenderResult(original)
+        original_images = provider._images.copy()
+        tab.setRegistrationActive(True)
+        tab.setRegistrationParameter(0, 1.)
+        workspace.handleRenderResult(renderer.render(requests[-1]))
+        assert provider._images != original_images
+        tab.finishRegistrationPreview()
+        workspace.handleRenderFailure(RenderFailure(request_id=requests[-1].request_id,
+            viewport_id=requests[-1].viewport_id, error=ValueError("refinement failed")))
+        np.testing.assert_array_equal(tab.matrix, np.eye(4))
+        assert provider._images == original_images
+        for frame in original.frames:
+            viewport = tab.viewports_by_id[frame.viewport_id]
+            assert viewport._modality_pixel is frame.modality_pixel
+            if viewport.viewportRole == "mip": assert not viewport._mip_result.preview
+            else: assert viewport._plane_geometry == frame.plane_geometry
+    finally:
+        workspace.shutdown()
+
+
+def test_new_registration_gesture_interrupts_full_mip_without_rolling_back(qt_app, paired_series, monkeypatch):
+    catalog, ct, pet = paired_series
+    workspace = WorkspaceController(catalog, DicomImageProvider())
+    service = RenderService(catalog, VolumeManager())
+    workspace.renderRequested.connect(service.submit)
+    service.rendered.connect(workspace.handleRenderResult)
+    service.failed.connect(workspace.handleRenderFailure)
+    entered, release = Event(), Event()
+    tokens, failures = [], []
+    service.failed.connect(failures.append)
+    try:
+        workspace.createFusionTab(ct.series_instance_uid, pet.series_instance_uid)
+        tab = next(iter(workspace._tab_dict.values()))
+        wait_until(lambda: tab.ready)
+        committed = tab._committed_request
+        reconstructor = service._worker._pet_reconstructor
+        full_mip = reconstructor._full_mip
+        def held_mip(volume, preview=False, cancel_event=None):
+            if not preview:
+                tokens.append(cancel_event)
+                entered.set()
+                assert release.wait(10)
+            return full_mip(volume, preview, cancel_event)
+        monkeypatch.setattr(reconstructor, "_full_mip", held_mip)
+        transform = np.eye(4)
+        transform[0, 3] = 1
+        tab.set_registration(transform)
+        wait_until(entered.is_set)
+        tab.setRegistrationActive(True)
+        tab.begin_registration_drag()
+        tab.setRegistrationParameter(0, 2)
+        assert tokens[0].is_set()
+        release.set()
+        wait_until(lambda: tab._presented_revision == tab._requested.revision)
+        assert not failures
+        assert tab.matrix[0, 3] == 2
+        assert tab._committed_request is committed
+        tab.finishRegistrationPreview()
+        wait_until(lambda: tab._committed_request == tab._requested)
+        assert not failures and tab.matrix[0, 3] == 2
+    finally:
+        release.set()
+        service.shutdown()
+        workspace.shutdown()

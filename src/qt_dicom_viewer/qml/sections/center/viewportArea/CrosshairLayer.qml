@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 
 Item {
@@ -17,7 +18,24 @@ Item {
     property real verticalWidth: root.crosshairStyle.verticalWidth ?? lineWidth
     property color horizontalColor: root.crosshairStyle.horizontalColor
     property color verticalColor: root.crosshairStyle.verticalColor
-    property real armLength: 2 * Math.hypot(root.width, root.height)
+    property real armLength: root.crosshairStyle.armLength ?? 2 * Math.hypot(root.width, root.height)
+    readonly property real outlineWidth: root.crosshairStyle.outlineWidth ?? 0
+    readonly property color outlineColor: root.crosshairStyle.outlineColor ?? "black"
+
+    component LocatorArm: Item {
+        id: arm
+        required property color color
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -root.outlineWidth
+            color: root.outlineColor
+            visible: root.outlineWidth > 0
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: arm.color
+        }
+    }
 
     Item {
         anchors.fill: parent
@@ -28,7 +46,7 @@ Item {
             angle: root.rotationDegrees
         }
 
-        Rectangle {
+        LocatorArm {
             x: root.centerX - root.centerGap / 2 - root.armLength
             y: root.centerY - root.horizontalWidth / 2
             width: root.armLength
@@ -36,7 +54,7 @@ Item {
             color: root.horizontalColor
         }
 
-        Rectangle {
+        LocatorArm {
             x: root.centerX + root.centerGap / 2
             y: root.centerY - root.horizontalWidth / 2
             width: root.armLength
@@ -44,7 +62,7 @@ Item {
             color: root.horizontalColor
         }
 
-        Rectangle {
+        LocatorArm {
             x: root.centerX - root.verticalWidth / 2
             y: root.centerY - root.centerGap / 2 - root.armLength
             width: root.verticalWidth
@@ -52,7 +70,7 @@ Item {
             color: root.verticalColor
         }
 
-        Rectangle {
+        LocatorArm {
             x: root.centerX - root.verticalWidth / 2
             y: root.centerY + root.centerGap / 2
             width: root.verticalWidth

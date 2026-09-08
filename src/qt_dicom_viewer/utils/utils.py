@@ -78,4 +78,5 @@ def _display_number(value: float | int | None, precision: int = 2) -> str:
         return "--"
     if number.is_integer():
         return str(int(number))
-    return f"{number:.{precision}f}".rstrip("0").rstrip(".")
+    text = f"{number:.{precision}f}"
+    return text.rstrip("0").rstrip(".") if precision > 0 else text

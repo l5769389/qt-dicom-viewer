@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from threading import Event
 from typing import TypeAlias
 
 import numpy as np
@@ -118,6 +119,13 @@ class PetBatchRenderRequest:
     opacity: float = 0.5
     pet_color_map: str = "grayscale"
     fusion_color_map: str = "hotIron"
+    preview: bool = False
+    interaction_id: str = ""
+    interaction_kind: str = ""  # registration / locator; preview only means reduced MIP sampling
+    interaction_final: bool = False
+    revision: int = 0
+    # Assigned by RenderService; not part of display intent or equality.
+    cancel_event: Event | None = field(default=None, compare=False, repr=False)
 
 
 RenderRequest: TypeAlias = (
@@ -150,6 +158,7 @@ class MprRenderResult(_RenderResultBase):
     plane_geometry: MprImageGeometry | None
     phase_identifier: int | None = None
     mpr_view_grids: MprViewGrids | None = None
+    content_key: tuple | None = None  # immutable sampling + display identity, independent of cursor position
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -169,6 +178,7 @@ class MontageRenderResult(_RenderResultBase):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PetMipRenderResult(MprRenderResult):
     peak_positions: np.ndarray
+    preview: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -184,6 +194,7 @@ class PetBatchRenderResult:
     ct_window: WindowLevel | None
     ct_samples: np.ndarray | None = None
     warning: str = ""
+    request: PetBatchRenderRequest | None = None
 
 
 RenderResult: TypeAlias = (

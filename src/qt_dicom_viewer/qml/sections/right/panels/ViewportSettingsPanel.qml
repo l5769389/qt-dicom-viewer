@@ -11,6 +11,48 @@ ColumnLayout {
     objectName: "viewportSettingsPanel"
     required property var viewportController
     spacing: 4
+    readonly property var petWorkspace: viewportController?.reconstructionController ?? null
+
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: settingsPanel.petWorkspace !== null
+        spacing: 8
+        Text { text: "PET 工作区"; color: Theme.textPrimary; font.bold: true }
+        Text { text: "定位标记样式"; color: Theme.textMuted; font.pixelSize: 12 }
+        RowLayout {
+            Layout.fillWidth: true
+            Repeater {
+                model: [{label:"小十字", compact:true}, {label:"参考线", compact:false}]
+                delegate: Components.AppButton {
+                    required property var modelData
+                    objectName: "petLocator-" + (modelData.compact ? "compact" : "lines")
+                    Layout.fillWidth: true
+                    text: modelData.label
+                    compact: true; checkable: true; autoExclusive: true; baseBorderWidth: 1
+                    checked: settingsPanel.petWorkspace?.compactCrosshair === modelData.compact
+                    onClicked: settingsPanel.petWorkspace.setCompactCrosshair(modelData.compact)
+                }
+            }
+        }
+        Text { text: "四角信息"; color: Theme.textMuted; font.pixelSize: 12 }
+        RowLayout {
+            Layout.fillWidth: true
+            Repeater {
+                model: [{label:"精简", compact:true}, {label:"详细", compact:false}]
+                delegate: Components.AppButton {
+                    required property var modelData
+                    objectName: "petInfo-" + (modelData.compact ? "compact" : "detail")
+                    Layout.fillWidth: true
+                    text: modelData.label
+                    compact: true; checkable: true; autoExclusive: true; baseBorderWidth: 1
+                    checked: settingsPanel.petWorkspace?.compactOverlay === modelData.compact
+                    onClicked: settingsPanel.petWorkspace.setCompactOverlay(modelData.compact)
+                }
+            }
+        }
+        Text { text: "应用于当前 PET 工作区的四格"; color: Theme.textMuted; font.pixelSize: 11 }
+        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.dividerColor }
+    }
 
     readonly property var settings: [
         {code: "window-annotations", label: "窗口标注信息", separator: false},

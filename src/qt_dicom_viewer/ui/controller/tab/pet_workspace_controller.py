@@ -2,9 +2,11 @@
 from dataclasses import replace
 import json
 from uuid import uuid4
+from time import monotonic
+from math import ceil
 
 import numpy as np
-from PySide6.QtCore import QObject, Property, Signal, Slot, QSaveFile, QIODevice, QUrl
+from PySide6.QtCore import QObject, Property, Signal, Slot, QSaveFile, QIODevice, QUrl, QTimer, Qt
 from PySide6.QtWidgets import QFileDialog
 
 from qt_dicom_viewer.model import (MprPlane, TabType, ToolType, ViewportConfig,
@@ -22,12 +24,17 @@ from .tool_controller import ToolController
 
 class PetWorkspaceController(TabController):
     settingsChanged = Signal()
+    volumeViewRequested = Signal()
+    snapshotCommitted = Signal(object)
+    sourceClosed = Signal()
 
     def __init__(self, config, ct_series=None, pet_series=None, parent=None):
         self.ct_series, self.pet_series = ct_series, pet_series
         self.matrix = np.eye(4)
         self.pivot = np.zeros(3)
         self._plane = MprPlane.AXIAL
+        self._compact_crosshair = True
+        self._compact_overlay = True
         self._ct_window = None
         self._opacity = 0.5
         self._pet_color = "grayscale"
@@ -43,21 +50,43 @@ class PetWorkspaceController(TabController):
         self._syncing = False
         self._applying = False
         self._closed = False
+        self._registration_interaction_id = ""
+        self._registration_dragging = False
+        self._locator_interaction_id = ""
+        self._locator_dragging = False
+        self._locator_submitted_at = 0.
+        self._render_revision = 0
+        self._presented_revision = -1
         super().__init__(config, parent)
+        self._refine_timer = QTimer(self)
+        self._refine_timer.setSingleShot(True)
+        self._refine_timer.setInterval(180)
+        self._refine_timer.timeout.connect(self.finishRegistrationPreview)
+        self._locator_timer = QTimer(self)
+        self._locator_timer.setSingleShot(True)
+        self._locator_timer.setTimerType(Qt.PreciseTimer)
+        self._locator_timer.timeout.connect(self._submit_locator)
         settings = self._tool_controller.settingsController
-        self._pet_color = settings.section("colormap")["pet"]
+        self._pet_color = "grayscale-inverted" if self.isFusion else settings.section("colormap")["pet"]
+        self._default_pet_color = self._pet_color
         settings.sectionChanged.connect(self._preferences_changed)
 
     def _preferences_changed(self, section):
         if section == "colormap":
             self._pet_color = self._tool_controller.settingsController.section("colormap")["pet"]
+            self._default_pet_color = self._pet_color
             self.settingsChanged.emit()
             self.request_render()
 
     def _create_tool_controller(self):
         self.pet_display = PetDisplayController(self)
         self.pet_display.invalidated.connect(self.request_render)
-        self._tool_controller = ToolController(tab_type=TabType.MPR, modality="PT", parent=self)
+        self._tool_controller = ToolController(
+            tab_type=TabType.PETCT_FUSION if self.isFusion else TabType.MPR,
+            modality="PT", parent=self)
+        self._tool_controller.activeToolChanged.connect(self._sync_registration_tool)
+        self._tool_controller.activeToolChanged.connect(self._finish_pointer_interaction)
+        self._tool_controller.activeInteractionChanged.connect(self._finish_pointer_interaction)
         self._tool_controller.commandRequested.connect(self._handle_tool_command)
         self._tool_controller.resetRequested.connect(self._handle_tool_reset_requested)
 
@@ -92,6 +121,29 @@ class PetWorkspaceController(TabController):
     def plane(self):
         return self._plane.value
 
+    @Slot()
+    def openVolumeView(self):
+        if self.isFusion and self.ready:
+            self.volumeViewRequested.emit()
+
+    @Property(bool, notify=settingsChanged)
+    def compactCrosshair(self):
+        return self._compact_crosshair
+
+    @Slot(bool)
+    def setCompactCrosshair(self, compact):
+        self._compact_crosshair = bool(compact)
+        self.settingsChanged.emit()
+
+    @Property(bool, notify=settingsChanged)
+    def compactOverlay(self):
+        return self._compact_overlay
+
+    @Slot(bool)
+    def setCompactOverlay(self, compact):
+        self._compact_overlay = bool(compact)
+        self.settingsChanged.emit()
+
     @Property(float, notify=settingsChanged)
     def ctCenter(self):
         return self._ct_window.center if self._ct_window else 40.
@@ -123,12 +175,12 @@ class PetWorkspaceController(TabController):
     @property
     def ct_description(self):
         return (f"{self.ct_series.patient_name} · "
-                f"{self.ct_series.series_description or self.ct_series.series_instance_uid[-12:]}") if self.ct_series else ""
+                f"{self.ct_series.series_description or '未命名 CT 序列'}") if self.ct_series else ""
 
     @property
     def pet_description(self):
         return (f"{self.pet_series.patient_name} · "
-                f"{self.pet_series.series_description or self.pet_series.series_instance_uid[-12:]}") if self.pet_series else ""
+                f"{self.pet_series.series_description or '未命名 PET 序列'}") if self.pet_series else ""
 
     @Property(bool, notify=settingsChanged)
     def registrationActive(self):
@@ -138,12 +190,11 @@ class PetWorkspaceController(TabController):
     def registrationStatus(self):
         if not self.isFusion:
             return ""
-        if self._registration_active:
-            return "手动配准中"
+        if self._registration_changed and self._registration_dragging:
+            return "配准调整中"
         if self._registration_changed:
             return "已手动调整"
-        a, b = self.ct_series.frame_of_reference_uid, self.pet_series.frame_of_reference_uid
-        return "DICOM 坐标对齐" if a and a == b else "待手动配准 · 坐标预览"
+        return ""
 
     @Property("QVariantList", notify=settingsChanged)
     def registrationParameters(self):
@@ -154,14 +205,33 @@ class PetWorkspaceController(TabController):
         return viewport_id == self._tab_config.tab_id or super().contains_viewport(viewport_id)
 
     def accepts_render_result(self, result):
-        return not self._closed and result.response_id == self._latest
+        if self._closed:
+            return False
+        if result.response_id == self._latest:
+            return True
+        request = result.request
+        # Only earlier transforms from the same gesture may be presented.
+        # Any change of plane, unit, palette, window or tool ends this context.
+        return bool(request and request.interaction_id
+                    and ((request.preview and request.interaction_id == self._registration_interaction_id)
+                         or (request.interaction_kind == "locator"
+                             and request.interaction_id == self._locator_interaction_id))
+                    and request.revision > self._presented_revision)
 
     def init_render(self):
         self.request_render()
 
-    def request_render(self):
+    def request_render(self, *, preview=False, finish_preview=False, locator=False, locator_final=False):
         if self._closed or self._applying:
             return
+        if not locator:
+            self._clear_locator_context()
+        if not preview and not finish_preview:
+            self._registration_interaction_id = ""
+            self._refine_timer.stop()
+        elif preview and not self._registration_interaction_id:
+            self._registration_interaction_id = str(uuid4())
+        self._render_revision += 1
         self._latest = str(uuid4())
         state = self.pet_display.target
         self._requested = PetBatchRenderRequest(
@@ -173,7 +243,13 @@ class PetWorkspaceController(TabController):
             value_unit=state.meta.unit_id if state else None,
             pet_window=state.window if state else None, ct_window=self._ct_window,
             transform=tuple(self.matrix.ravel()), opacity=self._opacity,
-            pet_color_map=self._pet_color, fusion_color_map=self._fusion_color)
+            pet_color_map=self._pet_color, fusion_color_map=self._fusion_color,
+            preview=preview, interaction_id=self._registration_interaction_id,
+            revision=self._render_revision,
+            interaction_kind="locator" if locator else "registration" if self._registration_interaction_id else "",
+            interaction_final=locator_final or finish_preview)
+        if locator:
+            self._requested = replace(self._requested, interaction_id=self._locator_interaction_id)
         self.renderRequested.emit(self._requested)
 
     def handleRenderResult(self, result):
@@ -181,22 +257,29 @@ class PetWorkspaceController(TabController):
             return
         self._applying = True
         try:
-            self._last_result = result
-            self._committed_request = self._requested
-            self._target_mpr_state = result.state
-            if self._initial_mpr_state is None:
-                self._initial_mpr_state = result.state
-            self.pet_display.accept(result.pet_volume.pixel_value_meta, result.pet_window)
-            self._ct_window = result.ct_window
-            self._warning, self._error = result.warning, ""
+            request = result.request or self._requested
+            self._presented_revision = request.revision
+            intermediate = request.preview or (request.interaction_kind == "locator" and not request.interaction_final)
+            if not intermediate:
+                self._last_result = result
+                self._committed_request = request
+                self._target_mpr_state = result.state
+                if self._initial_mpr_state is None:
+                    self._initial_mpr_state = result.state
+                self.pet_display.accept(result.pet_volume.pixel_value_meta, result.pet_window)
+                self._ct_window = result.ct_window
+                self._warning, self._error = result.warning, ""
             for frame in result.frames:
                 v = self._viewport_dict[frame.viewport_id]
                 if isinstance(v, LinkedPetViewport):
-                    v.apply_mpr_state(result.state)
+                    v.apply_mpr_state(self._target_mpr_state or result.state)
                     v._ct_pixels = result.ct_samples if v.viewportRole == "fusion" else None
                     v.measurementController.secondary_pixels = v._ct_pixels
                 v.handleRenderResult(frame)
+            self._sync_registration_tool()
             self.settingsChanged.emit()
+            if not intermediate:
+                self.snapshotCommitted.emit(result)
         finally:
             self._applying = False
 
@@ -204,6 +287,13 @@ class PetWorkspaceController(TabController):
         if failure.request_id != self._latest or self._closed:
             return
         self.pet_display.fail()
+        self._registration_interaction_id = ""
+        self._registration_dragging = False
+        self._clear_locator_context()
+        self._refine_timer.stop()
+        for v in self._viewport_dict.values():
+            if isinstance(v, (LinkedPetViewport, PetMipViewport)):
+                v._registration_drag = None
         if self._committed_request is not None:
             request = self._committed_request
             self.matrix = np.asarray(request.transform).reshape(4, 4).copy()
@@ -216,10 +306,13 @@ class PetWorkspaceController(TabController):
             self._fusion_color = request.fusion_color_map
             for frame in self._last_result.frames:
                 v = self._viewport_dict[frame.viewport_id]
-                if self.isFusion and isinstance(v, LinkedPetViewport):
-                    v.set_plane(self._plane)
+                if isinstance(v, LinkedPetViewport):
+                    if self.isFusion:
+                        v.set_plane(request.plane)
                     v.apply_mpr_state(self._target_mpr_state)
-                    v._apply_specific_render_result(frame)
+                    v._ct_pixels = self._last_result.ct_samples if v.viewportRole == "fusion" else None
+                    v.measurementController.secondary_pixels = v._ct_pixels
+                v.handleRenderResult(frame)
         self._error = str(failure.error)
         if self._last_result is None:
             for v in self._viewport_dict.values():
@@ -229,11 +322,67 @@ class PetWorkspaceController(TabController):
                 v._set_load_state("ready", self._error)
         self.settingsChanged.emit()
 
+    def _sync_locator_positions(self):
+        for viewport in self._viewport_dict.values():
+            if isinstance(viewport, LinkedPetViewport):
+                viewport.apply_mpr_state(self._target_mpr_state)
+            else:
+                viewport.crosshairImagePositionChanged.emit()
+
+    def _clear_locator_context(self):
+        was_dragging = self._locator_dragging
+        self._locator_interaction_id = ""
+        self._locator_dragging = False
+        self._locator_timer.stop()
+        if was_dragging:
+            for viewport in self._viewport_dict.values():
+                viewport._locator_drag = None
+                viewport.clearLocatorPress()
+
+    def begin_locator_drag(self):
+        self._locator_timer.stop()
+        self._locator_interaction_id = str(uuid4())
+        self._locator_dragging = True
+        self._locator_submitted_at = 0.
+        # A result from before the press cannot replace the new target.
+        self._latest = None
+
+    def _submit_locator(self):
+        if self._locator_dragging:
+            self._locator_submitted_at = monotonic()
+            self.request_render(locator=True)
+
+    def finish_locator_drag(self):
+        self._locator_timer.stop()
+        if self._locator_dragging:
+            self._locator_dragging = False
+            self.request_render(locator=True, locator_final=True)
+
+    def _finish_pointer_interaction(self):
+        self.finish_locator_drag()
+        for viewport in self._viewport_dict.values():
+            viewport._locator_drag = None
+            viewport.clearLocatorPress()
+            if viewport._active_drag_operation is not None:
+                viewport._active_drag_operation.cancel()
+            viewport._active_drag_operation = None
+            viewport._active_drag_start_position = None
+            viewport._fusion_window_target = None
+
     def move_center(self, center):
         if self._target_mpr_state is None:
             return
         self._target_mpr_state = move_mpr_state_center(self._target_mpr_state, center)
-        self.request_render()
+        self._sync_locator_positions()
+        if self._locator_dragging:
+            remaining = .033 - (monotonic() - self._locator_submitted_at)
+            if remaining <= 0:
+                self._locator_timer.stop()
+                self._submit_locator()
+            elif not self._locator_timer.isActive():
+                self._locator_timer.start(ceil(remaining * 1000))
+        else:
+            self.request_render()
 
     def _rotate_plane(self, plane, angle):
         if self._target_mpr_state:
@@ -296,7 +445,7 @@ class PetWorkspaceController(TabController):
         try:
             fields = ("zoom", "pan_x", "pan_y", "rotation_degrees", "horizontal_flip", "vertical_flip")
             for v in self._viewport_dict.values():
-                if v is origin or v.viewportRole == "mip":
+                if v is origin or v.viewportRole == "mip" or v.viewportType != origin.viewportType:
                     continue
                 v._state = replace(v._state, **{f: getattr(origin._state, f) for f in fields})
                 v.transformChanged.emit()
@@ -307,23 +456,52 @@ class PetWorkspaceController(TabController):
 
     @Slot(bool)
     def setRegistrationActive(self, enabled):
-        if not self.isFusion or not self.ready:
+        if not self.isFusion or (enabled and not self.ready):
             return
-        if enabled and not self._registration_active:
+        if enabled:
+            self._tool_controller.activateTool(ToolType.REGISTRATION.value)
+        elif self._tool_controller.activeTool == ToolType.REGISTRATION:
+            self._tool_controller.activateTool(ToolType.CT_WINDOW.value)
+        self._sync_registration_tool()
+
+    def _sync_registration_tool(self):
+        enabled = bool(self.isFusion and self.ready
+                       and self._tool_controller.activeTool == ToolType.REGISTRATION)
+        if enabled == self._registration_active:
+            return
+        if not enabled and self._registration_interaction_id:
+            self.finishRegistrationPreview()
+        if enabled:
             self.pivot = np.asarray(self._target_mpr_state.frame.center_patient)
         self._registration_active = enabled
         for v in self._viewport_dict.values():
             v.cancelMeasurement()
-            if isinstance(v, LinkedPetViewport):
+            if isinstance(v, (LinkedPetViewport, PetMipViewport)):
                 v._registration_drag = None
+                v._locator_drag = None
+                v.clearLocatorPress()
             v.overlayChanged.emit()
         self.settingsChanged.emit()
 
-    def set_registration(self, matrix):
+    def begin_registration_drag(self):
+        self._refine_timer.stop()
+        self._registration_interaction_id = str(uuid4())
+        self._registration_dragging = True
+
+    @Slot()
+    def finishRegistrationPreview(self):
+        self._refine_timer.stop()
+        self._registration_dragging = False
+        if self._registration_interaction_id:
+            self.request_render(finish_preview=True)
+
+    def set_registration(self, matrix, *, preview=False):
         self.matrix = rigid_matrix(matrix)
         self._registration_changed = True
         self.settingsChanged.emit()
-        self.request_render()
+        self.request_render(preview=preview)
+        if preview and not self._registration_dragging:
+            self._refine_timer.start()
 
     @Slot(int, float)
     def setRegistrationParameter(self, index, value):
@@ -331,7 +509,7 @@ class PetWorkspaceController(TabController):
             return
         values = self.registrationParameters
         values[index] = value
-        self.set_registration(registration_from_parameters(values[:3], values[3:], self.pivot))
+        self.set_registration(registration_from_parameters(values[:3], values[3:], self.pivot), preview=True)
 
     @Slot()
     def centerAlign(self):
@@ -401,10 +579,26 @@ class PetWorkspaceController(TabController):
             self.request_render()
 
     def _handle_tool_reset_requested(self, value):
-        if value == "window":
-            self.pet_display.reset()
-            if self.isFusion and self._last_result:
+        if value == "registration":
+            self.resetRegistration()
+        elif value == "ct-window":
+            if self._last_result:
                 self.set_ct_window(self._last_result.ct_volume.default_window)
+        elif value == "pet-window":
+            self.pet_display.reset()
+        elif value == "viewport-settings":
+            self.setCompactCrosshair(True)
+            self.setCompactOverlay(True)
+            self.activeViewport.reset_tool_state(ToolType.VIEWPORT_SETTINGS)
+        elif value == "window":
+            self.pet_display.reset()
+        elif value == "pseudocolor":
+            self._pet_color = self._default_pet_color
+            self._fusion_color = "hotIron"
+            self.settingsChanged.emit()
+            self.request_render()
+        elif value == "fusion-blend":
+            self.setOpacity(0.5)
         elif value == "mpr-rotate-3d":
             self._target_mpr_state = self._initial_mpr_state
             self.request_render()
@@ -413,4 +607,8 @@ class PetWorkspaceController(TabController):
 
     def dispose(self):
         self._closed = True
+        self._clear_locator_context()
+        self.sourceClosed.emit()
+        self._refine_timer.stop()
+        self._locator_timer.stop()
         super().dispose()

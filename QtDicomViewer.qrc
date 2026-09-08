@@ -68,6 +68,11 @@
         <file>src/qt_dicom_viewer/qml/sections/right/panels/WindowLevelToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/PetIntensityPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/PetWorkspacePanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/PetRegistrationPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/PetColorPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/FusionBlendPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/FusionCtWindowPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/PetVolumePanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumeDirectionPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/VolumeCropPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/WaterQaResults.qml</file>

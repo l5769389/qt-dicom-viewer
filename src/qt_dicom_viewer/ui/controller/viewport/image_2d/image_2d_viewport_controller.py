@@ -178,6 +178,7 @@ class Image2DViewportController(ViewportController):
         self._pet_display.changed.connect(self.overlayChanged.emit)
         self._pet_display.invalidated.connect(self.request_render)
         self._latest_request_id = None
+        self._content_key = None
         self._active_drag_start_position: PointerPosition | None = None
         self._annotation_drag_active = False
         self.transformChanged.connect(self._measure_controller.clearHover)
@@ -357,6 +358,15 @@ class Image2DViewportController(ViewportController):
         if not self.accepts_result(result):
             return
         self._validate_render_result(result)
+        content_key = getattr(result, "content_key", None)
+        if content_key is not None and content_key == self._content_key:
+            # Geometry's frame/anchor may follow the locator while its physical
+            # sample grid stays fixed. Keep annotations/ROI/textures untouched.
+            self._frame_meta = result.frame_meta
+            self._apply_specific_render_result(result)
+            self._set_load_state("ready")
+            return
+        self._content_key = content_key
         previous_value_meta = (
             self._frame_meta.pixel_value_meta
             if self._frame_meta is not None

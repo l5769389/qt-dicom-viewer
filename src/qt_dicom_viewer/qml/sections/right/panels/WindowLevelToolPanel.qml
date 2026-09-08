@@ -10,6 +10,8 @@ ColumnLayout {
     id: windowPanel
 
     required property var presets
+    property real currentCenter: NaN
+    property real currentWidth: NaN
 
     signal actionTriggered(
         string presetId,
@@ -72,9 +74,14 @@ ColumnLayout {
             id: presetItem
 
             required property var modelData
+            objectName: "windowPreset-" + modelData.presetId
 
             width: presetList.width
             height: 38
+            hoverEnabled: true
+            checked: Number.isFinite(windowPanel.currentCenter) && Number.isFinite(windowPanel.currentWidth)
+                && Math.abs(windowPanel.currentCenter - Number(modelData.center)) < 0.01
+                && Math.abs(windowPanel.currentWidth - Number(modelData.width)) < 0.01
 
             onClicked: {
                 windowPanel.actionTriggered(
@@ -115,10 +122,14 @@ ColumnLayout {
             background: Rectangle {
                 color: presetItem.pressed
                     ? Theme.controlPressed
+                    : presetItem.checked
+                        ? Theme.selectionBackground
                     : presetItem.hovered
                         ? Theme.controlHover
                         : "transparent"
                 radius: 5
+                border.width: presetItem.visualFocus ? 2 : presetItem.checked ? 1 : 0
+                border.color: presetItem.visualFocus ? Theme.focusBorder : Theme.selectionBorder
             }
         }
     }

@@ -42,6 +42,10 @@ ViewportType: TypeAlias = MprPlane | TwoDViewType | VolumeViewType
 
 class ToolType(StrEnum):
     WINDOW = "window"
+    CT_WINDOW = "ct-window"
+    PET_WINDOW = "pet-window"
+    REGISTRATION = "registration"
+    FUSION_BLEND = "fusion-blend"
     PAN = "pan"
     ZOOM = "zoom"
     SCROLL = "scroll"
