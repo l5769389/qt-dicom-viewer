@@ -22,7 +22,7 @@ ApplicationWindow {
     minimumWidth: 1000
     minimumHeight: 600
     visible: true
-    title: "Qt DICOM Viewer"
+    title: "Voxenra"
     color: Theme.appBackground
 
     RowLayout {

@@ -18,7 +18,7 @@ def test_new_windows_inherit_brand_icon_without_changing_settings_identity(qt_ap
         assert not qt_app.windowIcon().isNull()
         assert not window.icon().isNull()
         assert not window.icon().pixmap(32, 32).isNull()
-        assert qt_app.applicationDisplayName() == "DICOMVision"
+        assert qt_app.applicationDisplayName() == "Voxenra"
         assert (qt_app.organizationName(), qt_app.applicationName()) == settings_identity
     finally:
         qt_app.setWindowIcon(previous_icon)

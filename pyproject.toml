@@ -1,7 +1,7 @@
 [project]
 name = "qt-dicom-viewer"
-version = "0.1.0"
-description = "A lightweight DICOM viewer built with PySide6 and QML."
+version = "0.2.0"
+description = "Voxenra — DICOM viewing, MPR, PET/CT fusion and volume rendering."
 readme = "README.md"
 authors = [
     { name = "Jun Liu", email = "5769389@qq.com" }
@@ -15,6 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
+voxenra = "qt_dicom_viewer.app:main"
 qt-dicom-viewer = "qt_dicom_viewer.app:main"
 
 [dependency-groups]

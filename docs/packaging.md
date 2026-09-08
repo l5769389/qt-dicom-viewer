@@ -1,16 +1,16 @@
-# DICOMVision 打包与安装
+# Voxenra 打包与安装
 
 ## 输出与安装界面
 
 | 平台 | 本机构建入口 | 产物 / 安装方式 |
 | --- | --- | --- |
-| macOS | `bash scripts/build_macos.sh` | `dist/macos/DICOMVision.app`；`dist/installers/DICOMVision-<版本>-macos-<架构>.dmg`，打开后将应用拖入 Applications |
-| Windows x64 | `./scripts/build_windows.ps1` | `dist/installers/DICOMVision-<版本>-windows-x64-setup.exe`，原生安装向导 |
-| Windows x64 便携版 | `scripts\build_windows.bat` | `dist/DICOMVision.exe`，保留原有入口，无安装向导 |
+| macOS | `bash scripts/build_macos.sh` | `dist/macos/Voxenra.app`；`dist/installers/Voxenra-<版本>-macos-<架构>.dmg`，打开后将应用拖入 Applications |
+| Windows x64 | `./scripts/build_windows.ps1` | `dist/installers/Voxenra-<版本>-windows-x64-setup.exe`，原生安装向导 |
+| Windows x64 便携版 | `scripts\build_windows.bat` | `dist/Voxenra.exe`，保留原有入口，无安装向导 |
 
 脚本可以从任意工作目录调用。需要完整源码、uv，以及首次构建时的网络访问。
 使用锁定的 Python 3.13 依赖，分别创建 `.venv-build-macos` / `.venv-build-windows`，不修改开发虚拟环境。
-图标由现有品牌 PNG 导出 ICO / ICNS；ICO 包含 16～256 像素表示，ICNS 包含最高 1024 像素的 Retina 表示。Windows 便携版、安装版与安装器均嵌入图标；开始菜单和桌面快捷方式与运行进程使用同一 AppUserModelID。Qt 窗口和 macOS Dock 使用同一品牌图标，macOS 应用包会检查 Info.plist 引用的 ICNS 存在。所有 QML、导航及操作图标随应用收集。
+品牌源文件为 `voxenra-mark.svg`，随应用提供 1024 像素 PNG，并导出 ICO / ICNS；ICO 包含 16～256 像素表示，ICNS 包含最高 1024 像素的 Retina 表示。Windows 便携版、安装版与安装器均嵌入图标；开始菜单和桌面快捷方式与运行进程使用同一 AppUserModelID。Qt 窗口和 macOS Dock 使用同一品牌图标，macOS 应用包会检查 Info.plist 引用的 ICNS 存在。所有 QML、导航及操作图标随应用收集。
 只收集源码和依赖，不收集本地 DICOM 文件。产物包含 Python、Qt、VTK；解码器能力仍由项目依赖决定。
 
 ## macOS
@@ -56,9 +56,9 @@ bash scripts/build_macos.sh \
 PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或通过 uv 直接运行 Python 入口；无需关闭系统安全策略。
 
 安装向导提供中英文选择、欢迎页、安装说明、路径、可选桌面快捷方式、安装进度与完成后启动。
-窗口使用原生现代样式，并随系统选择深浅色；复用 DICOMVision 品牌图标。
+窗口使用原生现代样式，并随系统选择深浅色；复用 Voxenra 品牌图标。
 中文覆盖主要安装/卸载流程，底层技术错误保留 Inno Setup 英文回退。
-默认安装到 `%LOCALAPPDATA%\Programs\DICOMVision`，仅当前用户，无管理员权限要求。
+默认安装到 `%LOCALAPPDATA%\Programs\Voxenra`，仅当前用户，无管理员权限要求。
 开始菜单会添加快捷方式；桌面快捷方式默认不选。
 固定 AppId 用于同一应用的升级识别；版本统一读取 `pyproject.toml`。
 卸载入口在 Windows“设置 → 已安装的应用”。卸载不执行通配目录清理；个人 DICOM 文件请保存在安装目录之外。
@@ -70,10 +70,10 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 
 **Build Windows packages** 在 `main` 的 `src/`、`scripts/`、`packaging/`、`tests/`、依赖文件或该工作流更新后自动触发。执行回归后生成便携 EXE、安装向导 EXE 及 SHA-256 校验文件，上传到该次运行的 Artifacts。仅修改文档不会启动构建；同一分支的新构建会取消未完成的旧构建。
 
-推送 `v*` 版本标签后，会构建该标签源码；标签必须与 `pyproject.toml` 中的版本一致（例如 `v0.1.0` 对应 `0.1.0`）。测试与图标校验成功后，独立发布任务下载本次 Artifact，再校验 SHA-256，并将以下四个附件上传到同名 Release：
+推送 `v*` 版本标签后，会构建该标签源码；标签必须与 `pyproject.toml` 中的版本一致（例如 `v0.2.0` 对应 `0.2.0`）。测试与图标校验成功后，独立发布任务下载本次 Artifact，再校验 SHA-256，并将以下四个附件上传到同名 Release：
 
-- `DICOMVision-<版本>-windows-x64-portable.exe` 与 `.exe.sha256`
-- `DICOMVision-<版本>-windows-x64-setup.exe` 与 `.exe.sha256`
+- `Voxenra-<版本>-windows-x64-portable.exe` 与 `.exe.sha256`
+- `Voxenra-<版本>-windows-x64-setup.exe` 与 `.exe.sha256`
 
 已有 Release 保留说明、macOS 附件和发布状态；没有时先创建草稿，便于与 macOS 包一并发布。重跑只更新对应版本的 Windows 附件。Release Assets 不受 Actions Artifact 的 14 天保留期影响。
 
@@ -83,9 +83,19 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 
+应用现名 Voxenra。安装器 AppId、macOS bundle ID、Windows AppUserModelID 和原有设置标识保持兼容；Windows 升级会移除旧品牌可执行文件和快捷方式，不清理影像、日志或设置。归档旧构建时，工作流从对应源码读取品牌名称，支持已有 DICOMVision 版本。
+
 ## 验收清单
 
-本次验证（2026-09-08，版本提交 `d8ae41b`）：
+### Voxenra 0.2.0（2026-09-08）
+
+- macOS arm64：完整回归 870 通过、15 跳过。Voxenra.app 和 223 MiB DMG 已构建；系统图标、新名称、0.2.0 版本、Retina 图标及签名完整性检查通过。只读挂载检查安装内容后推出；冻结应用运行 12 秒，无 Python 异常或 QML 加载失败。
+- 真实 Qt/QML 窗口验证 2D、MPR、4D、CT 3D、PET/CT 融合及融合 3D，并保存六张 README 截图；无 QML 警告。使用本地匿名化 DICOM 副本，PET SUV 换算比例与原数据一致；未提交原始影像。
+- 两个工作流通过 actionlint；README 图片链接、QRC 资源及依赖锁文件一致性检查通过。
+
+### DICOMVision 0.1.0 历史验证
+
+验证日期 2026-09-08，版本提交 `d8ae41b`：
 
 - macOS arm64：完整回归 870 通过、15 跳过；生成 0.1.0 的 `.app` 和约 224 MiB 的 DMG。系统图标读取显示正确 DV 图标；bundle 的 ICNS 引用、Retina 图标、签名完整性与 DMG 完整性检查通过。只读挂载检查应用、安装说明与 Applications 链接后推出。冻结应用离屏运行 12 秒，无 Python 异常、图标错误或 QML 加载失败。
 - Windows x64：[main 推送自动构建](https://github.com/l5769389/qt-dicom-viewer/actions/runs/34181423224)成功，完整回归 870 通过、15 跳过；便携 EXE 和 Inno Setup 安装包生成成功。读取便携版及安装版应用的 PE 图标资源，7 个尺寸均与品牌 ICO 逐字节一致。两个 EXE 及 SHA-256 文件已上传为 `DICOMVision-windows-x64` Artifact。

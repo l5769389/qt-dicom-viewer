@@ -118,7 +118,7 @@ class Anonymizer:
         dataset.PatientName = "ANONYMOUS"
         dataset.PatientID = self.patient_id
         dataset.PatientIdentityRemoved = "YES"
-        dataset.DeidentificationMethod = "Qt DICOM Viewer metadata de-identification; pixels unchanged"
+        dataset.DeidentificationMethod = "Voxenra metadata de-identification; pixels unchanged"
         dataset.preamble = b"\0" * 128
         dataset.file_meta = FileMetaDataset()
         dataset.file_meta.TransferSyntaxUID = transfer_syntax

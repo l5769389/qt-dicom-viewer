@@ -22,7 +22,7 @@ def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = 
     if not (qml_directory / "Main.qml").is_file() or not entry.is_file():
         raise FileNotFoundError("找不到应用入口或 QML 资源，请使用完整项目目录打包。")
 
-    name = "DICOMVision-debug" if console else "DICOMVision"
+    name = "Voxenra-debug" if console else "Voxenra"
     return [
         sys.executable,
         "-m", "PyInstaller",
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--console", action="store_true",
-        help="生成带控制台的 DICOMVision-debug.exe，便于排查启动和 QML 错误。",
+        help="生成带控制台的 Voxenra-debug.exe，便于排查启动和 QML 错误。",
     )
     args = parser.parse_args(argv)
 
@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"打包失败：{error}", file=sys.stderr)
         return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
 
-    name = "DICOMVision-debug" if args.console else "DICOMVision"
+    name = "Voxenra-debug" if args.console else "Voxenra"
     executable = PROJECT_ROOT / "dist" / f"{name}.exe"
     if not executable.is_file():
         print(f"打包没有生成预期文件：{executable}", file=sys.stderr)

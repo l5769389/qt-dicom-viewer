@@ -32,7 +32,7 @@ def test_onefile_build_keeps_package_resource_layout() -> None:
     assert "--onefile" in command
     assert "--windowed" in command
     assert "--console" not in command
-    assert command[command.index("--name") + 1] == "DICOMVision"
+    assert command[command.index("--name") + 1] == "Voxenra"
     assert command[command.index("--add-data") + 1] == (
         f"{PROJECT_ROOT / 'src/qt_dicom_viewer/qml'}:qt_dicom_viewer/qml"
     )
@@ -55,7 +55,7 @@ def test_console_build_uses_separate_executable() -> None:
 
     assert "--console" in command
     assert "--windowed" not in command
-    assert command[command.index("--name") + 1] == "DICOMVision-debug"
+    assert command[command.index("--name") + 1] == "Voxenra-debug"
 
 
 def test_build_paths_do_not_depend_on_working_directory(tmp_path, monkeypatch) -> None:
@@ -118,7 +118,7 @@ def test_success_requires_expected_executable(simulated_windows, monkeypatch, tm
 
     def successful_build(*args, **kwargs):
         (tmp_path / "dist").mkdir()
-        (tmp_path / "dist" / "DICOMVision.exe").touch()
+        (tmp_path / "dist" / "Voxenra.exe").touch()
 
     monkeypatch.setattr(build_windows.subprocess, "run", successful_build)
 

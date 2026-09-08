@@ -33,9 +33,9 @@ def configure_process_identity() -> None:
 
 
 def configure_application_identity(app: QApplication) -> None:
-    app.setApplicationDisplayName("DICOMVision")
+    app.setApplicationDisplayName("Voxenra")
     pixmap = QPixmap()
-    brand = files("qt_dicom_viewer").joinpath("qml/assets/brand/dicomvision-mark.png")
+    brand = files("qt_dicom_viewer").joinpath("qml/assets/brand/voxenra-mark.png")
     if pixmap.loadFromData(brand.read_bytes()):
         app.setWindowIcon(QIcon(pixmap))
     else:

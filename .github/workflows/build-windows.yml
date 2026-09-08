@@ -45,6 +45,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       release_tag: ${{ steps.version.outputs.release_tag }}
+      app_name: ${{ steps.version.outputs.app_name }}
     env:
       PYTHONUTF8: "1"
       UV_PROJECT_ENVIRONMENT: .venv-build-windows
@@ -76,10 +77,15 @@ jobs:
         run: |
           uv run --locked --python 3.13 --no-dev python - <<'PY'
           import os
+          import re
           import tomllib
           from pathlib import Path
 
           tag = os.environ["RELEASE_TAG"]
+          source = Path("scripts/packaging_utils.py").read_text(encoding="utf-8")
+          name = re.search(r'^APP_NAME = "([A-Za-z0-9]+)"$', source, re.MULTILINE).group(1)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"app_name={name}\n")
           if tag:
               version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
               if tag != f"v{version}":
@@ -121,10 +127,13 @@ jobs:
 
       - name: Verify embedded application icons
         shell: pwsh
+        env:
+          BUILD_APP_NAME: ${{ steps.version.outputs.app_name }}
         run: |
           $apps = @(Get-ChildItem dist/*.exe | ForEach-Object { $_.FullName })
-          if (Test-Path dist/windows/DICOMVision/DICOMVision.exe) {
-            $apps += (Resolve-Path dist/windows/DICOMVision/DICOMVision.exe).Path
+          $installedApp = "dist/windows/${env:BUILD_APP_NAME}/${env:BUILD_APP_NAME}.exe"
+          if (Test-Path $installedApp) {
+            $apps += (Resolve-Path $installedApp).Path
           }
           uv run --locked --python 3.13 --no-dev --group build python tests/manual/verify_windows_icons.py --icon build/installer-assets/app.ico @apps
           exit $LASTEXITCODE
@@ -140,7 +149,7 @@ jobs:
       - name: Upload Windows packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: DICOMVision-windows-x64${{ inputs.console && '-debug' || '' }}
+          name: ${{ steps.version.outputs.app_name }}-windows-x64${{ inputs.console && '-debug' || '' }}
           path: |
             dist/*.exe
             dist/*.sha256
@@ -168,6 +177,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ inputs.release_tag || needs.build.outputs.release_tag }}
       ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || github.run_id }}
+      RELEASE_APP_NAME: ${{ needs.build.outputs.app_name }}
 
     steps:
       - name: Validate existing build provenance
@@ -206,11 +216,16 @@ jobs:
           project = tomllib.loads(base64.b64decode(content["content"]).decode("utf-8"))
           if tag != f"v{project['project']['version']}":
               raise SystemExit("Release tag does not match the source project version")
-          print(f"Verified build {run_id} at {target['sha']} for {tag}")
+          branding = api(f"contents/scripts/packaging_utils.py?ref={target['sha']}")
+          source = base64.b64decode(branding["content"]).decode("utf-8")
+          name = re.search(r'^APP_NAME = "([A-Za-z0-9]+)"$', source, re.MULTILINE).group(1)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write(f"RELEASE_APP_NAME={name}\n")
+          print(f"Verified {name} build {run_id} at {target['sha']} for {tag}")
           PY
 
       - name: Download verified Windows packages
-        run: gh run download "$ARTIFACT_RUN_ID" --name DICOMVision-windows-x64 --dir windows-packages
+        run: gh run download "$ARTIFACT_RUN_ID" --name "$RELEASE_APP_NAME-windows-x64" --dir windows-packages
 
       - name: Prepare and verify Release assets
         run: |
@@ -221,12 +236,13 @@ jobs:
           from pathlib import Path
 
           version = os.environ["RELEASE_TAG"][1:]
+          app_name = os.environ["RELEASE_APP_NAME"]
           source = Path("windows-packages")
           destination = Path("release-assets")
           destination.mkdir()
           packages = {
-              source / "DICOMVision.exe": f"DICOMVision-{version}-windows-x64-portable.exe",
-              source / "installers" / f"DICOMVision-{version}-windows-x64-setup.exe": f"DICOMVision-{version}-windows-x64-setup.exe",
+              source / f"{app_name}.exe": f"{app_name}-{version}-windows-x64-portable.exe",
+              source / "installers" / f"{app_name}-{version}-windows-x64-setup.exe": f"{app_name}-{version}-windows-x64-setup.exe",
           }
           for package, name in packages.items():
               checksum = package.with_suffix(".exe.sha256")
@@ -244,7 +260,7 @@ jobs:
         run: |
           # 复用已有 Release；新标签先建立草稿，方便与 macOS 包一并发布。
           if ! gh release view "$RELEASE_TAG" --json tagName > /dev/null; then
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "DICOMVision $RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_APP_NAME $RELEASE_TAG" --generate-notes
           fi
           # 仅替换本版本 Windows 文件，保留 macOS 附件、说明和发布状态。
           gh release upload "$RELEASE_TAG" release-assets/* --clobber

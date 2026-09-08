@@ -129,6 +129,29 @@ Rectangle {
         anchors.rightMargin: 1
         spacing: 10
 
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 14
+            Layout.rightMargin: 14
+            spacing: 9
+            Image {
+                objectName: "applicationBrandMark"
+                source: "../assets/brand/voxenra-mark.svg"
+                sourceSize.width: 40
+                sourceSize.height: 40
+                Layout.preferredWidth: 34
+                Layout.preferredHeight: 34
+                fillMode: Image.PreserveAspectFit
+            }
+            Text {
+                text: "Voxenra"
+                color: Theme.textPrimary
+                font.pixelSize: 18
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+        }
+
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: 10

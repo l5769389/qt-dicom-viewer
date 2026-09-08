@@ -2,7 +2,8 @@
     <qresource>
         <file>QtDicomViewer.qmlproject</file>
         <file>src/qt_dicom_viewer/qml/Main.qml</file>
-        <file>src/qt_dicom_viewer/qml/assets/brand/dicomvision-mark.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.png</file>
+        <file>src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/open-folder.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/service.png</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/mtf.png</file>

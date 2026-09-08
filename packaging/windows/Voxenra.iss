@@ -14,12 +14,12 @@
 
 [Setup]
 AppId={{EA2DF9C6-5DC1-4CC3-913B-DB87DB5D0B5E}
-AppName=DICOMVision
+AppName=Voxenra
 AppVersion={#AppVersion}
 AppPublisher=Jun Liu
 VersionInfoVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\DICOMVision
-DefaultGroupName=DICOMVision
+DefaultDirName={localappdata}\Programs\Voxenra
+DefaultGroupName=Voxenra
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -30,10 +30,10 @@ DisableDirPage=no
 DisableProgramGroupPage=yes
 SetupIconFile={#AssetsDir}\app.ico
 WizardSmallImageFile={#AssetsDir}\wizard-logo.png
-UninstallDisplayIcon={app}\DICOMVision.exe
+UninstallDisplayIcon={app}\Voxenra.exe
 InfoBeforeFile=install-notes.txt
 OutputDir={#OutputDir}
-OutputBaseFilename=DICOMVision-{#AppVersion}-windows-x64-setup
+OutputBaseFilename=Voxenra-{#AppVersion}-windows-x64-setup
 Compression=lzma2
 SolidCompression=yes
 CloseApplications=yes
@@ -50,19 +50,25 @@ Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Add
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+; Retire only the previous brand's executable and installer-owned shortcuts.
+Type: files; Name: "{app}\DICOMVision.exe"
+Type: files; Name: "{autoprograms}\DICOMVision.lnk"
+Type: files; Name: "{autodesktop}\DICOMVision.lnk"
+
 [Icons]
-Name: "{autoprograms}\DICOMVision"; Filename: "{app}\DICOMVision.exe"; IconFilename: "{app}\DICOMVision.exe"; AppUserModelID: "com.junliu.dicomvision"
-Name: "{autodesktop}\DICOMVision"; Filename: "{app}\DICOMVision.exe"; IconFilename: "{app}\DICOMVision.exe"; AppUserModelID: "com.junliu.dicomvision"; Tasks: desktopicon
+Name: "{autoprograms}\Voxenra"; Filename: "{app}\Voxenra.exe"; IconFilename: "{app}\Voxenra.exe"; AppUserModelID: "com.junliu.dicomvision"
+Name: "{autodesktop}\Voxenra"; Filename: "{app}\Voxenra.exe"; IconFilename: "{app}\Voxenra.exe"; AppUserModelID: "com.junliu.dicomvision"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\DICOMVision.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Voxenra.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
 
 [CustomMessages]
 en.DesktopIcon=Create a desktop shortcut
 zh.DesktopIcon=创建桌面快捷方式
 en.AdditionalIcons=Shortcuts:
 zh.AdditionalIcons=快捷方式：
-en.LaunchApp=Launch DICOMVision
-zh.LaunchApp=启动 DICOMVision
+en.LaunchApp=Launch Voxenra
+zh.LaunchApp=启动 Voxenra
 
 ; No wildcard uninstall cleanup: never remove user DICOM files, logs or settings.

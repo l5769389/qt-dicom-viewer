@@ -1,448 +1,75 @@
-# Qt DICOM Viewer
+<p align="center">
+  <img src="src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.svg" width="96" alt="Voxenra logo">
+</p>
 
-A lightweight DICOM viewer built with PySide6 and QML.
+# Voxenra
 
-## Run
+跨平台 DICOM 浏览器：2D 阅片、MPR、4D、三维体绘制与 PET/CT 融合。
+
+## 下载
+
+**[Voxenra v0.2.0](https://github.com/l5769389/qt-dicom-viewer/releases/tag/v0.2.0)**
+
+| 平台 | 下载 |
+| --- | --- |
+| macOS · Apple Silicon | [DMG 安装包](https://github.com/l5769389/qt-dicom-viewer/releases/download/v0.2.0/Voxenra-0.2.0-macos-arm64.dmg) |
+| Windows · x64 | [安装包](https://github.com/l5769389/qt-dicom-viewer/releases/download/v0.2.0/Voxenra-0.2.0-windows-x64-setup.exe) · [便携版](https://github.com/l5769389/qt-dicom-viewer/releases/download/v0.2.0/Voxenra-0.2.0-windows-x64-portable.exe) |
+
+macOS 将应用拖入 Applications；Windows 运行安装包或直接打开便携版。Release 附带 SHA-256 校验文件。macOS 尚未公证，Windows 尚未签名。
+
+## 主要功能
+
+### 2D 阅片与测量
+
+调窗、伪彩、缩放、翻转；长度、角度、矩形和椭圆 ROI；像素统计与标注。
+
+![2D 阅片与 ROI 测量](docs/screenshots/01-2d-measurement.png)
+
+### MPR、阈值分割与 VOI
+
+轴位、冠状位、矢状位联动定位；斜面重建、厚层投影；阈值分割与球体 / 椭球 VOI 定量。
+
+![MPR 与阈值分割](docs/screenshots/02-mpr-segmentation.png)
+
+### 4D MPR
+
+多时相 CT 联动重建、相位选择与循环播放，切换相位保留定位与显示设置。
+
+![4D MPR 多时相浏览](docs/screenshots/03-4d-mpr.png)
+
+### 三维体绘制
+
+骨骼、肺、血管、MIP 等预设；交互旋转、去床板与自由裁剪。
+
+![CT 三维体绘制](docs/screenshots/04-volume-rendering.png)
+
+### PET/CT 融合
+
+CT、PET、FUSION 与 MIP 四格联动；独立 CT / PET 调窗、伪彩、融合比例与实时手动配准。按影像元数据提供可用的 SUV 或活度单位。
+
+![PET CT 融合浏览](docs/screenshots/05-pet-ct-fusion.png)
+
+### 融合 3D
+
+独立三维标签页切换 CT、PET、融合显示；调整透明度与 PET 阈值，并同步二维配准。
+
+![PET CT 融合三维显示](docs/screenshots/06-fusion-3d.png)
+
+另支持序列平铺、DICOM Tag 查询、DICOMweb PACS 导入、PNG / DICOM 匿名导出，以及离线操作手册。
+
+截图来自真实应用，使用 CT 和小动物 PET/CT 的脱敏展示副本；安装包不包含 DICOM 数据。
+
+## 从源码运行
 
 ```bash
-uv run qt-dicom-viewer
+uv run voxenra
 ```
 
-## PACS 数据源
-
-左侧栏底部 **设置 → 数据源** 可新增、编辑、测试和管理 DICOMweb PACS 配置。
-通过首页 **从 PACS 导入序列** 或侧栏 **PACS 浏览器** 查询检查、选择序列并后台下载，
-完成后加入现有序列列表并打开 2D。支持多个配置、Basic/Bearer 认证、分页、多序列选择、
-进度和取消；密码/令牌只保留在当前会话。当前协议为 DICOMweb，尚不包含 DIMSE。
-
-配置地址、存储位置、使用步骤及验证范围见 [PACS 使用说明](docs/pacs.md)。
-使用 OrbStack / Docker 启动 Orthanc、dcm4chee 并验证完整导入流程，见
-[本地 PACS 联调环境](docs/pacs-lab.md)。
-
-## 显示设置
-
-设置 Tab 提供伪彩、窗模板、十字线、四角信息、比例尺、测量与标注、ROI 指标。
-修改即时生效并保存到本机；右侧标注工具支持箭头绘制、编辑和删除。
-各设置的作用范围、恢复默认与使用方法见 [显示设置说明](docs/display-settings.md)。
-
-## 操作手册
-
-左下角设置按钮旁的书本图标打开 **操作手册** 工作区页签，无影像时也可阅读。测量、分割与 VOI 面板的书本按钮直达对应章节。手册可搜索，离线提供八类、31 个章节；切换页签保留阅读位置，关闭后返回最近使用的页签。
-
-测量指南包含长度、角度、矩形、椭圆、控制点编辑、整体移动、取消/删除、ROI 原始模态像素统计及合成影像示例。显示样式对已有和新建测量即时生效；宽高统一开关，宽高与面积同行。测量对象仅在会话内保存，导出原始 DICOM 不包含测量对象。
-
-比例尺默认 **10 cm**，长度可选 1、10、20、50、100 mm；空间不足时缩短并标注实际长度。左上角数据源和视图入口使用统一 SVG，PACS 与文件夹组成分段入口，连接测试结果显示在测试按钮附近。
-
-完整内容见应用内手册及 [手册说明](docs/manual.md)。MPR 的 CT/PET 阈值分割、球体/椭球 VOI 和当前边界见 [MPR 分割与 VOI](docs/mpr-segmentation-voi.md)。
-
-## 序列导出
-
-选中左侧序列，点击底部 **导出序列…**，选择 **PNG** 或 **DICOM**。
-每次打开对话框默认勾选 **匿名导出**，可按需取消。
-右键序列 → **脱敏导出整个序列…** 使用相同对话框，固定启用匿名，导出右键所指序列的全部文件 / 帧。
-
-- **设置 → 导出** 可以选择或输入导出目录，自动保存；默认位置为系统文档目录下的
-  `Qt DICOM Viewer/Exports`，点击“恢复默认”可恢复。
-- **DICOM** 保留原始像素、传输语法和多帧结构；取消匿名时逐字节复制源文件。
-- **PNG** 按原始分辨率逐帧保存，采用 DICOM 内的窗宽 / 窗位及灰阶或原始彩色，
-  不包含视口的缩放、旋转、伪彩和测量标注。匿名 PNG 不附带患者元数据；
-  取消匿名时 PNG 文本元数据包含患者姓名、ID、检查 UID 和序列 UID。
-- 导出在后台执行，可以取消。每次创建独立的 `series-日期时间-随机编号` 文件夹，
-  完成后可直接打开目录；失败或取消会清理该次导出的临时文件，不修改源文件。
-
-匿名 DICOM 按内置 DICOM PS3.15 2026c 标签规则递归处理身份信息，移除私有 / 未知标签、
-叠加层、缩略图和原始属性备份，重建文件头；同一次导出中的 UID 引用保持一致。
-实现范围、像素身份信息限制及验证方式见 [导出说明](docs/export.md)。
-
-## Dev Auto-Restart
-
-```bash
-uv run --group dev watchfiles "uv run qt-dicom-viewer" src
-```
-
-When a Python file under `src` changes, the Qt app restarts automatically.
-
-## PET 2D、MPR 与 CT 融合
-
-PET 2D、PET MPR 与 PET/CT 融合的使用方法、定量边界及配准格式见
-[PET 浏览与手动配准](docs/pet-mpr-fusion.md)。
-
-## 3D 体绘制
-
-打开 DICOM 文件夹，选择序列后点击左侧 **3D**。首次加载在后台构建体数据，
-默认从患者前方观看（A 面朝向用户、头侧朝上），使用通用模板和序列默认窗宽窗位。
-
-- **旋转**：默认工具，按住左键拖动。
-- **平移 / 缩放**：选择右侧对应工具后按住左键拖动；缩放向上拖动放大。
-- **滚轮 / 触控板滚动**：始终用于缩放。
-- **交互画质**：旋转、平移、缩放和调窗期间使用与松手后相同的体射线采样步长，
-  不会因拖动临时降低画质；连续指针事件按一帧合并，避免重复绘制拖慢操作。
-- **方向**：一级按钮显示当前最朝向用户的一个字母，点击后在右侧选择前 A、后 P、左 L、右 R、上 S、下 I。
-  自由旋转时字母与面板选中项实时联动；斜视也只选一个方向。切换方向保留平移、缩放和模板。
-- **模板**：右侧按 General / CT / CTA 分组提供通用、MIP、XRay、骨骼、肺、血管。
-  骨骼、肺、血管仅在 CT 序列中启用。切换或再次点击模板会载入其默认窗，保留视角。
-- **调窗**：选中后按住左键拖动，向右增大窗宽、向上提高窗位，颜色和透明度范围一起调整。
-  仅支持拖动，没有窗预设列表或数值输入；窗宽最低为 1，不会反相。
-- **重置**：底部按钮只重置当前工具；调窗回到当前模板默认值，模板回到通用，旋转/方向回到 A 正面。
-  顶部全部重置恢复初始视角、位置、比例和通用模板的序列默认窗。
-- **方向 Cube**：右上角显示 L/R（左/右）、A/P（前/后）、S/I（上/下），
-  六面分别为 A 绿、P 青、L 红、R 橙、S 蓝、I 紫，文字为白色。
-  按患者 LPS 坐标随视角同步旋转；平移和缩放不会改变它的方向或屏幕尺寸。
-  Cube 仅作方向提示，标准视角通过右侧方向面板选择。
-
-不同序列的 3D Tab 独立保存视角、模板、窗值、去床板和裁剪结果，切换到 2D/MPR 后再切回也会保留。
-
-**去床板与自由裁剪：**
-
-- **去床板**是 CT 3D 的独立状态开关，启用时按钮保持高亮；仍可继续旋转、平移、缩放、调窗、切换模板和裁剪。再次点击可关闭。
-- 点击**分割**，先选择**内部裁剪**（移除圈内）或**外部裁剪**（保留圈内），再在 3D 影像上按住左键自由圈选，拖动时显示黄色轮廓，松开立即应用。选区沿当前视线贯穿整个体数据，可连续多次裁剪。
-- 切换工具、改变视角或视口大小、隐藏窗口或失去焦点会取消尚未完成的绘制；已经提交的裁剪仍保留。再次进入分割工具默认使用内部裁剪。
-- 裁剪面板底部的**重置裁剪**恢复所有裁剪，并保留去床板、视角及模板状态。一级工具栏的**重置**恢复整个 3D 显示，包括关闭去床板、清除裁剪。
-- 去床板和裁剪在后台计算独立遮罩，只影响当前 3D 显示，不改写原始像素、DICOM 文件或其他视图。加载失败、重置或关闭视图后，过期计算结果不会重新生效。
-
-自动去床板按 CT 强度和形态估计人体轮廓，保留封闭的肺部等低密度区域；对非 CT 不开放此开关。它适用于常见薄床板及较窄接触区域，厚垫、宽面积粘连或非常规摆位可能仍有残留或误去除，可关闭开关并改用自由裁剪。详见 [3D 编辑实现说明](docs/volume-editing.md)。
-关闭 Tab 释放其原生视口和 VTK 渲染资源；原始体数据仍由现有 VolumeManager 缓存复用。
-
-当前支持至少两张单帧切片组成的规则体数据，包括具有一致斜向方向的序列。
-缺少空间位置/方向、重复位置、不等距切片、层间横向偏移或不一致矩阵的序列会显示错误，
-不使用猜测的几何信息绘制。增强多帧 DICOM、非规则网格重采样和外部模板配置读取留待后续扩展。
-
-模板目前使用内置数据，运行时不依赖小赛看看。配色参考及本项目的参数定义详见
-[3D 模板参数与扩展约定](docs/volume-presets.md)。
-
-### 集成结构
-
-主窗口、Tab、左右工具栏、2D 和 MPR 界面继续使用 QML。
-只有 3D Tab 内容区使用 `WindowContainer → QWidget → QVTKRenderWindowInteractor`，
-直接调用 Python VTK 9.5.2；没有 C++ 桥接或 Qt Quick 3D 依赖。
-
-`VolumeViewportController` 管理独立视角、显示状态和加载状态；`VolumeViewportHost` 管理原生窗口、
-输入和渲染调度；`VolumeRenderBackend` 管理体绘制及方向 Cube。
-后续裁剪、表面提取等功能可以扩展 VTK 后端和控制器。
-原生内容由独立窗口合成；需要覆盖在体绘制上的后续控件应放在这个原生内容区，
-不能依赖普通 QML Item 的层级遮盖它。切换 Tab 先隐藏、分离窗口，关闭时再释放。
-体数据解码在线程中完成，VTK/OpenGL 对象和渲染始终留在 GUI 线程。
-
-### 验证
+原 `uv run qt-dicom-viewer` 命令继续可用。开发与验证：
 
 ```bash
 uv run --group dev pytest -q
 uv run python tests/manual/smoke_3d.py
 ```
 
-第二条命令需要真实桌面会话和 OpenGL。它临时生成合成 DICOM 序列，验证后台加载、
-QML 工具按钮、六面方向同步、六类模板、拖动调窗及重置、交互/静止帧画质一致性、窗口缩放、2D/3D 切换、多 Tab、关闭和重新打开，
-完成后自动退出。可附加 PNG 路径导出 VTK 视口，例如 `tests/manual/smoke_3d.py /tmp/volume.png`。
-普通 pytest 验证视角数学、斜向坐标映射、输入校验、异步结果隔离和现有功能回归，
-不能替代目标系统的显卡、窗口合成及高 DPI 验证。
-## 4D MPR
-
-选择包含多个时间相位的 series 后，可通过左侧「4D」打开三视图 MPR。
-右侧「播放」工具的二级面板支持 1～15 FPS 循环播放、phase 滑块和编号选择；默认显示
-第一个 phase，播放速度为 2 FPS。
-切换 phase 会保留十字线、当前空间位置、调窗、平移、缩放、旋转和测量状态，滚轮仍用于
-当前 phase 内的 MPR 空间翻页。
-
-4D 数据按“一个经典单帧 Series 对应一个 phase、多个 Series 组成一个 4D 组”进行关联。
-当前支持常见的时间/心动/呼吸 phase 信息，包括
-`TemporalPositionIdentifier`、`TemporalPositionIndex`、`PhaseNumber`、phase 百分比、
-trigger/delay、`FrameReferenceTime`、`AcquisitionNumber` 以及采集/内容时间等字段。
-检测按明确 phase 标签优先；采集编号和时间只作为后备，并且必须在每个值下形成至少两层、
-层数与空间位置完全对应的体数据。`NumberOfTemporalPositions` / `NumberOfPhases` 存在时还会
-校验总数，以避免把普通逐层采集误判为 4D。对于缺少标准时间标签的派生数据，也支持从
-`SeriesDescription` 末尾的 `phN` / `phaseN` 提取 phase；此方式仍要求 Study、Frame of
-Reference、模态和整套空间几何一致。Enhanced Multi-frame DICOM 仍不支持；不符合条件的
-series 不会启用「4D」入口。
-## 序列平铺
-
-扫描完成后选中序列并点击左侧 **平铺**，可在独立的 `MONTAGE` Tab 中浏览整套切片。
-
-- 顶部的 2～6 按钮设置每行宫格数量，默认每行 4 张；切换 Tab 后仍保留当前设置。
-- 平铺按可视范围渐进加载，并预取上下各一行。普通滚轮用于纵向浏览，不会缩放影像。
-- 右侧支持调窗与窗预设、平移、缩放、旋转、镜像和分项重置；这些操作会同步应用到所有宫格。
-  反色按钮目前仅为禁用占位，不会改变影像。
-- 单击宫格会复用或创建同序列的 2D Tab，直接定位到对应切片，并同步平铺的 WW/WL。
-  既有 2D Tab 的平移、缩放、旋转、镜像和测量状态不会被覆盖。
-- 损坏的切片会在对应宫格显示错误和重试按钮，不阻塞其他切片。
-
-Montage 调窗使用后台模态像素缓存并合并连续请求；离开可视预取范围或关闭 Tab 后会释放缩略图。
-增强多帧 DICOM 仍不在当前支持范围内。
-
-## 测量
-
-在右侧「测量」中选择长度、角度、矩形或椭圆，测量可绘制到整个视口画布，
-不限于影像矩形内部。
-
-- **长度 / 矩形 / 椭圆**：按住左键拖动，松开完成。
-- **角度**：依次点击起点、顶点、终点；也可先拖出第一条边，松开确定顶点，
-  再拖出第二条边并松开完成。两段之间移动鼠标可预览第二条边。
-- **编辑**：点击轮廓、标签或 ROI 内部选中；拖动控制点调整形状，拖动轮廓、标签、
-  metric 信息块或 ROI 内部整体移动图形。选中图形的可移动部位悬停时显示四向移动图标，
-  控制点不会显示整体移动图标。椭圆的四个控制点位于其包围盒角点上。
-- **取消 / 删除**：视口获得焦点后，`Esc` 取消当前绘制或恢复编辑前的结果，
-  `Delete` / `Backspace` 删除选中测量。「重置测量」清除当前视口的所有测量。
-
-矩形和椭圆旁显示独立信息块：几何面积（mm²）、宽高 / 轴径（mm）、均值、标准差、
-最小 / 最大值和有效像素数。文字、控制点大小与线宽保持屏幕尺寸，影像缩放、旋转、
-镜像不会让信息块文字跟着变形。
-
-计算约定：
-
-- 长度、角度和面积使用当前图像的行 / 列物理间距；角度第二点为顶点，范围为 0～180°。
-- ROI 统计使用原始模态像素（MPR 中使用重采样后的模态像素），不使用调窗后的显示灰度；
-  CT 数值标注 HU。移动 ROI 后统计会重新计算。
-- 以**像素中心位于轮廓内**判定是否纳入统计；椭圆使用椭圆掩膜，而不是整个包围盒。
-  标准差采用总体标准差（`ddof=0`），NaN / Inf 及图像范围外的位置不计入统计。
-- 面积是完整轮廓的几何面积，不是有效像素数乘以像素面积。完全位于影像外的 ROI
-  仍显示尺寸与面积，但灰度统计显示「—」，不会伪造为 0。
-- 测量按切片及采样网格隔离；MPR 原点、方向或间距改变后，不将旧轮廓套在新网格上。
-  回到相同网格可恢复显示。当前测量仅保存在本次会话内，尚不导出为 DICOM SR。
-
-### 命中判断结构
-
-`MeasurementController.hit_test()` 负责当前切面筛选和优先级，具体几何判断在
-`core/measurement_hit_test.py` 中独立实现。命中结果的 `measurement_id` 表示所属图形，
-`target.kind` 表示部位，`target.index` 表示该部位的编号：
-
-| 部位 | 含义 | index |
-| --- | --- | --- |
-| `CONTROL_POINT` | 可调整形状的控制点 | 起点 / 顶点 / 终点或包围盒角点的编号 |
-| `OUTLINE` | 长度线段、角度两条边、矩形 / 椭圆轮廓 | 直线边编号；椭圆为 `None` |
-| `INTERIOR` | 矩形 / 椭圆内部，不包含边界 | `None` |
-| `LABEL` | 长度 / 角度文字或 ROI metric 信息块 | `None` |
-
-测量内部的命中优先级为：控制点 > 标签 > 轮廓 > ROI 内部。
-内部命中与是否选中无关，未选中 ROI 也可以通过点击内部选中；选择状态只参与重叠优先级和光标提示。
-同类几何命中选距离最近的；同距离优先选中项，再优先后绘制项。标签重叠时按相同的叠放顺序选择。
-十字线操作仍由视口原有逻辑优先处理，不混入这些测量部位。
-
-控制点、轮廓和内部使用图像坐标；标签使用 QML 实际布局提供的视口矩形，避免缩放、
-旋转、镜像后命中位置偏离。部位与动作分开：`OUTLINE`、`INTERIOR`、`LABEL` 当前都执行
-整体平移，但不会丢失命中的具体部位。QML 的 `activeTransaction.editTarget` 也会提供 `kind` / `index`。
-`measurementController.hoverHit` 提供悬停命中的 `measurementId` / `kind` / `index`；
-`hoverCursorKind` 只在已选中图形的可移动部位返回 `pan`。离开、开始编辑、切换工具或切面时清除悬停状态。
-
-## macOS / Windows 安装包
-
-安装包界面与脚本已加入项目（完整说明见 [打包与安装](docs/packaging.md)）：
-
-- macOS：运行 `bash scripts/build_macos.sh`，生成 `.app` 和带 Applications 拖拽入口的 DMG。
-- Windows：安装 uv 和 Inno Setup 6.6+ 后，在 PowerShell 运行 `./scripts/build_windows.ps1`，生成中英文安装向导 EXE。
-- 成品输出到 `dist/installers/`；版本号读取 `pyproject.toml`。构建环境与开发环境隔离。
-- GitHub Actions 的 **Build Windows packages** 在 main 的代码或打包配置更新后自动生成 Windows 便携版和安装包；**Build native installers** 保留双平台手动构建。
-- 默认构建未使用商业签名证书；正式分发前需要签名、公证（macOS）及目标机安装验收。
-## 标注、伪彩与视口设置
-
-- **标注**：输入最多 200 个字符，选择颜色和 10～48 px 字号后，切换「文字箭头」并在影像上拖动绘制。
-  默认「箭头」支持移动及端点调整，样式通过设置 → 测量与标注调整。
-  文本按切片保存并跟随影像平移、缩放、旋转和镜像；可从右侧列表重新选中编辑，或用
-  `Delete` / `Backspace` 删除。当前仅保存在本次会话内。
-- **伪彩**：支持 BW、BWInverse、BlackBody、Cardiac、Flow、French、GrayRainbow、
-  HotGreen、HotIron 和 Rainbow。LUT 应用于调窗后的 8 位显示像素，不改变 ROI、光标取值
-  或 MTF 使用的原始模态像素。
-- **视口设置**：可独立控制窗口角标、患者姓名/ID 隐藏、物理比例尺、伪彩条、
-  DICOM 方向标记、MPR 定位线以及窗口自适应。设置作用于当前活动视口，工具栏底部可恢复默认值。
-
-## Windows 单文件 EXE
-
-在 **Windows x64** 上安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)，
-然后在项目根目录的 PowerShell 或 CMD 中运行：
-
-```powershell
-.\scripts\build_windows.bat
-```
-
-脚本会通过 uv 准备 Python 3.13、在独立的 `.venv-build-windows` 环境中安装
-`uv.lock` 锁定的运行依赖和 PyInstaller，并生成：
-
-```text
-dist/DICOMVision.exe
-```
-
-只需复制这个 EXE 到目标 Windows 电脑即可启动，无需另装 Python、uv 或 Qt。
-首次构建需要联网下载依赖；再次构建会复用下载缓存，并覆盖同名 EXE，请先退出正在运行的旧版本。
-构建中间文件和自动生成的 spec 位于 `build/windows`，不会覆盖日常开发的 `.venv`。
-
-### 在 Mac 上通过 GitHub Actions 打包
-
-无需本地安装 Windows：工作流会在 GitHub 提供的 Windows x64 环境中执行测试和打包。
-
-1. 将应用代码、打包配置或测试改动推送到 `main`，自动触发构建；仅修改文档不会触发。
-2. 打开仓库的 [Build Windows packages](https://github.com/l5769389/qt-dicom-viewer/actions/workflows/build-windows.yml) 页面查看进度。
-3. 也可点击 **Run workflow** 选择分支；勾选控制台选项时只生成诊断便携版。
-4. 等待测试、打包和上传步骤全部成功。
-5. 在该次运行页面的 **Artifacts** 中下载 `DICOMVision-windows-x64`，解压得到便携 EXE、安装向导 EXE 和 SHA-256 校验文件。
-   诊断版对应 `DICOMVision-windows-x64-debug`。
-
-同一分支的新构建会取消尚未完成的旧构建。Artifacts 保留 14 天；正式归档的版本从仓库 Releases 下载。
-推送与 `pyproject.toml` 版本一致的 `v*` 标签，会自动将 Windows 便携版、安装包和各自 SHA-256 上传到同名 Release；不存在时先创建草稿，已有 Release 的 macOS 附件与发布状态保留。
-补建已有版本时，可在 **Run workflow** 的 `release_tag` 中填写标签；工作流会检出该标签的源码。诊断版不能发布到 Release。
-已有成功构建时，同时填写 `artifact_run_id` 可直接归档；仅接受构建提交与标签完全一致的 Windows 产物。
-私有仓库的查看和下载需要仓库访问权限，构建和产物存储会计入 GitHub Actions 对应额度。
-工作流配置位于 `.github/workflows/build-windows.yml`，复用本地打包脚本与锁定依赖。
-
-### 打包内容与限制
-
-- 包含应用 Python 代码、QML、`qmldir`、图片、SVG、Qt 插件、VTK 渲染模块和运行依赖。
-- 不包含本地 DICOM 数据；打包后的解码能力与项目依赖一致，不会自动增加 JPEG/JPEG-LS 等额外解码器。
-- 默认不显示控制台。单文件模式启动时会解压到系统临时目录，因此启动比源码运行慢、EXE 也较大。
-- 必须在 Windows 上构建；当前脚本不支持从 macOS/Linux 交叉生成 EXE，详见
-  [PyInstaller 平台说明](https://pyinstaller.org/en/stable/operating-mode.html)。
-- EXE 尚未进行代码签名，Windows 可能提示来源未知；公开分发前需自行安排签名和目标机验证。
-
-### 启动问题排查
-
-生成保留控制台的诊断版本（不会覆盖普通版本）：
-
-```powershell
-.\scripts\build_windows.bat --console
-.\dist\DICOMVision-debug.exe
-```
-
-应用日志保存在 Qt `AppLocalDataLocation` 对应目录下的 `logs/dicomvision.log`。
-在 Windows 上通常是 `%LOCALAPPDATA%\QtDicomViewer\Qt DICOM Viewer\logs\dicomvision.log`。
-普通 EXE 同样保留文件日志；QML 插件加载问题优先查看诊断版本的控制台输出。
-
-打包后请在没有安装 Python/Qt 的 Windows x64 电脑上验证：启动界面、打开 DICOM、
-2D 翻页/调窗、MPR 旋转、测量、3D 体绘制/操作/方向 Cube/Tab 切换以及正常退出。
-打包成功本身不代表这些功能已经通过目标机验收。
-
-## 服务菜单与微珠法 MTF
-
-“服务”仅在 2D 视图的右侧一级工具栏中显示和启用，MPR、3D、4D、Tag 视图不提供此工具。
-内容区顶部 MTF、QA 两个 SVG 图标按钮等宽并排；MTF 提供点源分析，QA 提供 CT 水模自动测量。
-X/Y 及圆点 MTF50、菱形 MTF10 图例位于图表右上角；点击 X 或 Y 可独立隐藏对应曲线和标记。
-
-在原始 2D 切片选择“服务 → MTF”，框选**单颗微珠及外围背景**。矩形至少包含 8 × 8 个像素，
-必须完全位于原始图像内。每切片、每采样几何保留一个 ROI；成功提交新框替换旧框，取消则保留旧框。
-8 × 8 只是输入下限，不是推荐值，也不应把固定像素数用于不同 PixelSpacing。可先使用约 4 × 4 mm
-的方形 ROI，再在约 3～5 mm 范围内调整并检查结果是否稳定。ROI 应完整覆盖亮峰及周围欠冲，外围带
-需要能够代表背景，同时避开邻近结构。参考研究使用约 0.098 mm 像素，30～50 像素才对应约
-2.9～4.9 mm；其微珠法最优值随重建核为 38、40 或 50 像素，并不存在通用的 40 像素规则。
-MTF ROI 在新建和角点缩放时固定为物理尺寸上的正方形；行列 PixelSpacing 不同时，像素宽高可以不同。
-支持四角缩放、轮廓或内部整体移动、Esc 取消、Delete / Backspace 删除；小框按短边自适应缩小角点和边线命中范围。
-MTF 轮廓旁优先显示 ROI 的 X/Y 物理尺寸，随后显示像素数及 X/Y 的 MTF50 与 MTF10，不显示普通 ROI 统计卡；
-普通测量与 MTF 的选择、编辑及数据互相隔离。
-翻页取消草稿，返回原切片恢复已提交的框及结果；退出 MTF 工具保留轮廓但不能编辑。
-
-默认采用“微珠 + 直接 FFT”。右侧可切换“微珠 / 细丝”和“直接 FFT / 高斯拟合”：
-切换测试体会清除当前视口全部 MTF ROI 与结果；切换分析方式保留当前 ROI 并立即重新计算。
-细丝模式当前指垂直于扫描平面的细丝截面，它与微珠一样作为二维点源响应分析，不支持画面内任意方向的长细丝。
-
-松开提交后，Qt 线程池分析 ROI 的原始模态像素快照。拖动只更新几何；调窗、平移、缩放、镜像、
-显示旋转和悬停均不重算 MTF。旧任务不能覆盖新版 ROI，删除、重置、关闭后返回的结果被忽略。
-编辑时隐藏旧曲线，取消恢复结果；当前 ROI 计算失败时显示错误，不展示旧数值。
-“重置 MTF”清除当前视口所有切片的 MTF ROI / 结果；“重置水模 QA”清除当前视口的 QA 状态。
-“重置测量”不影响 MTF 或 QA，“全部重置”同时清除三类数据。
-
-### CT 水模 QA
-
-在 2D CT 视图点击**服务 → QA**，自动识别当前层完整的圆形水模，绘制中心、左、右、上、下 5 个圆形 VOI；水平 3 个、垂直 3 个共用中心。当前功能按单层圆形 ROI 采样，不进行跨层体积统计。
-
-默认 VOI 直径 20 mm，VOI 外缘距水模轮廓 20 mm，可在面板调整并自动重算。使用原始 DICOM PixelSpacing 确保非等距像素下的物理尺寸正确；每个 VOI 至少 16 个采样像素，5 个 VOI 必须互不重叠。
-
-在 QA 工具中可分别拖动 5 个 ROI，松开后更新指标；Esc 取消本次拖动。ROI 保持原直径与标签，限制在水模内部，重叠时恢复上次位置。调整结果按切片缓存；**重新识别**恢复当前层自动布局，修改几何参数也会重新布局。
-
-面板显示水 CT 值、中心噪声、均匀性、一致性、横向差和纵向差；表格列出 5 个 ROI 的均值、标准差和相对中心差。点击 ⓘ 查看公式与操作说明，以及噪声极差、采样像素数和面积。仅显示实测值，不进行通过/失败判定。“一致性”指 5 个均值的最大值减最小值，不表示不同日期或扫描之间的稳定性。
-
-翻页会隐藏旧结果并自动分析当前层；调窗、平移、缩放、镜像和显示旋转保持数据不变。底部**重置水模 QA**清除当前视口全部 QA 结果并恢复参数默认值，点击 **QA** 或**自动识别**可重新开始。识别失败、非 CT、缺失 PixelSpacing 或 VOI 尺寸不合适时显示原因，不留下旧的测量结果。
-
-算法、公式、参考来源及测试方法见 [水模 QA 说明](docs/water-qa.md)。
-
-右侧 Canvas 展示 X（原始列方向，实线）/ Y（原始行方向，虚线）曲线和指标：
-
-- MTF50、MTF10：单位 lp/mm，取零频起第一次向下穿越阈值的线性插值交点；无交点显示“未达到”。
-- FWHM：单位 mm。直接 FFT 模式测量扣背景 LSF 主峰左右最近的半峰高交点；高斯模式报告拟合曲线的
-  `2√(2ln2)σ`。任一侧无交点时显示“无法测量”。X/Y 不随显示旋转交换。
-- ROI 外围带宽为短边的 10% 向上取整，至少一个像素；背景采用外围带中位数。
-  PSF 保留负值，各列/行积分并乘正交方向间距获得 LSF。
-- LSF 补零至至少四倍长度的下一个二次幂，取 rFFT 幅值并按零频归一化；保留响应大于 1 的部分。
-  两方向按真实 DICOM PixelSpacing 分别限定 Nyquist 频率，不使用显示层 1 mm 回退值。
-- 平坦、无有效正净响应、越界、非法间距或非有限像素显示明确错误。
-  外围 MAD 噪声、主峰位置、LSF 两端和多次阈值穿越仅用于质量提示，不作自动合格判定。
-
-直接 FFT 不加窗、不平滑、不取 PSF 绝对值；高斯模式对方向 LSF 拟合带常数基线的一维高斯，
-显示解析高斯 MTF 及等效 MTF50 / MTF10 / FWHM，并在拟合度较低时警告。
-两种测试体均未做有限尺寸修正，也不做跨切片平均、导出或 MPR 分析。
-界面不再重复显示微珠尺寸修正提示；这只是显示调整，不代表算法已启用尺寸修正。
-合成高斯解析基准验证不等同于真实模体重复性验证；目前不宣称达到临床质控精度。
-方法参考：[Catphan 700 手册](https://www.phantomlab.com/s/Catphan700Manual.pdf)、
-[PhantomLab 方向 MTF 说明](https://help-smari.phantomlab.com/hc/en-us/articles/4402017982355-Modulation-Transfer-Function-MTF)。
-
-实现入口：`core/bead_mtf.py`（纯 NumPy）、`model/mtf.py`（结果类型）、
-`ui/controller/viewport/controller/mtf_controller.py`（ROI / 异步缓存）。
-`tests/test_bead_mtf.py`、`tests/test_mtf_controller.py`、`tests/test_mtf_qml.py` 分别覆盖数学、状态与真实 QML 操作。
-
-### 与参考软件比对 MTF50 / MTF10
-
-先确认同一原始切片、同一颗微珠、同一 ROI，以及单位（lp/mm 或 lp/cm）和方向定义（X/Y 或径向平均）。
-直接 FFT 模式取方向 LSF 的傅里叶幅值，以零频归一化，不做峰值归一化、拟合或平滑。
-频率数组使用原始 DICOM PixelSpacing；显示缩放、旋转和窗口不改变分析像素或物理间距。
-
-通过解析高斯及离散三点响应核检查了 0.7、1.13 lp/mm 量级的 MTF50、MTF10：
-未发现固定频率倍率或阈值互换。**这不能证明某个真实 ROI 的结果正确**。
-外围带必须确实代表背景；小框把微珠尾部当作背景，会造成扣除过量、LSF 变窄和 MTF 偏高。
-合成对照：理论 MTF50=0.7、间距 0.06 mm 的同一高斯微珠，64×64 框得到约 0.700/1.277（MTF50/10），
-中心 16×16 框得到约 1.128/1.733，估计背景从真值 80 升至约 288。
-这只是可复现的偏差机制，不是尚未取得的真实 DICOM 的诊断。
-可围绕同一微珠适度扩大 ROI，检查曲线与阈值是否趋于稳定，同时避开邻近结构；不是框越大越好。
-间距错误更像两项频率同时按相同比例偏移；背景或处理流程不同则可能改变整条曲线的形状。
-ROI 依赖性也见[微珠 / 丝法 ROI 尺寸研究](https://pubmed.ncbi.nlm.nih.gov/23835372/)。
-
-图标位于 `src/qt_dicom_viewer/qml/assets/icons/`；MTF 当前采用深色底图片，服务与 QA 图片带透明通道。
-生成方式与提示词记录在该目录的 `README.md` 中。
-
-## 左侧序列栏
-
-顶部保留文件夹和视图入口，患者搜索下按「患者 → 检查 → series」分组。
-患者按 Patient ID 与签发机构区分；缺少 ID 时按检查隔离，避免同名患者混在一起。
-检查显示 DICOM 日期/时间，series 显示描述、modality、文件数和缩略图；缺少信息时显示占位文字。
-
-缩略图在扫描后从 series 中间实例的第一帧异步生成，支持灰度、RGB 和多帧文件。
-无法解码或无像素数据时保留 modality 占位；不影响打开 series 或查看 Tag。
-点击患者/检查可折叠分组，搜索患者姓名或 ID 时自动显示匹配分组。
-单击 series 选中后使用顶部视图按钮，双击仍打开 2D。
-
-侧栏默认宽 300px；悬停右边缘显示拖动光标，可在 200–350px 内调整。
-拖到 200px 以下自动收起，或点击右侧中间的收起按钮。收起后只在工作区左边缘
-保留展开按钮，展开恢复本次会话上一次有效宽度。收起不会清除搜索、分组和选中状态。
-
-## DICOM 标签
-
-选择左侧 series 后点击 **Tag**，在独立 tab 中只读浏览 DICOM 标签。同一 series
-重复点击 Tag 会回到已有 tab，并保留当前实例、搜索、展开和滚动状态。
-
-- 页码按 catalog 的实例顺序切换 DICOM 文件，多帧文件仍算一个实例。支持上一页、
-  下一页、首尾页、附近页码及直接跳转；切换实例保留搜索词，列表回到顶部。
-- 搜索当前实例的标签编号、英文名称、关键字和值，不区分大小写；编号可以使用
-  `(0010,0010)` 或 `00100010`。搜索会自动展开命中标签的祖先，清空后恢复手动展开状态。
-- 列表包括文件元信息、私有/未知标签和 SQ/Item 树。像素及二进制字段只显示长度摘要，
-  不解码像素。双击一行查看完整值，可选择文本并使用系统复制快捷键。
-- 标签数量包含嵌套标签，不包含 Item 容器。加载或失败时不会显示上一实例的标签；
-  失败后可以重试或继续翻页。
-- Tag 页面隐藏影像工具栏；返回 2D/MPR 后恢复。实例列表采用打开 tab 时的扫描快照，
-  扫描追加文件后关闭并重开 Tag 可获取最新列表。
-
-标签浏览不会修改源文件，当前不提供编辑、导出或跨 series 搜索。
-## MPR 厚层投影
-
-MPR 标签页的右侧一级工具栏提供 “MIP” 入口。二级面板可启用厚层投影，
- 选择 MinIP、MIP、Mean 或 Sum，并分别设置 Axial、Coronal、Sagittal 的
- 0～100 mm 厚度。厚度为 0 表示该轴保持普通单层 MPR；总开关关闭时可预先
- 调整参数，但不会执行投影。
-
-厚度表示以十字线为中心的总厚度。启用某轴后，另外两个相交视图会在十字线
- 两侧 `±厚度/2` 处显示同轴颜色的虚线边界。辅助线会随十字线、缩放、平移、
- 旋转和镜像更新，但不参与鼠标命中。
-
-投影在原始模态像素上计算，体数据外的无效样本不参与统计；全部样本无效的
- 像素仍保持为无数据。Mean 使用有效样本的算术平均，Sum 使用有效样本原值之和。
- “重置 MIP”和全部重置都会关闭投影、切回 MIP 模式并将三轴厚度归零。
-
-## Suggested Drills
-
-1. Change text, colors, and spacing in `Main.qml`.
-2. Add another `Rectangle` panel.
-3. Add a `Button` that calls a Python `@Slot`.
-4. Add a new Python `@Property` and bind it in QML.
-5. Add a `ListView` with a Python-provided list model.
+[打包与发布](docs/packaging.md) · [操作手册](docs/manual.md) · [PET 与配准](docs/pet-mpr-fusion.md) · [分割与 VOI](docs/mpr-segmentation-voi.md) · [PACS](docs/pacs.md) · [导出](docs/export.md)

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#142e42"/><stop offset="1" stop-color="#07141f"/>
+    </linearGradient>
+    <linearGradient id="slice" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#8ff4d7"/><stop offset="1" stop-color="#22bfe2"/>
+    </linearGradient>
+    <linearGradient id="light" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f0fffd"/><stop offset="1" stop-color="#8ce8f5"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#surface)"/>
+  <rect x="66" y="66" width="892" height="892" rx="206" fill="none" stroke="#a9efff" stroke-opacity=".13" stroke-width="4"/>
+  <path d="M242 286 361 286 423 410 304 410Z M314 430 433 430 477 518 358 518Z M368 538 487 538 514 593 454 713Z" fill="url(#slice)"/>
+  <path d="M420 748 650 286 782 286 552 748Z" fill="url(#light)"/>
+  <path d="M609 666 662 638 715 666 662 696Z" fill="#6de5d3"/>
+  <path d="M609 666 662 696 662 757 609 727Z" fill="#23acc9"/>
+  <path d="M662 696 715 666 715 727 662 757Z" fill="#b7faf2"/>
+</svg>
