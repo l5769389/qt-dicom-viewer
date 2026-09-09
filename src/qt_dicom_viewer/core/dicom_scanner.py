@@ -621,17 +621,32 @@ class DicomFolderScanner:
         if not folder.is_dir():
             raise NotADirectoryError(f"Path is not a folder: {folder}")
 
+        yield from self.scan_files(_iter_visible_files(folder), folder=folder)
+
+    def scan_files(self, files, *, folder, cancelled=lambda: False):
+        """Group a mixed file selection with the same spatial/4D rules as folders."""
+        folder = Path(folder)
         total_file_count = 0
         skipped_file_count = 0
         series_map: dict[tuple[str, str],list[DicomInstanceMeta]] = defaultdict(list)
         instances: list[DicomInstanceMeta] = []
-        for file_path in _iter_visible_files(folder_path):
+        identities = set()
+        seen = set()
+        for file_path in files:
+            if cancelled():
+                return
+            file_path = Path(file_path)
+            if file_path.resolve() in seen:
+                continue
+            seen.add(file_path.resolve())
             total_file_count += 1
             instance = _read_instance(file_path)
 
-            if instance is None:
+            identity = (instance.series_instance_uid, instance.sop_instance_uid) if instance else None
+            if instance is None or identity in identities:
                 skipped_file_count += 1
             else:
+                identities.add(identity)
                 instances.append(instance)
 
                 key = (

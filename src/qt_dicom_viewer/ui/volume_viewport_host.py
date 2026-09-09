@@ -15,6 +15,7 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
     def __init__(self, host):
         self.host = host
         super().__init__(host)
+        self.setAcceptDrops(True)
 
     def _getPixelRatio(self):
         # VTK's default follows the cursor's screen, which can differ from the

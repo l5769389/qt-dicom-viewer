@@ -134,11 +134,11 @@ def test_version_matches_runtime_build_and_settings_header(scene, tmp_path):
         project = tomllib.load(f)["project"]
     with (ROOT / "uv.lock").open("rb") as f:
         locked = next(p for p in tomllib.load(f)["package"] if p["name"] == project["name"])
-    assert __version__ == project["version"] == locked["version"] == "0.3.0"
+    assert __version__ == project["version"] == locked["version"] == "0.4.0"
     assert app.settingsController.applicationVersion == __version__
     app.workspaceController.openSettings()
     label = find(window, "settingsApplicationVersion")
-    assert label.property("text") == "Voxenra 0.3.0"
+    assert label.property("text") == "Voxenra 0.4.0"
     assert label.isVisible()
     app.settingsController.setValue("layout", "settingsNavigationWidth", 156)
     window.resize(1000, 600)

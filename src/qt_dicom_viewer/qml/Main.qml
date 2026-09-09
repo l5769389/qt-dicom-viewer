@@ -45,10 +45,59 @@ ApplicationWindow {
     header: Components.ApplicationTitleBar {
         targetWindow: window
     }
+    Shortcut {
+        sequences: [StandardKey.Open]
+        enabled: window.pacsController?.localEnabled !== false && !window.panelController.scanning
+        onActivated: window.panelController.openFilesDialog()
+    }
+    Rectangle {
+        id: importBanner
+        objectName: "localImportBanner"
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: 10
+        height: visible ? 36 : 0
+        visible: (window.panelController.statusMessage ?? "") !== ""
+        color: Theme.panelBackgroundStrong
+        radius: 6
+        border.color: window.panelController.importError ? Theme.dangerColor : Theme.borderDefault
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 10
+            anchors.rightMargin: 6
+            spacing: 8
+            BusyIndicator {
+                Layout.preferredWidth: 22
+                Layout.preferredHeight: 22
+                visible: window.panelController.scanning
+                running: visible
+            }
+            Text {
+                objectName: "localImportMessage"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                text: window.panelController.statusMessage ?? ""
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: window.panelController.importError ? Theme.dangerColor : Theme.textSecondary
+                font.pixelSize: 12
+            }
+            Components.AppButton {
+                objectName: "localImportCancel"
+                text: window.panelController.scanning ? "取消导入" : "关闭"
+                compact: true
+                normalColor: "transparent"
+                onClicked: window.panelController.scanning ? window.panelController.cancelImport()
+                    : window.panelController.dismissImportStatus()
+            }
+        }
+    }
     RowLayout {
         id: workspaceRow
         anchors.fill: parent
         anchors.margins: 10
+        anchors.topMargin: importBanner.visible ? 54 : 10
         spacing: 8
 
         Sections.SidebarContainer {
@@ -118,6 +167,37 @@ ApplicationWindow {
             //     }
             // }
 
+        }
+    }
+    DropArea {
+        id: fileDrop
+        objectName: "dicomFileDropArea"
+        anchors.fill: parent
+        enabled: window.pacsController?.localEnabled !== false
+        onEntered: drag => {
+            if (drag.hasUrls && window.panelController.canImportUrls(drag.urls)
+                    && (drag.supportedActions & Qt.CopyAction)) drag.accept(Qt.CopyAction)
+            else drag.accepted = false
+        }
+        onDropped: drop => {
+            if (drop.hasUrls && (drop.supportedActions & Qt.CopyAction)
+                    && window.panelController.importUrls(drop.urls)) drop.accept(Qt.CopyAction)
+            else drop.accepted = false
+        }
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 10
+            visible: fileDrop.containsDrag
+            color: "#b3101d27"
+            border.width: 2
+            border.color: Theme.primaryColor
+            radius: 8
+            Column {
+                anchors.centerIn: parent
+                spacing: 8
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "松开以导入 DICOM"; color: Theme.textPrimary; font.pixelSize: 22 }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "文件、文件夹或 ZIP / 7z / TAR / GZ 压缩包"; color: Theme.textMuted; font.pixelSize: 13 }
+            }
         }
     }
     Sections.ExportDialog {

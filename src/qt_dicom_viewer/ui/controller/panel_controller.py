@@ -1,4 +1,8 @@
 from typing import Dict
+from dataclasses import replace
+
+from qt_dicom_viewer.core.local_import import LocalImportStore
+from qt_dicom_viewer.core.dicom_scanner import _build_series_from_map
 
 from PySide6.QtCore import QObject, Signal, QThread, QTimer, Slot, Property, QUrl
 from PySide6.QtGui import QDesktopServices
@@ -33,6 +37,11 @@ class PanelController(QObject):
         self._scan_thread: QThread | None = None
         self._scan_worker: DicomScanWorker | None = None
         self._scanning = False
+        self._status_message = ""
+        self._import_error = False
+        self._import_store = LocalImportStore()
+        self._import_base = {}
+        self._last_import_snapshot = None
         self._scan_series_record: Dict[str, DicomSeriesRecord] = {}
         self._removed_series_uids: set[str] = set()
         self._series_catalog:SeriesCatalog = series_catalog
@@ -62,11 +71,19 @@ class PanelController(QObject):
 
 
     def _start_folder_scan(self, folder: str) -> None:
+        self._start_import([folder])
+
+    def _start_import(self, paths):
+        if self._closing or self._scanning or not paths:
+            return
+        self._last_import_snapshot = None
+        self._import_base = dict(self._scan_series_record)
+        self._set_status("正在准备导入…")
         # An explicit new import can restore items removed from the previous scan.
         self._removed_series_uids.clear()
         self._set_scanning(True)
         thread = QThread(self)
-        worker = DicomScanWorker(folder)
+        worker = DicomScanWorker(paths, self._import_store)
 
         self._scan_thread = thread
         self._scan_worker = worker
@@ -88,11 +105,30 @@ class PanelController(QObject):
         thread.finished.connect(self._clean_scan_thread)
 
         worker.process.connect(self._handle_scan_process)
+        worker.status.connect(self._set_status)
 
     @Slot(object)
     def _handle_scan_process(self, result:DicomFolderScanSnapshot) -> None:
-        self._update_series_record(result)
-        self.update_series_session(result)
+        if self._closing or result is None: return
+        self._last_import_snapshot = result
+        merged = self._merge_import(result)
+        self._update_series_record(merged)
+        self.update_series_session(merged)
+        self._set_status(f"正在读取影像 · {result.dicom_file_count} 个 DICOM / {result.total_file_count} 个文件")
+
+    def _merge_import(self, result):
+        grouped = {}
+        for series in result.series:
+            uid = series.series_instance_uid
+            if uid not in self._import_base:
+                # Sidebar removal deliberately retains records used by open views.
+                self._import_base[uid] = self._series_catalog.get_series(uid)
+            old = self._import_base.get(uid)
+            combined = {i.sop_instance_uid: i for i in old.instances} if old else {}
+            combined.update({i.sop_instance_uid: i for i in series.instances})
+            for instance in combined.values():
+                grouped.setdefault((instance.study_instance_uid, instance.series_instance_uid), []).append(instance)
+        return replace(result, series=_build_series_from_map(grouped))
 
     def update_series_session(self, dicom_scan_snapshot:DicomFolderScanSnapshot):
         self._series_catalog.update(dicom_scan_snapshot)
@@ -100,13 +136,65 @@ class PanelController(QObject):
 
     @Slot(object)
     def _handle_scan_finished(self, result: DicomFolderScanSnapshot | None) -> None:
+        if self._closing: return
         if result is not None:
-            self._update_series_record(result)
-            self.update_series_session(result)
+            self._handle_scan_process(result)
+        final = self._last_import_snapshot
+        if self._scan_thread and self._scan_thread.isInterruptionRequested():
+            self._set_status("已取消导入；已载入的序列仍可使用。")
+        elif final is None or not final.dicom_file_count:
+            self._set_status("未找到可用的 DICOM 影像，请检查所选文件。", True)
+        else:
+            self._set_status(f"已导入 {len(final.series)} 个序列、{final.dicom_file_count} 个 DICOM 文件"
+                             + (f" · 跳过 {final.skipped_file_count} 个重复或非 DICOM 文件" if final.skipped_file_count else ""))
 
     @Slot(object)
     def _handle_scan_failed(self, error) -> None:
-        pass
+        if not self._closing:
+            self._set_status(str(error), True)
+
+    @Property(str, notify=statusMessageChanged)
+    def statusMessage(self): return self._status_message
+
+    @Property(bool, notify=statusMessageChanged)
+    def importError(self): return self._import_error
+
+    @Slot(str)
+    def _set_status(self, message, error=False):
+        if self._closing: return
+        self._status_message, self._import_error = message, error
+        self.statusMessageChanged.emit()
+
+    @Slot()
+    def dismissImportStatus(self):
+        if not self._scanning: self._set_status("")
+
+    @Slot()
+    def cancelImport(self):
+        if self._scan_thread:
+            self._set_status("正在取消导入…")
+            self._scan_thread.requestInterruption()
+
+    @Slot("QVariantList", result=bool)
+    def canImportUrls(self, urls):
+        return bool(urls) and not self._closing and not self._scanning and all(
+            QUrl(url).isLocalFile() and QUrl(url).toLocalFile() for url in urls)
+
+    @Slot("QVariantList", result=bool)
+    def importUrls(self, urls):
+        if not self.canImportUrls(urls): return False
+        self._start_import([QUrl(url).toLocalFile() for url in urls])
+        return True
+
+    @Slot()
+    def openFilesDialog(self):
+        if self._scanning: return
+        files, _ = QFileDialog.getOpenFileNames(None, "打开 DICOM 文件或压缩包", "",
+            "DICOM 与压缩包 (*.dcm *.dicom *.ima *.zip *.7z *.tar *.gz *.tgz *.bz2 *.tbz2 *.xz *.txz);;所有文件 (*)")
+        if files: self._start_import(files)
+
+    def cleanup_imports(self):
+        self._import_store.cleanup()
 
     @Slot()
     def _clean_scan_thread(self) -> None:
@@ -117,6 +205,7 @@ class PanelController(QObject):
             thread.wait()
         self._scan_thread = None
         self._scan_worker = None
+        self._import_base = {}
         self._set_scanning(False)
 
         if thread is not None:
@@ -461,7 +550,7 @@ class PanelController(QObject):
     def openFolderDialog(self) -> None:
         if self._scanning:
             return
-        folder = QFileDialog.getExistingDirectory(None, "Open DICOM Folder")
+        folder = QFileDialog.getExistingDirectory(None, "打开 DICOM 文件夹")
         if not folder:
             return
 

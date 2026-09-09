@@ -121,3 +121,7 @@ PyInstaller 必须在目标 OS 上构建，参见 [PyInstaller 使用文档](htt
 原生安装窗口分别参考 [dmgbuild 设置](https://dmgbuild.readthedocs.io/en/latest/settings.html) 和
 [Inno Setup WizardStyle](https://jrsoftware.org/ishelp/topic_setup_wizardstyle.htm)。
 运行图标与任务栏标识分别采用 [Qt 应用图标 API](https://doc.qt.io/qt-6/qguiapplication.html#windowIcon-prop) 和 [Windows AppUserModelID](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-setcurrentprocessexplicitappusermodelid)。
+
+## 0.4.0 压缩导入依赖
+
+构建环境通过锁定的 `uv.lock` 安装 py7zr、pylibjpeg / libjpeg / openjpeg / rle 和 pyjpegls。共享的 PyInstaller 命令收集解码器模块、原生动态库及入口点 metadata，macOS 和 Windows 都使用同一组参数；不能只复制 Python 源码而遗漏解码库。验证打包结果时需实际打开压缩 DICOM，并导入 ZIP / 7z，以检查动态插件发现。

@@ -118,20 +118,22 @@ def test_numeric_window_apply_template_validation_persistence_and_delete(display
     type_text(view, center, "-123.25")
     assert controller.current_window == initial
     QTest.keyClick(view, Qt.Key_Return)
-    assert controller.windowWidth == 1234.5 and controller.windowCenter == -123.25
+    assert controller.windowWidth == 1234.5 and controller.windowCenter == -123.2
     type_text(view, width, "0")
     _click(view, _find(root, "applyWindowValues"))
     assert controller.windowWidth == 1234.5
     assert _find(root, "windowInputError").property("text")
     type_text(view, width, "999.75")
     _click(view, _find(root, "applyWindowValues"))
-    assert controller.windowWidth == 999.75
+    assert controller.windowWidth == 999.8
+    type_text(view, width, "999.8497")
     _click(view, _find(root, "beginSaveWindowTemplate"))
     name = _find(root, "quickWindowTemplateName")
     type_text(view, name, "Review window")
     _click(view, _find(root, "quickSaveWindowTemplate"))
     custom = settings.values["window"]["custom"]
-    assert len(custom) == 1 and custom[0]["width"] == 999.75
+    assert width.property("text") == "999.8" and center.property("text") == "-123.2"
+    assert len(custom) == 1 and custom[0]["width"] == 999.8
     identifier = custom[0]["presetId"]
     reloaded = SettingsController(path=settings._path)
     assert reloaded.values["window"]["custom"] == custom
@@ -146,7 +148,7 @@ def test_numeric_window_apply_template_validation_persistence_and_delete(display
     QTest.qWait(40)
     _click(view, _find(root, "quickDeleteWindowTemplate-" + identifier))
     assert settings.values["window"]["custom"] == []
-    assert controller.windowWidth == 999.75 and controller.windowCenter == -123.25
+    assert controller.windowWidth == 999.8 and controller.windowCenter == -123.2
     assert SettingsController(path=settings._path).values["window"]["custom"] == []
     assert not warnings, warnings
 
@@ -292,4 +294,21 @@ def test_window_inputs_keep_equal_fixed_size_through_edits_and_updates(display_p
         QTest.qWait(30)
         assert geometry() == initial
         QTest.keyClick(view, Qt.Key_Escape)
+    assert not warnings, warnings
+
+
+def test_window_values_show_at_most_one_decimal_after_live_updates(display_panel):
+    view, controller, warnings = display_panel
+    root = view.rootObject()
+    width, center = _find(root, "windowWidthInput"), _find(root, "windowCenterInput")
+    for ww, wl, expected in [(167.23147, 56.995304, ("167.2", "57")),
+                              (320.39, -173.02, ("320.4", "-173")),
+                              (80, 40, ("80", "40"))]:
+        controller.applyWindowPreset(wl, ww)
+        assert (width.property("text"), center.property("text")) == expected
+    type_text(view, width, "167.23147")
+    type_text(view, center, "56.995304")
+    QTest.keyClick(view, Qt.Key_Return)
+    assert controller.windowWidth == 167.2 and controller.windowCenter == 57
+    assert (width.property("text"), center.property("text")) == ("167.2", "57")
     assert not warnings, warnings

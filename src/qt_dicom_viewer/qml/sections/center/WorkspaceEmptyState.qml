@@ -90,9 +90,9 @@ Item {
                         + " 个序列。请在左侧选择序列，然后双击打开影像。"
                 return emptyState.pacsController && emptyState.pacsController.pacsEnabled
                     ? (emptyState.pacsController.localEnabled
-                        ? "从本地文件夹或 PACS 导入 DICOM 影像，开始浏览序列。"
+                        ? "可拖入文件、文件夹或压缩包，也可从 PACS 导入影像。"
                         : "从 PACS 查询并导入 DICOM 影像，开始浏览序列。")
-                    : "打开一个包含 DICOM 文件的文件夹，程序会自动扫描并整理可用序列。"
+                    : "将 DICOM 文件、文件夹或压缩包拖入窗口，程序会自动整理可用序列。"
             }
             color: Theme.textMuted
             font.pixelSize: 13
@@ -120,6 +120,18 @@ Item {
             textColor: Theme.textOnPrimary
 
             onClicked: emptyState.panelController.openFolderDialog()
+        }
+        Components.AppButton {
+            objectName: "homeOpenFiles"
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 168
+            visible: !emptyState.hasSeries && (!emptyState.pacsController || emptyState.pacsController.localEnabled)
+            enabled: !emptyState.scanning
+            text: "打开文件或压缩包…"
+            normalColor: "transparent"
+            baseBorderWidth: 1
+            baseBorderColor: Theme.controlBorder
+            onClicked: emptyState.panelController.openFilesDialog()
         }
         Components.AppButton {
             objectName: "homeOpenPacs"

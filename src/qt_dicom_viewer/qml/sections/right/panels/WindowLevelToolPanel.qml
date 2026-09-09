@@ -26,10 +26,12 @@ ColumnLayout {
     readonly property bool ready: Number.isFinite(currentCenter) && Number.isFinite(currentWidth)
     spacing: 8
 
+    function roundedValue(value) { return Math.round(value * 10) / 10 }
+
     function syncInputs() {
         if (dirty) return
-        widthInput.text = Number.isFinite(currentWidth) ? String(currentWidth) : ""
-        centerInput.text = Number.isFinite(currentCenter) ? String(currentCenter) : ""
+        widthInput.text = Number.isFinite(currentWidth) ? String(roundedValue(currentWidth)) : ""
+        centerInput.text = Number.isFinite(currentCenter) ? String(roundedValue(currentCenter)) : ""
     }
     function values() {
         const width = widthInput.text.trim() ? Number(widthInput.text) : NaN
@@ -40,7 +42,7 @@ ColumnLayout {
             return null
         }
         errorText = ""
-        return {width: width, center: center}
+        return {width: roundedValue(width), center: roundedValue(center)}
     }
     function applyInput() {
         const value = values()
@@ -53,6 +55,8 @@ ColumnLayout {
         const value = values()
         if (!value || !settingsController) return
         if (settingsController.saveWindowTemplate("", templateName.text, value.width, value.center)) {
+            widthInput.text = String(value.width)
+            centerInput.text = String(value.center)
             namingTemplate = false
             templateName.text = ""
         } else {

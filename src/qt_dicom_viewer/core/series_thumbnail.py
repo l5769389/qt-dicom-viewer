@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import numpy as np
+from pydicom import dcmread
 from pydicom.dataset import Dataset
 from pydicom.pixels import pixel_array, apply_modality_lut, apply_color_lut
 from PySide6.QtCore import Qt
@@ -14,7 +15,13 @@ from qt_dicom_viewer.model import WindowLevel
 
 def read_series_thumbnail(path: Path) -> QImage:
     metadata = Dataset()
-    pixels = pixel_array(path, index=0, ds_out=metadata)
+    try:
+        pixels = pixel_array(path, index=0, ds_out=metadata)
+    except (AttributeError, ValueError):
+        # The streaming path cannot locate pixels in some deflated or legacy
+        # mixed-VR files. Use the complete parser, still decoding only frame 0.
+        metadata = dcmread(path)
+        pixels = pixel_array(metadata, index=0)
     photometric = str(getattr(metadata, "PhotometricInterpretation", ""))
     if photometric == "PALETTE COLOR":
         pixels = apply_color_lut(pixels, metadata)

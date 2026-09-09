@@ -23,6 +23,7 @@ class AppController(QObject):
     def __init__(self, image_provider, *, pacs_config_path=None, pacs_import_root=None, settings_path=None) -> None:
         super().__init__()
         self._native_window_chrome = None
+        self._file_drop_filter = None
         self._status_message = "Ready"
         self._image_provider = image_provider
         self._summary_text = "No DICOM folder loaded"
@@ -42,6 +43,8 @@ class AppController(QObject):
         self._volume_manager = VolumeManager()
         self.render_service = RenderService(self._series_catalog, self._volume_manager, self)
         self._signal_connect()
+        from qt_dicom_viewer.ui.file_drop_filter import NativeFileDropFilter
+        self._file_drop_filter = NativeFileDropFilter(self)
 
 
     @Slot(QObject)
@@ -98,6 +101,9 @@ class AppController(QObject):
         self._panel_controller.shutdown()
         self._workspace_controller.shutdown()
         self.render_service.shutdown()
+        self._panel_controller.cleanup_imports()
+        if self._file_drop_filter is not None:
+            self._file_drop_filter.shutdown()
 
     @Property(QObject, constant=True)
     def workspaceController(self) -> QObject:

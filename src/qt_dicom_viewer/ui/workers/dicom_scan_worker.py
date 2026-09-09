@@ -1,40 +1,50 @@
 import time
+from pathlib import Path
 
 from PySide6.QtCore import QObject, Slot, Signal, QThread
 
 from qt_dicom_viewer.core.dicom_scanner import DicomFolderScanner
+from qt_dicom_viewer.core.local_import import (
+    LocalImportStore,
+    ImportCancelled,
+    ImportErrorDetail,
+)
 
 
 class DicomScanWorker(QObject):
     finished = Signal(object)
     failed = Signal(object)
     process = Signal(object)
-    folder: str
+    status = Signal(str)
     process_report_interval = 0.1
 
-    def __init__(self, folder:str) -> None:
+    def __init__(self, paths, store=None):
         super().__init__()
-        self.folder = folder
-
-
+        self.paths = [paths] if isinstance(paths, (str, Path)) else list(paths)
+        self.store = store or LocalImportStore()
 
     @Slot()
-    def run(self) -> None:
+    def run(self):
+        latest = None
+        cancelled = QThread.currentThread().isInterruptionRequested
         try:
-            latest_emit_time = 0
-            lastest_result = None
-
-            for result in DicomFolderScanner().scan(self.folder):
-                if QThread.currentThread().isInterruptionRequested():
-                    self.finished.emit(lastest_result)
-                    return
+            files = self.store.prepare(
+                self.paths, cancelled=cancelled, progress=self.status.emit
+            )
+            self.status.emit("正在读取 DICOM 文件…")
+            last_emit = 0
+            for result in DicomFolderScanner().scan_files(
+                files, folder=Path(self.paths[0]).parent, cancelled=cancelled
+            ):
+                latest = result
                 now = time.monotonic()
-                lastest_result = result
-                if  now - latest_emit_time >= self.process_report_interval:
-                    latest_emit_time = now
+                if now - last_emit >= self.process_report_interval:
+                    last_emit = now
                     self.process.emit(result)
-                    lastest_result = None
-            self.finished.emit(lastest_result)
-        except Exception as e:
-            self.failed.emit('error')
-
+            self.finished.emit(latest)
+        except ImportCancelled:
+            self.finished.emit(latest)
+        except ImportErrorDetail as error:
+            self.failed.emit(str(error))
+        except Exception:
+            self.failed.emit("导入失败，请检查文件是否完整、可读，以及剩余磁盘空间。")

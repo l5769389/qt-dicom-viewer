@@ -51,6 +51,11 @@ def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = 
         "--hidden-import", "vtkmodules.vtkRenderingVolumeOpenGL2",
         "--hidden-import", "vtkmodules.vtkRenderingFreeType",
         "--hidden-import", "vtkmodules.vtkInteractionStyle",
+        # Pixel codecs are discovered through entry-point metadata at runtime.
+        *[arg for package in ("pylibjpeg", "libjpeg", "openjpeg", "rle", "jpeg_ls", "py7zr")
+          for arg in ("--collect-all", package)],
+        *[arg for distribution in ("pylibjpeg", "pylibjpeg-libjpeg", "pylibjpeg-openjpeg", "pylibjpeg-rle", "pyjpegls")
+          for arg in ("--copy-metadata", distribution)],
         # pydicom 动态解码模块和数据文件由其官方打包钩子收集。
         str(entry),
     ]

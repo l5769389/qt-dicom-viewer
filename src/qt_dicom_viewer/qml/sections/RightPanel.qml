@@ -38,9 +38,7 @@ Rectangle {
             Layout.preferredHeight: implicitHeight
             toolController: rightPanel.toolController
             viewportController: rightPanel.viewportController
-            playbackActive: rightPanel.tabController
-                ? rightPanel.tabController.playing
-                : false
+            playbackActive: rightPanel.tabController?.playing ?? false
 
             onToolTriggered: toolDefinition => {
                 rightPanel.toolController?.activateTool(

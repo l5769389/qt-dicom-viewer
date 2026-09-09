@@ -31,9 +31,9 @@ AppTextField {
         id: calendar
         objectName: root.objectName + "-popup"
         parent: Basic.Overlay.overlay
-        x: Math.max(8, Math.min(parent.width - width - 8, root.mapToItem(parent, 0, 0).x))
-        y: Math.max(8, Math.min(parent.height - height - 8, root.mapToItem(parent, 0, root.height).y))
-        width: Math.min(292, parent.width - 16)
+        x: parent ? Math.max(8, Math.min(parent.width - width - 8, root.mapToItem(parent, 0, 0).x)) : 0
+        y: parent ? Math.max(8, Math.min(parent.height - height - 8, root.mapToItem(parent, 0, root.height).y)) : 0
+        width: Math.min(292, (parent?.width ?? 308) - 16)
         padding: 10; modal: true; focus: true
         Basic.Overlay.modal: Rectangle { color: "#88000000" }
         property date displayed: new Date()
