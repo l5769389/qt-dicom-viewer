@@ -108,7 +108,7 @@ def test_selection_windowing_and_resets_keep_independent_state(loaded_tab, volum
     view.applyVolumePreset("bone")
     assert view.state == pose and view.windowWidth == 1500
     tools.activateTool("window")
-    assert tools.activeInteraction == "window" and tools.activePanel == ""
+    assert tools.activeInteraction == "window" and tools.activePanel == "window"
     view.begin_drag((200, 200), (800, 600))
     view.update_drag((400, 50))
     expected = WindowLevel(center=550, width=1750)

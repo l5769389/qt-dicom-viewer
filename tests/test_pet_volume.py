@@ -42,7 +42,7 @@ def test_volume_tab_uses_committed_volumes_and_survives_source_close(fusion_scen
     assert view.loadState == "ready" and len(workspace.currentTabAllViewports) == 1
     assert len(source.viewports_by_id) == 4
     assert {item["toolType"] for item in workspace.activeTab.toolController.tools} == {
-        "pan", "zoom", "volume-rotate", "volume-direction", "volume-preset", "reset"}
+        "window", "pan", "zoom", "volume-rotate", "volume-direction", "volume-preset", "reset"}
     view.setVolumeMode("pet")
     view.setPetOpacity(.4)
     source.openVolumeView()
@@ -130,3 +130,20 @@ def test_padding_and_camera_fit_do_not_modify_quantitative_data(fusion_scene):
     assert colors.GetColor(10) == (1, 1, 1)
     with pytest.raises(ValueError):
         pet_transfer_functions(0, 2, "hotIron", .8)
+
+
+def test_fusion_volume_window_is_independent_of_source(fusion_scene):
+    workspace, source, renderer, requests = fusion_scene
+    source.openVolumeView()
+    view = workspace.activeViewport
+    source_window = source.ctCenter, source.ctWidth
+    view.applyWindowPreset(50, 900)
+    assert view.windowWidth == 900
+    assert (source.ctCenter, source.ctWidth) == source_window and not source.ctInverted
+    source.setCtWindow(20, 600)
+    source.handleRenderResult(renderer.render(requests[-1]))
+    assert (view.windowCenter, view.windowWidth) == (50, 900)
+    workspace.closeTab(source._tab_config.tab_id)
+    assert view.windowWidth == 900
+    view.reset_all_view_state()
+    assert view.windowWidth == 1500

@@ -10,6 +10,8 @@ Rectangle {
     id: leftPanel
     objectName: "leftPanel"
     required property var panelController
+    readonly property real footerRowHeight: 36
+    property bool compact: false
     property var pacsController: null
     property var workspaceController: null
     property var exportController: null
@@ -34,27 +36,51 @@ Rectangle {
     readonly property string activeSource: navigationActions.some(action => action.type === selectedSource)
         ? selectedSource : navigationActions[0].type
     readonly property int sourceCount: navigationActions.filter(action => ["file", "pacs"].includes(action.type)).length
-    property string lastQuery: ""
+    property string scrollAnchorKey: ""
+    property int scrollAnchorIndex: 0
+    property real scrollAnchorOffset: 0
+    property bool restorePending: false
+    property bool resetScrollPending: false
     color: Theme.panelBackground
     border.color: Theme.borderDefault
     border.width: 1
     radius: 8
     clip: true
 
-    function refreshRows() {
-        const reset = lastQuery !== panelController.patientSearch
-        const offset = reset ? 0 : seriesList.contentY
-        lastQuery = panelController.patientSearch
-        seriesList.model = panelController.sidebarItems
-        Qt.callLater(function() {
-            seriesList.contentY = Math.max(0, Math.min(offset, seriesList.contentHeight - seriesList.height))
-        })
+    function captureScroll(reset) {
+        resetScrollPending = resetScrollPending || reset
+        if (restorePending) return
+        restorePending = true
+        const index = seriesList.indexAt(1, seriesList.contentY + 1)
+        const item = seriesList.itemAtIndex(index)
+        scrollAnchorIndex = Math.max(0, index)
+        scrollAnchorKey = panelController.sidebarModel.keyAt(index)
+        scrollAnchorOffset = item ? item.y - seriesList.contentY : 0
     }
 
-    Component.onCompleted: refreshRows()
+    function restoreScroll() {
+        seriesList.forceLayout()
+        if (resetScrollPending || seriesList.count === 0) {
+            seriesList.positionViewAtBeginning()
+        } else {
+            const found = panelController.sidebarModel.indexOfKey(scrollAnchorKey)
+            const index = found >= 0 ? found : Math.min(scrollAnchorIndex, seriesList.count - 1)
+            seriesList.positionViewAtIndex(index, ListView.Beginning)
+            const item = seriesList.itemAtIndex(index)
+            if (item) {
+                const lower = seriesList.originY
+                const upper = lower + Math.max(0, seriesList.contentHeight - seriesList.height)
+                seriesList.contentY = Math.max(lower, Math.min(item.y - scrollAnchorOffset, upper))
+            }
+        }
+        restorePending = false
+        resetScrollPending = false
+    }
+
     Connections {
-        target: leftPanel.panelController
-        function onSidebarItemsChanged() { leftPanel.refreshRows() }
+        target: leftPanel.panelController.sidebarModel
+        function onStructureAboutToChange(reset) { leftPanel.captureScroll(reset) }
+        function onStructureChanged(reset) { Qt.callLater(leftPanel.restoreScroll) }
     }
 
     Connections {
@@ -94,7 +120,7 @@ Rectangle {
             : leftPanel.activeSeriesUid !== ""
                 && actionData.supported
                 && (leftPanel.activeSeriesModality !== "PT"
-                    || ["2d", "tag", "mpr", "fusion"].includes(actionData.type))
+                    || ["2d", "tag", "mpr", "3d", "fusion"].includes(actionData.type))
                 && (actionData.type !== "montage" || !leftPanel.panelController.scanning)
                 && (
                     actionData.type !== "4d"
@@ -121,36 +147,24 @@ Rectangle {
 
     }
 
+    CompactSeriesRail {
+        anchors.fill: parent
+        anchors.bottomMargin: footer.height
+        visible: leftPanel.compact
+        panelController: leftPanel.panelController
+        pacsController: leftPanel.pacsController
+        workspaceController: leftPanel.workspaceController
+        onContextRequested: (uid, sceneX, sceneY) => seriesContextMenu.openFor(uid, sceneX, sceneY)
+    }
+
     ColumnLayout {
+        visible: !leftPanel.compact
         anchors.fill: parent
         anchors.topMargin: 12
-        anchors.bottomMargin: 4
+        anchors.bottomMargin: footer.height + 4
         anchors.leftMargin: 1
         anchors.rightMargin: 1
         spacing: 10
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: 14
-            Layout.rightMargin: 14
-            spacing: 9
-            Image {
-                objectName: "applicationBrandMark"
-                source: "../assets/brand/voxenra-mark.svg"
-                sourceSize.width: 40
-                sourceSize.height: 40
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                fillMode: Image.PreserveAspectFit
-            }
-            Text {
-                text: "Voxenra"
-                color: Theme.textPrimary
-                font.pixelSize: 18
-                font.weight: Font.DemiBold
-                Layout.fillWidth: true
-            }
-        }
 
         Rectangle {
             Layout.fillWidth: true
@@ -243,10 +257,13 @@ Rectangle {
             objectName: "sidebarSeriesList"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.minimumHeight: 0
+            Layout.preferredHeight: 0
+            model: leftPanel.panelController.sidebarModel
             clip: true
             reuseItems: true
             boundsBehavior: Flickable.StopAtBounds
-            Basic.ScrollBar.vertical: Basic.ScrollBar { }
+            Basic.ScrollBar.vertical: Components.AppScrollBar { }
 
             delegate: Rectangle {
                 id: entry
@@ -372,8 +389,6 @@ Rectangle {
                     z: 2
                     checked: entry.selected
                     onClicked: leftPanel.panelController.selectSeriesWithModifiers(entry.modelData.seriesInstanceUid, true)
-                    Basic.ToolTip.visible: hovered
-                    Basic.ToolTip.text: "勾选序列，选中 CT 和 PET 后点击融合浏览"
                 }
                 Basic.ToolTip.visible: mouse.containsMouse
                 Basic.ToolTip.delay: 900
@@ -391,55 +406,81 @@ Rectangle {
                 lineHeight: 1.4
             }
         }
-        Item {
-            objectName: "sidebarSettingsFooter"
-            Layout.fillWidth: true
-            Layout.preferredHeight: 32
-            Layout.topMargin: -6
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.dividerColor }
-            Components.AppButton {
-                objectName: "sidebarExport"
-                anchors.left: parent.left
-                anchors.leftMargin: 8
-                anchors.bottom: parent.bottom
-                height: 28
-                text: "导出序列…"
-                compact: true
-                enabled: leftPanel.activeSeriesUid !== "" && !leftPanel.panelController.scanning
-                    && leftPanel.exportController !== null && !leftPanel.exportController.busy
-                onClicked: leftPanel.exportController.openSeries(leftPanel.activeSeriesUid, false)
-            }
-            Components.ToolbarAction {
-                buttonObjectName: "sidebarManual"
-                anchors.right: settingsEntry.left
-                anchors.rightMargin: 4
-                anchors.bottom: parent.bottom
-                width: 28
-                height: 28
-                label: "操作手册"
-                tooltipText: "操作手册"
-                iconName: "manual"
-                iconSize: 18
-                checked: leftPanel.workspaceController?.activeTabType === "manual"
-                visible: leftPanel.workspaceController !== null
-                onTriggered: leftPanel.workspaceController.openManual("")
-            }
-            Components.ToolbarAction {
-                id: settingsEntry
-                buttonObjectName: "sidebarSettings"
-                anchors.right: parent.right
-                anchors.rightMargin: 8
-                anchors.bottom: parent.bottom
-                width: 28
-                height: 28
-                label: "工作区设置"
-                tooltipText: "工作区设置"
-                iconName: "settings"
-                iconSize: 18
-                checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
-                visible: leftPanel.workspaceController !== null
-                onTriggered: leftPanel.workspaceController.openSettings()
-            }
+    }
+
+    Item {
+        id: footer
+        objectName: "sidebarSettingsFooter"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 1
+        anchors.rightMargin: 1
+        height: leftPanel.footerRowHeight * (leftPanel.compact ? 3 : 1)
+        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.dividerColor }
+        Components.ToolbarAction {
+            visible: !leftPanel.compact
+            id: exportEntry
+            buttonObjectName: "sidebarExport"
+            anchors.left: parent.left
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: 28
+            height: 28
+            label: "导出序列"
+            tooltipText: "导出序列"
+            primaryAction: true
+            normalIconColor: Theme.textOnPrimary
+            iconName: "export"
+            iconSize: 18
+            actionEnabled: leftPanel.activeSeriesUid !== "" && !leftPanel.panelController.scanning
+                && leftPanel.exportController !== null && !leftPanel.exportController.busy
+            onTriggered: leftPanel.exportController.openSeries(leftPanel.activeSeriesUid, false)
+        }
+        Components.ToolbarAction {
+            visible: !leftPanel.compact
+            buttonObjectName: "sidebarClear"
+            anchors.left: exportEntry.right
+            anchors.leftMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            width: 28
+            height: 28
+            label: "清空所有序列"
+            tooltipText: "清空所有序列"
+            iconName: "delete"
+            iconSize: 18
+            resetAction: true
+            actionEnabled: leftPanel.panelController.hasSeries && !leftPanel.panelController.scanning
+            onTriggered: leftPanel.panelController.clearSeries()
+        }
+        Components.ToolbarAction {
+            buttonObjectName: "sidebarManual"
+            x: leftPanel.compact ? (parent.width - width) / 2 : settingsEntry.x - width - 4
+            y: (leftPanel.footerRowHeight - height) / 2
+            width: 28
+            height: 28
+            label: "操作手册"
+            tooltipText: "操作手册"
+            iconName: "manual"
+            iconSize: 18
+            checked: leftPanel.workspaceController?.activeTabType === "manual"
+            visible: leftPanel.workspaceController !== null
+            onTriggered: leftPanel.workspaceController.openManual("")
+        }
+        Components.ToolbarAction {
+            id: settingsEntry
+            buttonObjectName: "sidebarSettings"
+            x: leftPanel.compact ? (parent.width - width) / 2 : parent.width - width - 40
+            y: (leftPanel.footerRowHeight - height) / 2 + (leftPanel.compact ? leftPanel.footerRowHeight : 0)
+            width: 28
+            height: 28
+            label: "工作区设置"
+            tooltipText: "工作区设置"
+            iconName: "settings"
+            iconSize: 18
+            checked: leftPanel.workspaceController && leftPanel.workspaceController.activeTabType === "settings"
+            visible: leftPanel.workspaceController !== null
+            onTriggered: leftPanel.workspaceController.openSettings()
         }
     }
 
@@ -453,7 +494,7 @@ Rectangle {
 
         objectName: "seriesContextAction-" + actionCode
         enabled: actionEnabled && (leftPanel.panelController.seriesModality(seriesContextMenu.contextSeriesUid) !== "PT"
-            || !["montage", "3d", "4d"].includes(actionCode))
+            || !["montage", "4d"].includes(actionCode))
         implicitWidth: 244
         implicitHeight: 30
         leftPadding: 9
@@ -506,8 +547,8 @@ Rectangle {
 
         Basic.ToolTip.visible: hovered && !actionEnabled
         Basic.ToolTip.delay: 350
-        Basic.ToolTip.text: ["montage", "3d", "4d"].includes(actionCode)
-            ? "所选序列不支持此视图" : "暂未实现"
+        Basic.ToolTip.text: ["montage", "4d"].includes(actionCode)
+            ? "所选序列不支持此视图" : actionCode === "remove-selected" ? "扫描完成后可删除所选序列" : "暂未实现"
     }
 
     component SeriesMenuSeparator: Basic.MenuSeparator {
@@ -529,6 +570,9 @@ Rectangle {
         property real requestedSceneY: 0
         width: Math.min(252, parent.width - 16)
         padding: 4
+        // A separate popup window stays above the native VTK child window.
+        popupType: leftPanel.workspaceController?.activeViewport?.viewportType === "volume"
+            ? Basic.Popup.Window : Basic.Popup.Item
         modal: false
         focus: true
         closePolicy: Basic.Popup.CloseOnEscape | Basic.Popup.CloseOnPressOutside
@@ -564,6 +608,9 @@ Rectangle {
                     directoryErrorDialog.open()
             } else if (action === "deidentify") {
                 leftPanel.exportController.openSeries(seriesUid, true)
+            } else if (action === "remove-selected") {
+                leftPanel.panelController.removeSelectedSeries()
+                contextSeriesUid = ""
             } else if (action === "remove") {
                 leftPanel.panelController.removeSeries(seriesUid)
                 contextSeriesUid = ""
@@ -579,7 +626,7 @@ Rectangle {
 
         SeriesMenuItem {
             actionCode: "2d"
-            iconName: "scroll"
+            iconName: "nav-view-2d"
             text: "快速浏览"
         }
         SeriesMenuItem {
@@ -590,7 +637,7 @@ Rectangle {
         }
         SeriesMenuItem {
             actionCode: "mpr"
-            iconName: "rotate-3d"
+            iconName: "nav-view-mpr"
             text: "多平面重建 (MPR)"
         }
         SeriesMenuItem {
@@ -600,12 +647,12 @@ Rectangle {
         }
         SeriesMenuItem {
             actionCode: "3d"
-            iconName: "rotate-3d-variant"
+            iconName: "nav-view-3d"
             text: "3D 体渲染"
         }
         SeriesMenuItem {
             actionCode: "4d"
-            iconName: "cine-play"
+            iconName: "nav-view-4d"
             text: "4D 相位播放"
             actionEnabled: leftPanel.panelController.seriesSupportsFourD(
                 seriesContextMenu.contextSeriesUid
@@ -613,7 +660,7 @@ Rectangle {
         }
         SeriesMenuItem {
             actionCode: "tag"
-            iconName: "annotate"
+            iconName: "nav-view-tag"
             text: "DICOM 标签"
         }
 
@@ -621,7 +668,7 @@ Rectangle {
 
         SeriesMenuItem {
             actionCode: "directory"
-            iconName: "folder"
+            iconName: "nav-load-file"
             text: "在资源管理器中打开"
         }
         SeriesMenuItem {
@@ -634,6 +681,14 @@ Rectangle {
 
         SeriesMenuSeparator { }
 
+        SeriesMenuItem {
+            actionCode: "remove-selected"
+            iconName: "delete"
+            text: "删除所选序列"
+            danger: true
+            actionEnabled: leftPanel.panelController.selectedSeriesUids.length > 0
+                && !leftPanel.panelController.scanning
+        }
         SeriesMenuItem {
             actionCode: "remove"
             iconName: "close"

@@ -60,6 +60,8 @@ Rectangle {
                     return detailPanel.viewportController?.reconstructionController
                         ? petColorComponent : pseudoColorComponent
                 const map = {
+                    'scroll': scrollComponent,
+                    'zoom': zoomComponent,
                     'export': exportComponent,
                     'segmentation': voiComponent,
                     'voi': voiComponent,
@@ -82,6 +84,15 @@ Rectangle {
                 return map[detailPanel.activePanel] ?? null
             }
         }
+    }
+
+    Component {
+        id: scrollComponent
+        Panels.ScrollToolPanel { viewportController: detailPanel.viewportController }
+    }
+    Component {
+        id: zoomComponent
+        Panels.ZoomToolPanel { viewportController: detailPanel.viewportController }
     }
 
     Component {
@@ -115,13 +126,18 @@ Rectangle {
     Component {
         id: volumePresetComponent
         Loader {
-            sourceComponent: detailPanel.viewportController?.isFusionVolume === true
+            sourceComponent: detailPanel.viewportController?.isStandalonePetVolume === true
+                ? standalonePetVolumeComponent : detailPanel.viewportController?.isFusionVolume === true
                 ? petVolumeComponent : genericVolumePresetComponent
         }
     }
     Component {
         id: genericVolumePresetComponent
         Panels.VolumePresetPanel { viewportController: detailPanel.viewportController }
+    }
+    Component {
+        id: standalonePetVolumeComponent
+        Panels.StandalonePetVolumePanel { controller: detailPanel.viewportController }
     }
     Component {
         id: petVolumeComponent
@@ -193,6 +209,14 @@ Rectangle {
     Component {
         id: windowLevelComponent
         Panels.WindowLevelToolPanel {
+            settingsController: detailPanel.toolController?.settingsController ?? null
+            currentCenter: detailPanel.viewportController?.windowCenter ?? NaN
+            currentWidth: detailPanel.viewportController?.windowWidth ?? NaN
+            allowEditing: detailPanel.viewportController?.isPetViewport !== true
+            supportsInversion: detailPanel.viewportController?.supportsCtWindow === true
+                && detailPanel.viewportController?.viewportType !== "volume"
+            inverted: detailPanel.viewportController?.inverted ?? false
+            onInversionRequested: detailPanel.viewportController?.toggleInverted()
             presets: detailPanel.viewportController
                 && detailPanel.viewportController.windowPresets !== undefined
                 ? detailPanel.viewportController.windowPresets
@@ -227,6 +251,7 @@ Rectangle {
     Component {
         id: serviceComponent
         Panels.ServicePanel {
+            onManualRequested: chapter => detailPanel.manualRequested(chapter)
             toolController: detailPanel.toolController
             viewportController: detailPanel.viewportController
             onActionTriggered: action => {

@@ -17,7 +17,7 @@ def configure_logging(debug: bool = False) -> Path:
     log_directory = log_root / "logs"
     log_directory.mkdir(parents=True, exist_ok=True)
 
-    log_path = log_directory / "dicomvision.log"
+    log_path = log_directory / "voxenra.log"
 
     level = logging.DEBUG if debug else logging.INFO
 

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QStackedLayout, QLabel, QPus
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 from qt_dicom_viewer.ui.volume_render_backend import VolumeRenderBackend
+from qt_dicom_viewer.ui.cursors import tool_cursor
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,8 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
         handled = super().event(event)
         if event.type() == QEvent.DevicePixelRatioChange and "_RenderWindow" in self.__dict__:
             self.resizeEvent(None)
+            if getattr(self.host, "vtk_widget", None) is self:
+                self.host._update_cursor()
         return handled
 
     def paintEvent(self, event):
@@ -54,6 +57,7 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
             p = event.position()
             self.host.controller.update_drag((p.x(), p.y()))
             self.host.controller.end_drag()
+            self.host._update_cursor()
             event.accept()
 
     def wheelEvent(self, event):
@@ -70,6 +74,7 @@ class VolumeInteractor(QVTKRenderWindowInteractor):
         # Focus loss must never commit an unfinished stroke. A crop already
         # dispatched on mouse release continues independently of keyboard focus.
         self.host.controller.cancel_drag()
+        self.host._update_cursor()
         super().focusOutEvent(event)
 
 
@@ -124,10 +129,11 @@ class VolumeViewportHost(QWidget):
         self._update_cursor()
 
     def _update_cursor(self):
-        shape = {"pan": Qt.SizeAllCursor, "zoom": Qt.SizeVerCursor, "window": Qt.CrossCursor,
-                 "volume:crop": Qt.CrossCursor}.get(
-            self.controller.activeInteraction, Qt.OpenHandCursor)
-        self.vtk_widget.setCursor(shape)
+        kind = {"pan": "pan", "zoom": "zoom", "window": "window",
+                "volume:crop": "segmentation", "volume:rotate": "rotate-3d"}.get(
+                    self.controller.activeInteraction)
+        self.vtk_widget.setCursor(tool_cursor(kind, self.vtk_widget.devicePixelRatioF())
+                                  if kind else Qt.ArrowCursor)
 
     def _selection_changed(self):
         if self._disposed:

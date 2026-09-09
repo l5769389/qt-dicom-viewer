@@ -173,8 +173,8 @@ def install_profiles():
     from PySide6.QtCore import QCoreApplication, QStandardPaths
     from qt_dicom_viewer.pacs.config import PacsConfigStore, PacsProfile
     app = QCoreApplication.instance() or QCoreApplication([])
-    app.setOrganizationName("QtDicomViewer")
-    app.setApplicationName("Qt DICOM Viewer")
+    app.setOrganizationName("Voxenra")
+    app.setApplicationName("Voxenra")
     path = Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)) / "pacs.json"
     store = PacsConfigStore(path)
     existing, default, local, pacs = store.load()
@@ -217,8 +217,8 @@ def launch():
     from importlib.resources import files
     from qt_dicom_viewer.app import bind_controller
     app = QApplication(sys.argv)
-    QCoreApplication.setOrganizationName("QtDicomViewer")
-    QCoreApplication.setApplicationName("Qt DICOM Viewer")
+    QCoreApplication.setOrganizationName("Voxenra")
+    QCoreApplication.setApplicationName("Voxenra")
     engine = bind_controller()
     # Explicit lab launcher supplies lab credentials to this session only.
     for profile in profiles():

@@ -19,14 +19,20 @@ NAMES = frozenset({
     'rotate-3d', 'rotate-ccw90', 'rotate-cw90', 'save', 'scroll',
     'segmentation', 'service', 'viewport-settings', 'voi', 'volume-crop',
     'window', 'zoom',
+    'check', 'chevron-down', 'chevron-up', 'close', 'folder', 'fullscreen', 'help',
+    'pet-window', 'pseudocolor', 'registration', 'rotate-3d-variant', 'settings',
+    'shield', 'slice-next', 'slice-previous', 'view-tile', 'volume-bed',
 })
 
 @lru_cache(maxsize=256)
 def render_icon(name, tint, accent, width, height):
-    image = QImage(width, height, QImage.Format_ARGB32_Premultiplied)
+    # Supersample before the final DPR-sized texture; keeps tiny diagonals and
+    # rounded strokes smooth even with the Qt Quick software renderer.
+    scale = 2
+    image = QImage(width * scale, height * scale, QImage.Format_ARGB32_Premultiplied)
     image.fill(Qt.transparent)
     if name not in NAMES:
-        return image
+        name = "help"
     color = QColor(tint)
     detail = QColor(accent)
     svg = files("qt_dicom_viewer").joinpath("qml/assets/icons/" + name + ".svg").read_text()
@@ -36,7 +42,7 @@ def render_icon(name, tint, accent, width, height):
     painter.setRenderHint(QPainter.Antialiasing)
     QSvgRenderer(QByteArray(svg.encode())).render(painter)
     painter.end()
-    return image
+    return image.scaled(width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
 class SvgIconProvider(QQuickImageProvider):
     def __init__(self):

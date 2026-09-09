@@ -20,6 +20,7 @@ from qt_dicom_viewer.model.render_models import VolumeLoadResult
 from qt_dicom_viewer.model.render_models import PetBatchRenderResult
 from qt_dicom_viewer.ui.controller.tab.pet_workspace_controller import PetWorkspaceController
 
+from qt_dicom_viewer.ui.controller.tab_loading_controller import TabLoadingController
 from qt_dicom_viewer.ui.controller.utility_tab_controller import UtilityTabController
 from qt_dicom_viewer.ui.controller.manual_tab_controller import ManualTabController
 
@@ -29,6 +30,7 @@ class WorkspaceController(QObject):
     tabsChanged = Signal()
     activeTabChanged = Signal()
     activeViewportChanged = Signal()
+    loadingStatesChanged = Signal()
 
     rendered = Signal()
     renderRequested = Signal(object)
@@ -42,6 +44,7 @@ class WorkspaceController(QObject):
         self._tab_dict:dict[str, TabController | UtilityTabController] = {}
         self._active_tab_id: str | None = None
         self._tab_mru: list[str] = []
+        self._load_states: dict[str, TabLoadingController] = {}
         self._image_provider = image_provider
         self._tag_read_service = TagReadService(self)
 
@@ -88,6 +91,10 @@ class WorkspaceController(QObject):
         if tab_id not in self._tab_dict:
             return
         tab = self._tab_dict.pop(tab_id)
+        loading = self._load_states.pop(tab_id, None)
+        if loading is not None:
+            loading.close()
+        self.loadingStatesChanged.emit()
         tab.dispose()
         tab.deleteLater()
         self._tab_mru = [key for key in self._tab_mru if key != tab_id]
@@ -172,6 +179,26 @@ class WorkspaceController(QObject):
     def activeTab(self) -> TabController | UtilityTabController | None:
         return self._tab_dict.get(self._active_tab_id, None)
 
+    @Property(QObject, notify=activeTabChanged)
+    def activeLoadState(self):
+        return self._load_states.get(self._active_tab_id)
+
+    @Property("QVariantMap", notify=loadingStatesChanged)
+    def loadingStates(self):
+        return {key: state.status for key, state in self._load_states.items()}
+
+    @Slot()
+    def retryActiveTab(self):
+        tab = self.activeTab
+        state = self.activeLoadState
+        if tab is None or state is None or state.status != "error":
+            return
+        state.restart()
+        if tab.tagController is not None:
+            tab.tagController.retry()
+        else:
+            tab.retry_initial_load()
+
     @Property(str, notify=activeTabChanged)
     def activeTabType(self) -> str:
         tab = self._tab_dict.get(self._active_tab_id)
@@ -187,6 +214,11 @@ class WorkspaceController(QObject):
                         tab_label: str,
                         tab_type: TabType
                    ):
+        try:
+            tab_type = TabType(tab_type)
+        except ValueError:
+            logger.warning("Unsupported tab type: %s", tab_type)
+            return
         if tab_type in (TabType.SETTINGS, TabType.PACS, TabType.MANUAL):
             return
         tab, created = self._create_or_activate_tab(
@@ -263,11 +295,19 @@ class WorkspaceController(QObject):
 
     @Slot()
     def shutdown(self) -> None:
+        for state in self._load_states.values():
+            state.close()
         for tab in self._tab_dict.values():
             tab.dispose()
         self._tag_read_service.shutdown()
 
     def connect_signal(self, tab: TabController):
+        state = TabLoadingController(tab)
+        self._load_states[tab.tab_config.tab_id] = state
+        state.changed.connect(self.loadingStatesChanged.emit)
+        # Record request identity before forwarding: even synchronous test
+        # renderers and cached results must see the matching opening request.
+        tab.renderRequested.connect(state.observe_request)
         if isinstance(tab, PetWorkspaceController):
             tab.volumeViewRequested.connect(self._open_fusion_volume)
         tab.renderRequested.connect(
@@ -317,6 +357,9 @@ class WorkspaceController(QObject):
             )
             return
 
+        if isinstance(tab, TabController) and tab.discard_stale_mpr_window_result(result):
+            return
+
         if isinstance(result, PetBatchRenderResult):
             for frame in result.frames:
                 if frame.image is not None:
@@ -325,6 +368,11 @@ class WorkspaceController(QObject):
             image_key = getattr(result, "image_key", result.viewport_id)
             self._image_provider.set_array(image_key, result.image)
 
+        # Snapshot the completion before the tab schedules the next montage
+        # frame, which can replace this viewport's pending request identity.
+        state = self._load_states.get(tab.tab_config.tab_id)
+        if state is not None:
+            state.accept_result(result)
         tab.handleRenderResult(result)
 
     @Slot(str, str)
@@ -360,6 +408,9 @@ class WorkspaceController(QObject):
             for frame in tab._last_result.frames:
                 if frame.image is not None:
                     self._image_provider.set_array(frame.viewport_id, frame.image)
+        state = self._load_states.get(tab.tab_config.tab_id)
+        if state is not None:
+            state.accept_failure(failure)
         tab.handleRenderFailure(failure)
 
     def createFusionVolumeTab(self, source):
@@ -372,6 +423,7 @@ class WorkspaceController(QObject):
                                series_metas=source._tab_config.series_metas)
             tab = PetVolumeTabController(config, source, self)
             self.connect_signal(tab)
+            self._load_states[tab_id].finish()
             self._tab_dict[tab_id] = tab
             self.tabsChanged.emit()
         else:

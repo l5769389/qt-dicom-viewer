@@ -32,7 +32,7 @@ def test_macos_command_preserves_qml_and_vtk(builders):
 
 
 def test_windows_installer_and_portable_outputs_are_separate(builders):
-    _, win, _ = builders
+    _, win, utils = builders
     command = win.pyinstaller_command(ROOT, installer=True)
     assert "--onedir" in command and "--onefile" not in command
     assert command[command.index("--distpath") + 1] == str(ROOT / "dist/windows")
@@ -40,7 +40,7 @@ def test_windows_installer_and_portable_outputs_are_separate(builders):
     command = win.installer_command(ROOT, compiler, ROOT / "build/installer assets")
     assert command[0] == str(compiler)
     assert f"/DAssetsDir={ROOT / 'build/installer assets'}" in command
-    assert "/DAppVersion=0.2.0" in command
+    assert f"/DAppVersion={utils.app_version()}" in command
 
 
 def test_invalid_version_is_rejected(builders, tmp_path):
@@ -96,7 +96,7 @@ def test_installer_is_per_user_and_does_not_delete_user_data():
     assert "skipifsilent" in source
     assert "ChineseSimplified.isl" in source
     assert "WizardStyle=modern dynamic" in source
-    assert source.count('AppUserModelID: "com.junliu.dicomvision"') == 2
+    assert source.count('AppUserModelID: "com.junliu.voxenra"') == 2
 
 
 def test_generated_icons_include_small_and_retina_images(builders, tmp_path):

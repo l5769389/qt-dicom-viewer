@@ -25,7 +25,8 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
     provider = DicomImageProvider()
     workspace = WorkspaceController(catalog, provider)
     panel = PanelController(series_catalog=catalog)
-    panel._scan_series_record = {r.series_instance_uid: r for r in (ct, pet)}
+    from qt_dicom_viewer.model import DicomFolderScanSnapshot
+    panel._update_series_record(DicomFolderScanSnapshot(tmp_path, 2, 2, 0, [ct, pet]))
     service = RenderService(catalog, VolumeManager())
     workspace.renderRequested.connect(service.submit)
     service.rendered.connect(workspace.handleRenderResult)
@@ -53,11 +54,11 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
     try:
         items = list(_visual_children(view.rootObject()))
         layers = [x for x in items if x.objectName() == "dicomPixelLayer"]
-        assert len(layers) == 4
+        assert len(layers) == (4 if fusion else 3)
         assert any(x.objectName() == ("fusionCtWindowPanel" if fusion else "petWorkspacePanel") and x.isVisible() for x in items)
         assert not any(x.objectName() == "petRegistrationPanel" and x.isVisible() for x in items)
         crosshairs = [x for x in items if x.objectName() == "mprCrosshairLayer"]
-        assert len(crosshairs) == 4
+        assert len(crosshairs) == (4 if fusion else 3)
         assert all(x.property("armLength") == 8 for x in crosshairs)
         assert not any(x.objectName() in ("petColorMap", "fusionColorMap", "fusionOpacity") for x in items)
         if fusion:
@@ -113,7 +114,7 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
             assert {v.viewportType for v in tab.viewports_by_id.values() if v.viewportRole != "mip"} == {"coronal"}
             tab.setPlane("axial")
             wait_until(lambda: tab._requested == tab._committed_request)
-            # Unbroken names and descriptions wrap/elide inside each half-view.
+            # Each unbroken field elides on one line inside its half-view.
             configs = {v.viewportId: v.viewport_config for v in tab.viewports_by_id.values()}
             for v in tab.viewports_by_id.values():
                 v.viewport_config = replace(v.viewport_config, series_meta=replace(
@@ -133,7 +134,9 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
                 assert "ID:" not in item.property("text") and "HiddenPatientIdentifier" not in item.property("text")
                 assert 0 < item.width() < item.parentItem().width()/2
                 assert item.height() < item.parentItem().height()/2
-                assert item.property("truncated")
+                rows = [x for x in _visual_children(item) if x.objectName() == "cornerInformationLine"]
+                assert rows and any(row.property("truncated") for row in rows)
+                assert all(row.property("lineCount") == 1 for row in rows)
             assert view.grabWindow().save(str(tmp_path / "petct-long-overlays.png"))
             for v in tab.viewports_by_id.values():
                 v.viewport_config = configs[v.viewportId]
@@ -230,15 +233,16 @@ def test_real_pet_workspace(qt_app, paired_series, tmp_path, fusion):
         wait_until(lambda: tab.petController.petActiveUnitId == "kbqml")
         assert tab.petController.petActiveUnitId == "kbqml"
         assert tab.petController.petControlUpper == 15
-        mip = next(v for v in tab.viewports_by_id.values() if v.viewportRole == "mip")
-        result = mip._mip_result
-        row, col = np.unravel_index(np.nanargmax(result.modality_pixel), result.modality_pixel.shape)
-        peak = result.peak_positions[row, col].copy()
-        QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, _scene(layers[3], col, row))
-        wait_until(lambda: np.allclose(tab._target_mpr_state.frame.center_patient, peak))
-        np.testing.assert_allclose(tab._target_mpr_state.frame.center_patient, peak)
         if fusion:
-            registration_tool = next(x for x in items if x.objectName() == "primaryTool-registration")
+            mip = next(v for v in tab.viewports_by_id.values() if v.viewportRole == "mip")
+            result = mip._mip_result
+            row, col = np.unravel_index(np.nanargmax(result.modality_pixel), result.modality_pixel.shape)
+            peak = result.peak_positions[row, col].copy()
+            QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, _scene(layers[3], col, row))
+            wait_until(lambda: np.allclose(tab._target_mpr_state.frame.center_patient, peak))
+            np.testing.assert_allclose(tab._target_mpr_state.frame.center_patient, peak)
+        if fusion:
+            registration_tool = next(x for x in _visual_children(view.rootObject()) if x.objectName() == "primaryTool-registration")
             QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier,
                             registration_tool.mapToScene(QPointF(registration_tool.width()/2, registration_tool.height()/2)).toPoint())
             QTest.qWait(20)
@@ -316,7 +320,8 @@ def test_main_qml_two_selection_entry_points(qt_app, paired_series, tmp_path):
     provider = DicomImageProvider()
     workspace = WorkspaceController(catalog, provider)
     panel = PanelController(series_catalog=catalog)
-    panel._scan_series_record = {r.series_instance_uid: r for r in (ct, pet)}
+    from qt_dicom_viewer.model import DicomFolderScanSnapshot
+    panel._update_series_record(DicomFolderScanSnapshot(tmp_path, 2, 2, 0, [ct, pet]))
     panel.fusionCreateRequested.connect(workspace.createFusionTab)
     renderer = PetReconstructor(catalog, VolumeManager())
     workspace.renderRequested.connect(lambda r: workspace.handleRenderResult(renderer.render(r)))
@@ -380,7 +385,8 @@ def test_fusion_dialog_previews_and_confirmation(qt_app, paired_series, tmp_path
     pet = replace(pet, patient_id="OTHER-PATIENT")
     provider = DicomImageProvider()
     panel = PanelController(series_catalog=catalog, image_provider=provider)
-    panel._scan_series_record = {r.series_instance_uid: r for r in (ct, pet)}
+    from qt_dicom_viewer.model import DicomFolderScanSnapshot
+    panel._update_series_record(DicomFolderScanSnapshot(tmp_path, 2, 2, 0, [ct, pet]))
     workspace = WorkspaceController(catalog, provider)
     app = _App(workspace, panel)
     engine = QQmlApplicationEngine()

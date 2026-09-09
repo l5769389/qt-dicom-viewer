@@ -56,6 +56,14 @@ Basic.TabBar {
                 id: tabContent
                 spacing: 7
 
+                Basic.BusyIndicator {
+                    objectName: "tabLoading-" + tabButton.modelData.tabId
+                    Layout.preferredWidth: 14
+                    Layout.preferredHeight: 14
+                    visible: workspaceTabs.workspaceController.loadingStates[tabButton.modelData.tabId] === "loading"
+                    running: visible
+                }
+
                 // 视图类型先作为上下文标识，再显示序列名称。
                 Rectangle {
                     Layout.preferredWidth: Math.max(

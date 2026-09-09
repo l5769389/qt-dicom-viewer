@@ -7,13 +7,15 @@ Item {
     required property real pixelsPerMm
     required property bool calibrated
     required property var options
-    readonly property real availablePixels: Math.max(0, width - 32)
+    readonly property real availablePixels: Math.max(0, Math.min(width - 32, width * 0.25, 160))
     readonly property real lengthMm: {
         if (!calibrated || !Number.isFinite(pixelsPerMm) || pixelsPerMm <= 0)
             return 0
         const selected = options.lengthMm ?? 100
-        const choices = [100, 50, 20, 10, 1]
-        return choices.find(mm => mm <= selected && mm * pixelsPerMm <= availablePixels) ?? 0
+        const limit = Math.min(selected, availablePixels / pixelsPerMm)
+        if (!(limit > 0) || !Number.isFinite(limit)) return 0
+        const power = Math.pow(10, Math.floor(Math.log10(limit)))
+        return Number(((limit >= 5 * power ? 5 : limit >= 2 * power ? 2 : 1) * power).toPrecision(8))
     }
     readonly property real barPixels: lengthMm * pixelsPerMm
     visible: options.enabled !== false && lengthMm > 0

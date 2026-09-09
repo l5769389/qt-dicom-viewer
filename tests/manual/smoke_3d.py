@@ -239,7 +239,7 @@ def main():
             assert np.mean(frames["xray"] > 250) < 0.1, "XRay saturated"
             click_item("volumePreset-bone")
             select_tool("window")
-            assert workspace.activeTab.toolController.activePanel == ""
+            assert workspace.activeTab.toolController.activePanel == "window"
             original_display = first.display_state
             pose = first.state
             QTest.mousePress(widget, Qt.LeftButton, pos=center)

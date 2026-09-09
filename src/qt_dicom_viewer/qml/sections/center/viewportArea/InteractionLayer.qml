@@ -83,8 +83,7 @@ Item {
 
     readonly property bool customCursorActive:
         effectiveCursorKind !== "" && effectiveCursorKind !== "default"
-    readonly property int effectiveCursorShape: customCursorActive ? Qt.BlankCursor
-        : effectiveCursorKind === "default" || activeInteraction === "" ? Qt.ArrowCursor : Qt.CrossCursor
+    readonly property int effectiveCursorShape: customCursorActive ? Qt.BlankCursor : Qt.ArrowCursor
 
     readonly property point cursorPosition:
         dragHandler.active
@@ -144,58 +143,16 @@ Item {
         id: customCursor
         objectName: "viewportCustomCursor"
 
-        readonly property real pointerHeight: 20
-        readonly property real pointerScale: pointerHeight / 30
-        readonly property real operationIconSize: 20
-
-        // 箭头尖端是热点；操作图标紧贴箭头右下方。
-        x: interactionLayer.cursorPosition.x - 2 * pointerScale
-        y: interactionLayer.cursorPosition.y - 1.5 * pointerScale
+        // The arrow tip, not the tool badge, is the click/drawing hotspot.
+        width: 40; height: 32
+        x: interactionLayer.cursorPosition.x - 2
+        y: interactionLayer.cursorPosition.y - 2
         z: 100
-
-        width: cursorBadge.x + cursorBadge.width
-        height: Math.max(pointerHeight, cursorBadge.y + cursorBadge.height)
-        visible:
-            (hoverHandler.hovered || dragHandler.active)
-            && interactionLayer.customCursorActive
-
-        Item {
-            id: cursorBadge
-            objectName: "viewportCursorBadge"
-            x: 10
-            y: 6
-            width: customCursor.operationIconSize + 6
-            height: width
-            CursorGlyph {
-                objectName: "viewportCursorOperationIcon"
-                anchors.centerIn: parent
-                iconName: interactionLayer.effectiveCursorKind
-                width: customCursor.operationIconSize
-                height: width
-            }
-        }
-
-        Shape {
-            objectName: "viewportCursorPointer"
-            width: 22
-            height: 30
-            antialiasing: true
-            // PathSvg 不会随 Shape 的宽高自动缩放，显式缩放路径和描边。
-            transform: Scale {
-                xScale: customCursor.pointerScale
-                yScale: customCursor.pointerScale
-            }
-
-            ShapePath {
-                fillColor: "#ffffff"
-                strokeColor: "#101820"
-                strokeWidth: 1.5
-                joinStyle: ShapePath.RoundJoin
-
-                PathSvg {
-                    path: "M2,1.5V23.5L7.6,18.3L12.3,28.5L16.5,26.5L11.8,16.6H20Z"
-                }
-            }
+        visible: (hoverHandler.hovered || dragHandler.active) && interactionLayer.customCursorActive
+        CursorGlyph {
+            objectName: "viewportCursorOperationIcon"
+            anchors.fill: parent
+            iconName: interactionLayer.effectiveCursorKind
         }
     }
 

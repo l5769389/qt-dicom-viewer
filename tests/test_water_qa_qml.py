@@ -144,48 +144,25 @@ def test_all_five_rois_drag_in_image_coordinates_and_cancel_with_escape(qa_works
 
 
 @pytest.mark.parametrize("qa_workspace", [(1200, 820), (760, 560)], indirect=True)
-def test_metric_explanations_are_clickable_dismissible_and_fit_window(qa_workspace, qt_app, tmp_path):
+def test_qa_manual_entry_replaces_per_metric_info_and_fits_window(qa_workspace, qt_app, tmp_path):
     window, view, warnings = qa_workspace
     view._tool_controller.selectService("service:qa")
     wait_qa(qt_app, view.qaController)
     QTest.qWait(30)
-    def click_info(name):
-        item = _find(window, name)
-        flickable = _find(window, "toolDetailFlickable")
-        content = flickable.property("contentItem")
-        y = item.mapToItem(content, QPointF()).y()
-        flickable.setProperty("contentY", max(0, min(y - 20,
-            flickable.property("contentHeight") - flickable.height())))
-        QTest.qWait(30)
-        _click(window, item)
-
-    def detail_items():
-        return [item for item in _visual_children(window.contentItem())
-                if item.objectName() == "waterQaInfoDetail" and item.isVisible()]
-    assert not detail_items()
     panel = _find(window, "waterQaResults")
-    assert not any(item.property("text") == "四周相对中心最大绝对差"
-                   for item in _visual_children(panel))
-    click_info("waterQaInfo-uniformity_hu")
-    detail = detail_items()[0]
-    assert "最大绝对值" in detail.property("text")
-    pos = detail.mapToScene(QPointF())
-    assert 0 <= pos.x() <= window.width()-detail.width()
-    assert 0 <= pos.y() <= window.height()-detail.height()-26
-    assert window.grabWindow().save(str(tmp_path/f"qa-info-{window.width()}.png"))
-    QTest.keyClick(window, Qt.Key_Escape)
-    QTest.qWait(20)
-    assert not detail_items()
-    click_info("waterQaInfo-overview")
-    assert "Esc" in detail_items()[0].property("text")
-    QTest.mouseClick(window, Qt.LeftButton, pos=QPoint(30, 30))
-    QTest.qWait(20)
-    assert not detail_items()
-    click_info("waterQaInfo-roiDiameterMm")
-    close = next(item for item in _visual_children(window.contentItem())
-                 if item.objectName() == "waterQaInfoClose" and item.isVisible())
-    _click(window, close)
-    assert not detail_items()
+    requested = []
+    panel.manualRequested.connect(lambda: requested.append(True))
+    assert not any(item.objectName().startswith("waterQaInfo")
+                   for item in _visual_children(window.contentItem()))
+    button = _find(window, "waterQaManualButton")
+    position = button.mapToScene(QPointF())
+    assert 0 <= position.x() < window.width() - button.width()
+    assert 0 <= position.y() < window.height() - button.height()
+    result = view.qaController.currentResult
+    _click(window, button)
+    assert requested == [True]
+    assert view.qaController.currentResult == result
+    assert window.grabWindow().save(str(tmp_path / f"qa-manual-{window.width()}.png"))
     assert not warnings, warnings
 
 

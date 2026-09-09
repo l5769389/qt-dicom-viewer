@@ -57,8 +57,8 @@ Type: files; Name: "{autoprograms}\DICOMVision.lnk"
 Type: files; Name: "{autodesktop}\DICOMVision.lnk"
 
 [Icons]
-Name: "{autoprograms}\Voxenra"; Filename: "{app}\Voxenra.exe"; IconFilename: "{app}\Voxenra.exe"; AppUserModelID: "com.junliu.dicomvision"
-Name: "{autodesktop}\Voxenra"; Filename: "{app}\Voxenra.exe"; IconFilename: "{app}\Voxenra.exe"; AppUserModelID: "com.junliu.dicomvision"; Tasks: desktopicon
+Name: "{autoprograms}\Voxenra"; Filename: "{app}\Voxenra.exe"; IconFilename: "{app}\Voxenra.exe"; AppUserModelID: "com.junliu.voxenra"
+Name: "{autodesktop}\Voxenra"; Filename: "{app}\Voxenra.exe"; IconFilename: "{app}\Voxenra.exe"; AppUserModelID: "com.junliu.voxenra"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Voxenra.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent

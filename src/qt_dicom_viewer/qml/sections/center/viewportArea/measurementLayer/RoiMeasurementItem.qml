@@ -7,7 +7,7 @@ Item {
     id: root
     property var preferences: ({})
     readonly property var styleSettings: preferences.measurement ?? ({})
-    readonly property bool dashed: isDraft || isSelected ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
+    readonly property bool dashed: isDraft ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
     required property var corners
     required property bool isDraft
@@ -15,7 +15,7 @@ Item {
     property bool showMetrics: true
     property string shortLabel: ""
     readonly property Item labelItem: showMetrics ? metricCard : compactLabel
-    readonly property color lineColor: isDraft || isSelected ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
+    readonly property color lineColor: isDraft ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
 
     readonly property string outlinePath: {
         if (root.corners.length !== 4)
@@ -41,11 +41,15 @@ Item {
     readonly property real topEdge: corners.length ? Math.min(...corners.map(p => p.y)) : 0
 
     Shape {
+        preferredRendererType: Shape.CurveRenderer
+        antialiasing: true
         anchors.fill: parent
         ShapePath {
             strokeColor: root.lineColor
             strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            joinStyle: ShapePath.RoundJoin
             strokeStyle: root.dashed ? ShapePath.DashLine : ShapePath.SolidLine
             dashPattern: [4, 2]
             PathSvg { path: root.outlinePath }

@@ -7,7 +7,7 @@ Item {
 
     property var preferences: ({})
     readonly property var styleSettings: preferences.measurement ?? ({})
-    readonly property bool dashed: isDraft || isSelected ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
+    readonly property bool dashed: isDraft ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
 
     required property var isDraft
@@ -19,7 +19,7 @@ Item {
     ]
 
     readonly property color measurementColor:
-        measurement.type === "arrow" ? (styleSettings.annotationColor ?? "#ffd166") : isDraft || isSelected
+        measurement.type === "arrow" ? (styleSettings.annotationColor ?? "#ffd166") : isDraft
             ? (styleSettings.editingColor ?? Theme.measurementSelected)
             : (styleSettings.completedColor ?? Theme.measurementPrimary)
 
@@ -36,12 +36,16 @@ Item {
         mappedPoints.length > 1 ? mappedPoints[1].y : 0
 
     Shape {
+        preferredRendererType: Shape.CurveRenderer
+        antialiasing: true
         anchors.fill: parent
 
         ShapePath {
             strokeColor: root.measurementColor
             strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            joinStyle: ShapePath.RoundJoin
             strokeStyle: root.dashed
                 ? ShapePath.DashLine
                 : ShapePath.SolidLine
@@ -57,6 +61,8 @@ Item {
     }
 
     Shape {
+        preferredRendererType: Shape.CurveRenderer
+        antialiasing: true
         id: arrowHead
         anchors.fill: parent
         visible: root.measurement.type === "arrow"
@@ -66,6 +72,7 @@ Item {
             strokeColor: root.measurementColor
             strokeWidth: root.styleSettings.lineWidth ?? 1.5
             fillColor: root.measurementColor
+            joinStyle: ShapePath.RoundJoin
             startX: root.endX
             startY: root.endY
             PathLine { x: root.endX - arrowHead.headSize * Math.cos(arrowHead.angle - 0.45); y: root.endY - arrowHead.headSize * Math.sin(arrowHead.angle - 0.45) }

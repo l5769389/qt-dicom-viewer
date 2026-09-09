@@ -78,7 +78,7 @@ def test_direction_menu_clicks_and_rotation_update_one_badge(panel, tmp_path):
     assert not warnings, warnings
 
 
-def test_grouped_templates_and_drag_only_window_tool(panel, tmp_path):
+def test_grouped_templates_and_window_controls(panel, tmp_path):
     view, controller, tools, warnings = panel
     click(view, "primaryTool-volume-preset")
     assert tools.activeInteraction == "volume:rotate"
@@ -92,11 +92,14 @@ def test_grouped_templates_and_drag_only_window_tool(panel, tmp_path):
     click(view, "volumePreset-bone")
     assert view.grabWindow().save(str(tmp_path/"volume-presets-panel.png"))
     click(view, "primaryTool-window")
-    assert tools.activePanel == "" and tools.activeInteraction == "window"
+    assert tools.activePanel == "window" and tools.activeInteraction == "window"
     labels = {item.property("text") for item in _visual_children(view.rootObject()) if item.isVisible()}
-    assert "WL" not in labels and "WW" not in labels and "预设" not in labels
-    assert not any(item.metaObject().className().startswith("QQuickTextInput")
-                   for item in _visual_children(view.rootObject()) if item.isVisible())
+    assert "预设" in labels
+    assert not any(item.objectName() == "invertWindowButton" and item.isVisible()
+                   for item in _visual_children(view.rootObject()))
+    controller.applyWindowPreset(45, 300)
+    assert (controller.windowCenter, controller.windowWidth) == (45, 300)
+    click(view, "activeToolReset")
     assert not warnings, warnings
 
 

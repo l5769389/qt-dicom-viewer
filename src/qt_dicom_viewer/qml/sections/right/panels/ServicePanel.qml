@@ -15,6 +15,7 @@ Item {
         ? servicePanel.toolController.activeService : ""
 
     signal actionTriggered(string action)
+    signal manualRequested(string chapter)
 
     implicitHeight: content.implicitHeight
 
@@ -67,6 +68,7 @@ Item {
         }
 
         WaterQaResults {
+            onManualRequested: servicePanel.manualRequested("water-qa")
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             visible: servicePanel.selectedService === "service:qa"

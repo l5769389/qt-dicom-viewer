@@ -11,6 +11,7 @@ from qt_dicom_viewer.ui.workers.dicom_scan_worker import (
 )
 
 from qt_dicom_viewer.core.series_sidebar import build_sidebar_rows
+from qt_dicom_viewer.ui.controller.series_sidebar_model import SeriesSidebarModel
 from qt_dicom_viewer.service.thumbnail_service import ThumbnailRequest, ThumbnailService
 
 
@@ -48,6 +49,9 @@ class PanelController(QObject):
         self._thumbnail_version = 0
         self._image_provider = image_provider
         self._closing = False
+        self._sidebar_model = SeriesSidebarModel(self)
+        self._compact_sidebar_model = SeriesSidebarModel(self)
+        self.sidebarItemsChanged.connect(self._refresh_sidebar_model)
         self._thumbnail_service = ThumbnailService(self) if image_provider is not None else None
         self._thumbnail_timer = QTimer(self)
         self._thumbnail_timer.setSingleShot(True)
@@ -58,6 +62,8 @@ class PanelController(QObject):
 
 
     def _start_folder_scan(self, folder: str) -> None:
+        # An explicit new import can restore items removed from the previous scan.
+        self._removed_series_uids.clear()
         self._set_scanning(True)
         thread = QThread(self)
         worker = DicomScanWorker(folder)
@@ -83,6 +89,7 @@ class PanelController(QObject):
 
         worker.process.connect(self._handle_scan_process)
 
+    @Slot(object)
     def _handle_scan_process(self, result:DicomFolderScanSnapshot) -> None:
         self._update_series_record(result)
         self.update_series_session(result)
@@ -91,16 +98,23 @@ class PanelController(QObject):
         self._series_catalog.update(dicom_scan_snapshot)
 
 
+    @Slot(object)
     def _handle_scan_finished(self, result: DicomFolderScanSnapshot | None) -> None:
         if result is not None:
             self._update_series_record(result)
             self.update_series_session(result)
 
+    @Slot(object)
     def _handle_scan_failed(self, error) -> None:
         pass
 
+    @Slot()
     def _clean_scan_thread(self) -> None:
         thread = self._scan_thread
+        # finished is emitted before the worker's deferred deletion completes.
+        # Keep its Python wrapper alive until the native thread has fully exited.
+        if thread is not None:
+            thread.wait()
         self._scan_thread = None
         self._scan_worker = None
         self._set_scanning(False)
@@ -129,6 +143,28 @@ class PanelController(QObject):
         self.fusionDialogChanged.emit()
         if self._thumbnail_service is not None:
             self._thumbnail_timer.start()
+
+    def _refresh_sidebar_model(self):
+        rows = self.sidebarItems
+        self._sidebar_model.update_rows(rows, self._patient_search)
+        # The compact rail keeps the search scope but exposes series inside folded groups.
+        if self._collapsed_groups and not self._patient_search.strip():
+            rows = build_sidebar_rows(self._scan_series_record.values(), self._patient_search,
+                                      set(), self._thumbnails)
+        self._compact_sidebar_model.update_rows(
+            [row for row in rows if row["kind"] == "series"], self._patient_search)
+
+    @Property(QObject, constant=True)
+    def compactSidebarModel(self):
+        return self._compact_sidebar_model
+
+    @Property(QObject, constant=True)
+    def sidebarModel(self):
+        return self._sidebar_model
+
+    @Property(bool, notify=seriesItemsChanged)
+    def hasSeries(self):
+        return bool(self._scan_series_record)
 
     @Property("QVariantList", notify=sidebarItemsChanged)
     def sidebarItems(self):
@@ -185,7 +221,7 @@ class PanelController(QObject):
         if uid in self._selected_series_uids:
             self._active_series_uid = uid
             self.selectionChanged.emit()
-        else:
+        elif not self._selected_series_uids:
             self.selectSeries(uid)
 
     @Property(bool, notify=fusionDialogChanged)
@@ -455,7 +491,7 @@ class PanelController(QObject):
             return
         if tab_type == "4d" and not series.supports_four_d:
             return
-        if series.modality.upper() == "PT" and tab_type not in ("2d", "tag", "mpr"):
+        if series.modality.upper() == "PT" and tab_type not in ("2d", "tag", "mpr", "3d"):
             return
         self.tabCreateRequested.emit(active_series_uid, tab_type)
 
@@ -472,26 +508,50 @@ class PanelController(QObject):
 
     @Slot(str)
     def removeSeries(self, series_uid: str) -> None:
-        series = self._scan_series_record.pop(series_uid, None)
-        if series is None:
+        self._remove_series([series_uid])
+
+    @Slot()
+    def removeSelectedSeries(self) -> None:
+        if not self._scanning:
+            self._remove_series(self._selected_series_uids)
+
+    @Slot()
+    def clearSeries(self) -> None:
+        if self._scanning:
             return
+        search_changed = bool(self._patient_search)
+        self._patient_search = ""
+        self._collapsed_groups.clear()
+        if search_changed:
+            self.patientSearchChanged.emit()
+        self._remove_series(list(self._scan_series_record))
+        if not self._scan_series_record:
+            self._refresh_sidebar_model()
 
-        self._removed_series_uids.add(series_uid)
+    def _remove_series(self, series_uids) -> None:
+        removed = set(series_uids).intersection(self._scan_series_record)
+        if not removed:
+            return
+        self._removed_series_uids.update(removed)
         self._thumbnail_timer.stop()
-        if self._thumbnail_service is not None:
-            self._thumbnail_service.cancel(series_uid)
-        self._thumbnails.pop(series_uid, None)
-        if self._image_provider is not None:
-            self._image_provider.remove_image("thumbnail-" + series_uid)
+        for uid in removed:
+            del self._scan_series_record[uid]
+            if self._thumbnail_service is not None:
+                self._thumbnail_service.cancel(uid)
+            self._thumbnails.pop(uid, None)
+            if self._image_provider is not None:
+                self._image_provider.remove_image("thumbnail-" + uid)
 
-        if self._active_series_uid == series_uid:
-            self._active_series_uid = ""
-            self.selectionChanged.emit()
-        if series_uid in self._selected_series_uids:
-            self._selected_series_uids.remove(series_uid)
-            self.selectionChanged.emit()
+        self._selected_series_uids = [uid for uid in self._selected_series_uids if uid not in removed]
+        if self._active_series_uid in removed:
+            self._active_series_uid = self._selected_series_uids[-1] if self._selected_series_uids else ""
+        if self._fusion_anchor_uid in removed or self._fusion_partner_uid in removed:
+            self._fusion_dialog_open = False
+            self._fusion_anchor_uid = self._fusion_partner_uid = ""
+            self._fusion_error = ""
+        self.selectionChanged.emit()
         self.fusionDialogChanged.emit()
         self.seriesItemsChanged.emit()
         self.sidebarItemsChanged.emit()
-        if self._thumbnail_service is not None and not self._scanning:
+        if self._thumbnail_service is not None and not self._scanning and self._scan_series_record:
             self._thumbnail_timer.start()

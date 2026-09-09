@@ -651,9 +651,7 @@ class Image2DViewportController(ViewportController):
                 image_valid
                 and buttons & Qt.MouseButton.LeftButton.value
             ):
-                self._annotation_drag_active = (
-                    self._text_annotation_controller.beginAnnotation(column, row)
-                )
+                self._annotation_drag_active = self._text_annotation_controller.beginAnnotation(column, row)
             return None
         context: OperationStartContext | None = None
         specific_interaction = self._begin_specific_interaction(
@@ -968,26 +966,41 @@ class Image2DViewportController(ViewportController):
     def viewport_size(self) -> tuple[float, float]:
         return self._state.width, self._state.height
 
-    @property
+    @Property(bool, notify=overlayChanged)
     def inverted(self) -> bool:
         return self._state.inverted
+
+    @Property(float, notify=overlayChanged)
+    def windowCenter(self):
+        return self._state.window.center if self._state.window is not None else float("nan")
+
+    @Property(float, notify=overlayChanged)
+    def windowWidth(self):
+        return self._state.window.width if self._state.window is not None else float("nan")
+
+    @Property(bool, constant=True)
+    def supportsCtWindow(self):
+        return self.viewport_config.series_meta.modality.strip().upper() == "CT"
+
+    @Slot()
+    def toggleInverted(self):
+        if self.supportsCtWindow and self._state.window is not None:
+            self.apply_window_level(WindowLevelChange(self._state.window, not self.inverted))
+
+    def set_window_state(self, result: WindowLevelChange) -> bool:
+        """Update display state without scheduling; linked views commit as a batch."""
+        if result.window == self._state.window and result.inverted == self.inverted:
+            return False
+        self._state = replace(self._state, window=result.window, inverted=result.inverted)
+        self.overlayChanged.emit()
+        return True
 
     def apply_window_level(self, result: WindowLevelChange) -> None:
         if self.isPetViewport:
             self._pet_display.set_upper(result.window.center + result.window.width / 2.0)
             return
-        if result.window == self._state.window and result.inverted == self.inverted:
-            return
-        logger.debug(f'apply_window_level,{result}')
-        self._state = replace(
-            self._state,
-            window=result.window,
-            inverted=result.inverted,
-        )
-        if self.isPetViewport:
-            self.petDisplayChanged.emit()
-        self.overlayChanged.emit()
-        self.request_render()
+        if self.set_window_state(result):
+            self.request_render()
 
     @Property(QObject, constant=True)
     def measurementController(self) -> QObject:
@@ -1105,6 +1118,11 @@ class Image2DViewportController(ViewportController):
                               )
         self.transformChanged.emit()
 
+    @Slot(float)
+    def setZoom(self, zoom: float) -> None:
+        """Set an absolute multiple of the default fitted view."""
+        self.apply_zoom(zoom)
+
     def apply_zoom(self, zoom: float) -> None:
         if not isfinite(zoom):
             return
@@ -1135,14 +1153,10 @@ class Image2DViewportController(ViewportController):
                     return
                 if (
                     self._baseline_window is None
-                    or state.window == self._baseline_window
+                    or (state.window == self._baseline_window and not state.inverted)
                 ):
                     return
-                self._state = replace(
-                    state,
-                    window=self._baseline_window,
-                )
-                self.request_render()
+                self.apply_window_level(WindowLevelChange(self._baseline_window, False))
 
             case ToolType.SCROLL:
                 if self._baseline_slice_index is not None:
@@ -1214,7 +1228,7 @@ class Image2DViewportController(ViewportController):
                 state.vertical_flip,
             )
         )
-        window_changed = window != state.window
+        window_changed = window != state.window or state.inverted
         direction_changed = (
             state.rotation_degrees != 0.0
             or state.horizontal_flip
@@ -1228,6 +1242,7 @@ class Image2DViewportController(ViewportController):
         self._state = replace(
             state,
             window=window,
+            inverted=False,
             pan_x=0.0,
             pan_y=0.0,
             zoom=1.0,
@@ -1393,17 +1408,7 @@ class Image2DViewportController(ViewportController):
     ) -> None:
         if not isfinite(center) or not isfinite(width) or width < 1:
             return
-        window = WindowLevel(
-            center=center,
-            width=width,
-        )
-
-        self._state = replace(
-            self._state,
-            window=window,
-        )
-
-        self.request_render()
+        self.apply_window_level(WindowLevelChange(WindowLevel(center=center, width=width), self.inverted))
 
     @Slot(bool, float, float, float, float)
     @Slot(bool, float, float, float, float, float, float)

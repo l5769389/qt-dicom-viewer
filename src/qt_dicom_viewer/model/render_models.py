@@ -29,6 +29,7 @@ class VolumeLoadRequest:
     request_id: str
     viewport_id: str
     series_uid: str
+    value_unit: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -115,6 +116,7 @@ class PetBatchRenderRequest:
     value_unit: str | None = None
     pet_window: WindowLevel | None = None
     ct_window: WindowLevel | None = None
+    ct_inverted: bool = False
     transform: tuple[float, ...] = tuple(np.eye(4).ravel())
     opacity: float = 0.5
     pet_color_map: str = "grayscale"

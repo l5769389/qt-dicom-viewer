@@ -23,18 +23,39 @@ Rectangle {
         {key: "measurement", title: "测量与标注", subtitle: "线条、文字与箭头", group: "测量"},
         {key: "roi", title: "ROI 指标", subtitle: "选择显示统计项"}
     ]
+    readonly property bool compactNavigation: height < 560
+    property real dragWidth: -1
+    readonly property real navigationLimit: Math.max(156, Math.min(300, width - 360 - 8))
+    readonly property real navigationWidth: Math.min(navigationLimit,
+        dragWidth >= 0 ? dragWidth : settingsController.values.layout.settingsNavigationWidth)
     RowLayout {
         anchors.fill: parent
         spacing: 0
         Rectangle {
-            Layout.preferredWidth: 156
+            objectName: "settingsNavigation"
+            Layout.minimumWidth: page.navigationWidth
+            Layout.preferredWidth: page.navigationWidth
+            Layout.maximumWidth: page.navigationWidth
             Layout.fillHeight: true
             color: Theme.panelBackground
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 12
-                spacing: 10
-                Text { text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true; Layout.topMargin: 4 }
+                spacing: page.compactNavigation ? 8 : 10
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 3
+                    Text { text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+                    Text {
+                        objectName: "settingsApplicationVersion"
+                        Layout.fillWidth: true
+                        text: "Voxenra " + page.settingsController.applicationVersion
+                        color: Theme.textMuted
+                        font.pixelSize: 11
+                        elide: Text.ElideRight
+                    }
+                }
                 Components.AppTextField {
                     id: search
                     objectName: "settingsSearch"
@@ -48,18 +69,18 @@ Rectangle {
                     clip: true
                     ColumnLayout {
                         width: parent.width
-                        spacing: 4
+                        spacing: page.compactNavigation ? 2 : 4
                         Repeater {
                             model: page.categories
                             delegate: ColumnLayout {
                                 id: entry
                                 required property var modelData
                                 Layout.fillWidth: true
-                                spacing: 4
+                                spacing: page.compactNavigation ? 2 : 4
                                 visible: !search.text || (modelData.title + modelData.subtitle).toLowerCase().includes(search.text.toLowerCase())
                                 Text {
                                     visible: !!entry.modelData.group && !search.text
-                                    Layout.topMargin: 8
+                                    Layout.topMargin: page.compactNavigation ? 4 : 8
                                     text: entry.modelData.group ?? ""
                                     color: Theme.textSubtle; font.pixelSize: 10
                                 }
@@ -67,7 +88,7 @@ Rectangle {
                                     id: category
                                     objectName: "settingsCategory-" + entry.modelData.key
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 34
+                                    Layout.preferredHeight: page.compactNavigation ? 30 : 34
                                     checked: page.selectedCategory === entry.modelData.key
                                     onClicked: page.settingsController.selectCategory(entry.modelData.key)
                                     Accessible.name: entry.modelData.title
@@ -89,8 +110,21 @@ Rectangle {
                 }
             }
         }
-        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: Theme.dividerColor }
+        Components.WidthResizeHandle {
+            objectName: "settingsNavigationResizeHandle"
+            Layout.preferredWidth: 8
+            Layout.fillHeight: true
+            currentWidth: page.navigationWidth
+            minimumWidth: 156
+            maximumWidth: page.navigationLimit
+            onWidthDragged: value => page.dragWidth = value
+            onWidthCommitted: value => {
+                page.settingsController.setValue("layout", "settingsNavigationWidth", Math.round(value))
+                page.dragWidth = -1
+            }
+        }
         Loader {
+            Layout.minimumWidth: 360
             Layout.fillWidth: true
             Layout.fillHeight: true
             sourceComponent: page.selectedCategory === "sources" ? sourcesComponent : displayComponent

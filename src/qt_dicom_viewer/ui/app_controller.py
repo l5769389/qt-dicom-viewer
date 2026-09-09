@@ -22,6 +22,7 @@ class AppController(QObject):
 
     def __init__(self, image_provider, *, pacs_config_path=None, pacs_import_root=None, settings_path=None) -> None:
         super().__init__()
+        self._native_window_chrome = None
         self._status_message = "Ready"
         self._image_provider = image_provider
         self._summary_text = "No DICOM folder loaded"
@@ -42,6 +43,13 @@ class AppController(QObject):
         self.render_service = RenderService(self._series_catalog, self._volume_manager, self)
         self._signal_connect()
 
+
+    @Slot(QObject)
+    def configureNativeWindow(self, window):
+        from PySide6.QtGui import QWindow
+        from qt_dicom_viewer.infrastructure.native_window import NativeWindowChrome
+        if isinstance(window, QWindow) and self._native_window_chrome is None:
+            self._native_window_chrome = NativeWindowChrome(window, self)
 
     def _signal_connect(self):
         #  监听切换series

@@ -108,7 +108,11 @@ def test_sources_visibility_and_unconfigured_home(scene):
     click(window, find(window, "homeOpenPacs"))
     click(window, find(window, "pacsConfigureEmpty"))
     assert app.workspaceController.activeTabType == "settings"
+    click(window, find(window, "sidebarToggle"))
+    assert find(window, "compactSidebarImport").isVisible()
+    assert find(window, "compactSidebarPacs").isVisible()
     click(window, find(window, "enablePacsSource"))
+    assert not any(i.objectName() == "compactSidebarPacs" and i.isVisible() for i in descendants(window.contentItem()))
     assert not app.pacsController.pacsEnabled
     assert not any(item.objectName() == "sidebarPacs" and item.isVisible() for item in descendants(window.contentItem()))
     click(window, find(window, "enableLocalSource"))
@@ -117,6 +121,8 @@ def test_sources_visibility_and_unconfigured_home(scene):
     click(window, find(window, "enablePacsSource"))
     click(window, find(window, "enableLocalSource"))
     assert not app.pacsController.localEnabled and app.pacsController.pacsEnabled
+    assert find(window, "compactSidebarPacs").isVisible()
+    assert not any(i.objectName() == "compactSidebarImport" and i.isVisible() for i in descendants(window.contentItem()))
     assert not any(item.objectName() == "sidebarOpenFolder" and item.isVisible() for item in descendants(window.contentItem()))
     assert not warnings, warnings
 

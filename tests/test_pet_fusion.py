@@ -498,7 +498,7 @@ def test_registration_tool_and_window_are_independent(qt_app, paired_series):
     assert tab.opacity == .5 and tab.pet_display.target == pet_window
     np.testing.assert_array_equal(tab.matrix, transform)
     assert [item["toolType"] for item in tab.toolController.tools][:5] == [
-        "ct-window", "pet-window", "pseudocolor", "fusion-blend", "registration"]
+        "ct-window", "pet-window", "scroll", "pan", "zoom"]
     tab.toolController.activateTool("registration")
     tab.toolController.resetActiveTool()
     np.testing.assert_array_equal(tab.matrix, np.eye(4))

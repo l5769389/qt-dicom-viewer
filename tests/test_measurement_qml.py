@@ -310,32 +310,29 @@ def _move_pointer(view, position):
     QTest.qWait(30)
 
 
-def test_custom_cursor_sizes_and_arrow_hotspot(viewport, tmp_path):
+def test_pan_and_zoom_share_pointer_tip_hotspot(viewport, tmp_path):
     view, controller, pixel_layer, warnings = viewport
-    controller._tool_controller.selectInteraction("measure:rect")
-    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    controller._tool_controller.selectInteraction("pan")
     _move_pointer(view, _scene(pixel_layer, 60, 65))
     root = view.rootObject()
     interaction = root.findChild(QQuickItem, "viewportInteractionLayer")
-    pointer = root.findChild(QQuickItem, "viewportCursorPointer")
+    assert interaction.property("customCursorActive")
+    assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    pos = _scene(pixel_layer, 60, 65)
+    QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, pos)
+    QTest.qWait(20)
+    assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, pos)
+    assert root.findChild(QQuickItem, "viewportCursorPointer") is None
+    assert view.grabWindow().save(str(tmp_path / "pan-cursor.png"))
+    controller._tool_controller.selectInteraction("zoom")
     icon = root.findChild(QQuickItem, "viewportCursorOperationIcon")
-    badge = root.findChild(QQuickItem, "viewportCursorBadge")
-    top = pointer.mapToScene(QPointF(0, 0))
-    bottom = pointer.mapToScene(QPointF(0, pointer.height()))
-    assert bottom.y() - top.y() == pytest.approx(20)
-    assert icon.width() == icon.height() == 20
-    assert badge.width() == badge.height() == 26
-    assert (badge.x(), badge.y()) == (10, 6)
-    tip = pointer.mapToScene(QPointF(2, 1.5))
+    assert (icon.width(), icon.height()) == (40, 32)
+    tip = icon.mapToScene(QPointF(2, 2))
     hotspot = interaction.mapToScene(interaction.property("cursorPosition"))
-    assert tip.x() == pytest.approx(hotspot.x())
-    assert tip.y() == pytest.approx(hotspot.y())
+    assert tip == hotspot
+    assert view.grabWindow().save(str(tmp_path / "cursor-preview.png"))
     assert not warnings, warnings
-    screenshot = view.grabWindow()
-    if not screenshot.isNull():
-        output = tmp_path / "cursor-preview.png"
-        assert screenshot.save(str(output))
-        print(f"Cursor preview: {output}")
 
 
 def test_unified_cursor_policy_has_vectors_for_every_operation_and_no_raster_badge(viewport):
@@ -353,15 +350,20 @@ def test_unified_cursor_policy_has_vectors_for_every_operation_and_no_raster_bad
         ("window", "", "center", "", "crosshair-move"),
         ("zoom", "", "verticalLine", "", "crosshair-rotate"),
         ("measure:rect", "", "", "pan", "pan"),
-        ("measure:ellipse", "", "", "", ""),
+        ("measure:ellipse", "", "", "", "measure-ellipse"),
         ("measure:angle", "", "horizontalLine", "pan", "crosshair-rotate"),
-        ("annotate:text", "", "center", "", ""),
+        ("annotate:text", "", "center", "", "annotate-text"),
         ("mpr:voi", "voi", "center", "pan", "voi"),
         ("mpr:voi", "resize", "horizontalLine", "", "resize"),
         ("mpr:voi", "pan", "center", "", "pan"),
         ("mpr:segmentation", "segmentation", "verticalLine", "", "segmentation"),
         ("mpr:voi", "default", "center", "", "default"),
         ("service:mtf", "", "", "", "mtf"),
+        ("service:qa", "", "", "", "qa"),
+        ("measure:length", "", "", "", "measure-line"),
+        ("measure:angle", "", "", "", "measure-angle"),
+        ("measure:rect", "", "", "", "measure-rect"),
+        ("annotate:arrow", "", "", "", "annotate-arrow"),
     ]:
         interaction.setProperty("activeInteraction", tool)
         interaction.setProperty("regionCursorKind", region)
@@ -370,7 +372,7 @@ def test_unified_cursor_policy_has_vectors_for_every_operation_and_no_raster_bad
         assert interaction.property("hoverCursorKind") == expected
         assert interaction.property("customCursorActive") == (expected not in ("", "default"))
         if expected not in ("", "default"):
-            assert glyph.property("pathData"), expected
+            assert not glyph.property("sharedSource").isEmpty(), expected
     assert not any(x.objectName() in ("tintedRasterToolIcon", "rasterToolIcon") for x in _visual_children(glyph))
     assert not warnings, warnings
 
@@ -394,22 +396,23 @@ def test_click_unselected_roi_interior_shows_move_cursor_without_an_extra_move(v
     _move_pointer(view, center)
     assert measurement.hoverHit["kind"] == "interior"
     assert measurement.hoverCursorKind == ""
-    assert interaction.property("hoverCursorKind") == ""
+    assert interaction.property("hoverCursorKind") == "measure-" + kind
     QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, center)
     QTest.qWait(30)
     assert measurement.selectedMeasurementId == original["measurementId"]
     assert measurement.hoverCursorKind == "pan"
     assert interaction.property("hoverCursorKind") == "pan"
     assert interaction.property("customCursorActive") is True
+    assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
     assert measurement.measurementItems == [original]
     _move_pointer(view, _scene(pixel_layer, 30, 35))
     assert measurement.hoverHit["kind"] == "controlPoint"
-    assert interaction.property("hoverCursorKind") == ""
+    assert interaction.property("hoverCursorKind") == "measure-" + kind
     _move_pointer(view, _scene(pixel_layer, 60, 65))
     assert interaction.property("hoverCursorKind") == "pan"
     _move_pointer(view, QPoint(10, 10))
     assert measurement.hoverHit == {}
-    assert interaction.property("hoverCursorKind") == ""
+    assert interaction.property("hoverCursorKind") == "measure-" + kind
     assert not warnings, warnings
 
 
@@ -437,7 +440,7 @@ def test_selected_outline_has_move_cursor_and_crosshair_keeps_priority(viewport,
     assert interaction.property("hoverCursorKind") == "crosshair-rotate"
     interaction.setProperty("crosshairHoverTarget", "")
     measurement.clear_selection()
-    assert interaction.property("hoverCursorKind") == ""
+    assert interaction.property("hoverCursorKind") == "measure-" + ("line" if kind == "length" else kind)
     assert not warnings, warnings
 
 
@@ -464,4 +467,47 @@ def test_move_cursor_is_locked_during_drag_without_xy_sampling_and_cleared_on_to
     controller._tool_controller.selectInteraction("window")
     assert controller.measurementController.hoverHit == {}
     assert interaction.property("hoverCursorKind") == "window"
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["length", "rect", "ellipse", "arrow", "text"])
+def test_mouse_release_completes_and_selects_drawing_without_blocking_next(viewport, kind):
+    view, controller, pixel_layer, warnings = viewport
+    tools = controller._tool_controller
+    tools.selectInteraction(("annotate:" if kind in ("arrow", "text") else "measure:") + kind)
+    _mouse_drag(view, _scene(pixel_layer, 30, 35), _scene(pixel_layer, 95, 95))
+    text = controller.textAnnotationController
+    measure = controller.measurementController
+    def items():
+        return text.annotationItems if kind == "text" else measure.measurementItems
+    assert len(items()) == 1
+    assert (text.selectedAnnotationId if kind == "text" else measure.selectedMeasurementId)
+    assert not text._draft_id and not measure.has_active_transaction
+    first = items()[0]
+    selected = text.selectedAnnotationId if kind == "text" else measure.selectedMeasurementId
+    # Hover after release must not modify the completed result.
+    _move_pointer(view, _scene(pixel_layer, 150, 160))
+    assert items() == [first]
+    _mouse_drag(view, _scene(pixel_layer, 150, 160), _scene(pixel_layer, 200, 220))
+    assert len(items()) == 2
+    assert {k: v for k, v in items()[0].items() if k != "selected"} == {k: v for k, v in first.items() if k != "selected"}
+    assert (text.selectedAnnotationId if kind == "text" else measure.selectedMeasurementId) != selected
+    assert not text._draft_id and not measure.has_active_transaction
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("kind", ["voi", "segmentation"])
+def test_region_creation_uses_same_composite_pointer(viewport, tmp_path, kind):
+    view, controller, pixel_layer, warnings = viewport
+    _move_pointer(view, _scene(pixel_layer, 60, 65))
+    root = view.rootObject()
+    interaction = root.findChild(QQuickItem, "viewportInteractionLayer")
+    interaction.setProperty("activeInteraction", "mpr:" + kind)
+    interaction.setProperty("regionCursorKind", kind)
+    assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    icon = root.findChild(QQuickItem, "viewportCursorOperationIcon")
+    assert icon.isVisible() and (icon.width(), icon.height()) == (40, 32)
+    hotspot = interaction.mapToScene(interaction.property("cursorPosition"))
+    assert icon.mapToScene(QPointF(2, 2)) == hotspot
+    assert view.grabWindow().save(str(tmp_path / (kind + "-cursor.png")))
     assert not warnings, warnings

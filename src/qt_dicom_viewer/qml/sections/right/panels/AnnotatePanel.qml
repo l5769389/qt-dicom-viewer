@@ -11,6 +11,11 @@ ColumnLayout {
     objectName: "annotatePanel"
     required property var viewportController
     readonly property var controller: annotatePanel.viewportController ? annotatePanel.viewportController.textAnnotationController : null
+    readonly property var settingsController: viewportController.settingsController
+    readonly property var styleSettings: settingsController?.values.measurement ?? ({})
+    readonly property bool textMode: viewportController.activeInteraction === "annotate:text"
+    readonly property bool selectedArrow: (viewportController.measurementController?.measurementItems ?? []).some(
+        item => item.type === "arrow" && item.measurementId === viewportController.measurementController.selectedMeasurementId)
     spacing: 12
 
     RowLayout {
@@ -46,6 +51,7 @@ ColumnLayout {
     }
 
     Text {
+        visible: annotatePanel.textMode
         text: "标注文字"
         color: Theme.textSecondary
         font.pixelSize: 12
@@ -53,6 +59,7 @@ ColumnLayout {
     }
 
     Basic.ScrollView {
+        visible: annotatePanel.textMode
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         Layout.preferredHeight: 84
@@ -106,10 +113,13 @@ ColumnLayout {
         font.weight: Font.DemiBold
     }
 
-    Flow {
+    Row {
+        id: colorPalette
+        objectName: "annotationColors"
+        readonly property real swatchSize: Math.max(24, Math.min(28, Math.floor((width - 6 * spacing) / 7)))
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        spacing: 6
+        spacing: 2
 
         Repeater {
             model: ["#ffd45c", "#66d0ff", "#7bd7a4", "#ef7777", "#f5f7fb", "#ff8a5b", "#c99cff"]
@@ -118,11 +128,18 @@ ColumnLayout {
                 id: colorButton
                 required property string modelData
                 objectName: "annotationColor-" + modelData.slice(1)
-                width: 28
-                height: 28
+                width: colorPalette.swatchSize
+                height: width
                 Accessible.name: "标注颜色 " + modelData
-                checked: annotatePanel.controller && annotatePanel.controller.annotationColor === modelData
-                onClicked: annotatePanel.controller?.setAnnotationColor(modelData)
+                checked: (annotatePanel.textMode
+                    ? annotatePanel.controller?.annotationColor
+                    : annotatePanel.styleSettings.annotationColor) === modelData
+                onClicked: {
+                    if (annotatePanel.textMode)
+                        annotatePanel.controller?.setAnnotationColor(modelData)
+                    else
+                        annotatePanel.settingsController?.setValue("measurement", "annotationColor", modelData)
+                }
 
                 background: Rectangle {
                     radius: width / 2
@@ -135,6 +152,65 @@ ColumnLayout {
     }
 
     RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        Text {
+            text: "线宽"
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+        }
+        Components.AppSlider {
+            id: lineWidthSlider
+            objectName: "annotationLineWidth"
+            Layout.fillWidth: true
+            from: 1
+            to: 6
+            stepSize: 0.5
+            value: annotatePanel.styleSettings.lineWidth ?? 1.5
+            Accessible.name: "标注线宽"
+            onMoved: annotatePanel.settingsController?.setValue("measurement", "lineWidth", value)
+        }
+        Text {
+            Layout.preferredWidth: 42
+            horizontalAlignment: Text.AlignRight
+            text: lineWidthSlider.value + " px"
+            color: Theme.textPrimary
+            font.pixelSize: 12
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        Text {
+            text: "箭头大小"
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+        }
+        Components.AppSlider {
+            id: arrowSizeSlider
+            objectName: "annotationArrowSize"
+            Layout.fillWidth: true
+            from: 8
+            to: 28
+            stepSize: 1
+            value: annotatePanel.styleSettings.annotationSize ?? 14
+            Accessible.name: "标注箭头大小"
+            onMoved: annotatePanel.settingsController?.setValue("measurement", "annotationSize", Math.round(value))
+        }
+        Text {
+            Layout.preferredWidth: 42
+            horizontalAlignment: Text.AlignRight
+            text: Math.round(arrowSizeSlider.value) + " px"
+            color: Theme.textPrimary
+            font.pixelSize: 12
+        }
+    }
+
+    RowLayout {
+        visible: annotatePanel.textMode
         Layout.fillWidth: true
         spacing: 10
 
@@ -165,93 +241,15 @@ ColumnLayout {
         }
     }
 
-    Rectangle {
+    Components.AppButton {
+        objectName: "deleteSelectedAnnotation"
         Layout.fillWidth: true
-        height: 1
-        color: Theme.dividerColor
+        text: "删除所选"
+        compact: true
+        hoverColor: Theme.resetActionHover
+        enabled: annotatePanel.textMode ? (annotatePanel.controller?.hasSelection ?? false) : annotatePanel.selectedArrow
+        onClicked: annotatePanel.viewportController.deleteSelectedMeasurement()
     }
 
-    Text {
-        text: "当前切片箭头标注"
-        color: Theme.textSecondary
-        font.pixelSize: 12
-        font.weight: Font.DemiBold
-    }
-
-    ColumnLayout {
-        Layout.fillWidth: true
-        spacing: 5
-
-        Repeater {
-            model: annotatePanel.controller ? annotatePanel.controller.annotationItems : []
-
-            delegate: Basic.Button {
-                id: annotationItem
-                required property var modelData
-                objectName: "annotationListItem-" + modelData.annotationId
-                Layout.fillWidth: true
-                implicitHeight: 34
-                checked: modelData.selected
-                onClicked: annotatePanel.controller?.selectAnnotation(modelData.annotationId)
-
-                contentItem: RowLayout {
-                    spacing: 8
-                    Rectangle {
-                        Layout.preferredWidth: 8
-                        Layout.preferredHeight: 20
-                        radius: 2
-                        color: annotationItem.modelData.color
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: annotationItem.modelData.text
-                        color: Theme.textPrimary
-                        elide: Text.ElideRight
-                        font.pixelSize: 12
-                    }
-                }
-                background: Rectangle {
-                    color: annotationItem.checked ? Theme.selectionBackground : Theme.controlBackground
-                    border.color: annotationItem.checked ? Theme.selectionBorder : Theme.controlBorder
-                    radius: Theme.controlRadius
-                }
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            visible: !annotatePanel.controller || annotatePanel.controller.annotationItems.length === 0
-            text: "当前切片暂无标注"
-            color: Theme.textDisabled
-            font.pixelSize: 11
-        }
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 8
-
-        Controls.ToolActionButton {
-            objectName: "deleteSelectedAnnotation"
-            Layout.fillWidth: true
-            label: "删除选中标注"
-            iconName: "delete"
-            hoverColor: Theme.resetActionHover
-            enabled: annotatePanel.controller?.hasSelection ?? false
-            onClicked: annotatePanel.controller?.deleteSelected()
-        }
-        Controls.ToolActionButton {
-            objectName: "clearAllAnnotations"
-            Layout.fillWidth: true
-            label: "清空当前切片标注"
-            iconName: "clear"
-            hoverColor: Theme.resetActionHover
-            enabled: annotatePanel.controller?.hasAnnotations ?? false
-            onClicked: annotatePanel.controller?.clearAll()
-        }
-    }
-
-    Item {
-        Layout.fillHeight: true
-    }
+    Item { Layout.fillHeight: true }
 }

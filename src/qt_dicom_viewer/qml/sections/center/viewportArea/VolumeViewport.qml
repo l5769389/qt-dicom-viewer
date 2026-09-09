@@ -12,7 +12,7 @@ Item {
 
     function attach() {
         const next = viewportController && viewportController.viewportType === "volume"
-            ? viewportController : null
+            && viewportController.loadState === "ready" ? viewportController : null
         if (next !== attachedController) {
             if (attachedController)
                 attachedController.setNativeVisible(false)
@@ -31,6 +31,11 @@ Item {
             attachedController.setNativeVisible(root.visible)
     }
 
+    Connections {
+        target: root.viewportController
+        ignoreUnknownSignals: true
+        function onLoadStateChanged() { root.attach() }
+    }
     onViewportControllerChanged: attach()
     onVisibleChanged: syncVisibility()
     Component.onCompleted: attach()

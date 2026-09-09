@@ -1,5 +1,6 @@
 import logging
 import uuid
+from math import isfinite
 from types import MappingProxyType
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot, Property
@@ -29,6 +30,7 @@ from qt_dicom_viewer.model.dicom_core import (
     Vector3,
 )
 from qt_dicom_viewer.model.render_models import MprRenderResult
+from qt_dicom_viewer.model.interaction import WindowLevelChange
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from qt_dicom_viewer.ui.controller.tab.tag_controller import TagController
 from qt_dicom_viewer.ui.controller.viewport.image_2d.mpr_viewport_controller import (
@@ -109,6 +111,13 @@ class TabController(QObject):
         self._mpr_request_phase_identifiers: dict[
             str, int | None
         ] = {}
+        self._link_mpr_windows = tab_config.tab_type in (TabType.MPR, TabType.FOUR_D) and all(
+            meta.modality.upper() == "CT" for meta in tab_config.series_metas
+        )
+        self._linked_mpr_window: WindowLevelChange | None = None
+        self._initial_mpr_window: WindowLevelChange | None = None
+        self._mpr_window_revision = 0
+        self._mpr_request_window_revisions: dict[str, int] = {}
         self._create_viewport_dict()
 
     @Property(str, notify=activeToolChanged)
@@ -290,6 +299,8 @@ class TabController(QObject):
             isinstance(viewport, MprViewportController)
             and self._initial_mpr_state is not None
         ):
+            if self._link_mpr_windows and self._initial_mpr_window is not None:
+                self._set_mpr_window(self._initial_mpr_window, render=False)
             self._set_target_mpr_state(self._initial_mpr_state)
             self._mpr_3d_reset_state = self._initial_mpr_state
             self._dirty_mpr_viewport_ids.update(
@@ -311,6 +322,11 @@ class TabController(QObject):
             tool_type = ToolType(tool_value)
         except ValueError:
             logger.warning("Unknown reset tool: %s", tool_value)
+            return
+
+        if tool_type == ToolType.WINDOW and self._link_mpr_windows:
+            if self._initial_mpr_window is not None:
+                self._set_mpr_window(self._initial_mpr_window)
             return
 
         if tool_type == ToolType.MPR_ROTATE_3D:
@@ -394,6 +410,14 @@ class TabController(QObject):
                 viewport.request_first_loader()
 
 
+    def retry_initial_load(self):
+        if self.tab_config.tab_type in (TabType.MPR, TabType.FOUR_D) and self._target_mpr_state is not None:
+            self._dirty_mpr_viewport_ids.update(self._mpr_viewport_ids())
+            self._try_start_next_mpr_render()
+        else:
+            self.init_render()
+
+
     # MappingProxyType 可以防止 Workspace 意外修改 Tab 内部字典：
     @property
     def viewports_by_id(self) -> MappingProxyType[str,ViewportController]:
@@ -407,7 +431,9 @@ class TabController(QObject):
                 for series_meta in self._tab_config.series_metas:
                     viewport_id = str(uuid.uuid4())
                     self._active_viewport_id = viewport_id
-                    viewport = VolumeViewportController(
+                    from qt_dicom_viewer.ui.controller.viewport.standalone_pet_volume_controller import StandalonePetVolumeController
+                    controller_type = StandalonePetVolumeController if series_meta.modality.upper() == "PT" else VolumeViewportController
+                    viewport = controller_type(
                         ViewportConfig(viewport_id, self._tab_config.tab_id,
                                        VolumeViewType.VOLUME, series_meta.series_uid, series_meta),
                         self._tool_controller, parent=self,
@@ -482,6 +508,8 @@ class TabController(QObject):
             )
             return
         if isinstance(viewport, MprViewportController):
+            viewport.linked_window = self._link_mpr_windows
+            viewport.linkedWindowChangeRequested.connect(self._set_mpr_window)
             viewport.crosshairCenterChangeRequested.connect(
                 self._handle_crosshair_center_change_requested
             )
@@ -609,6 +637,36 @@ class TabController(QObject):
 
         self.renderRequested.emit(request)
 
+    def _set_mpr_window(self, change: WindowLevelChange, *, render=True) -> None:
+        if (not self._link_mpr_windows
+                or not all(isfinite(v) for v in (change.window.center, change.window.width))
+                or change.window.width < 1):
+            return
+        if change == self._linked_mpr_window:
+            return
+        self._linked_mpr_window = change
+        self._mpr_window_revision += 1
+        for viewport in self._viewport_dict.values():
+            if isinstance(viewport, MprViewportController):
+                viewport.set_window_state(change)
+        self._dirty_mpr_viewport_ids.update(self._mpr_viewport_ids())
+        if render:
+            self._try_start_next_mpr_render()
+
+    def discard_stale_mpr_window_result(self, result: RenderResult) -> bool:
+        """Drain obsolete requests before publishing their pixels or frame metadata."""
+        if (not isinstance(result, MprRenderResult)
+                or not self._link_mpr_windows
+                or self._active_mpr_requests.get(result.response_id) != result.viewport_id
+                or self._mpr_request_window_revisions.get(result.response_id) == self._mpr_window_revision):
+            return False
+        self._active_mpr_requests.pop(result.response_id)
+        self._mpr_request_phase_identifiers.pop(result.response_id, None)
+        self._mpr_request_window_revisions.pop(result.response_id, None)
+        self._dirty_mpr_viewport_ids.add(result.viewport_id)
+        self._continue_after_mpr_activity()
+        return True
+
     def accepts_render_result(self, result: RenderResult) -> bool:
         if isinstance(result, VolumeLoadResult):
             viewport = self._viewport_dict.get(result.viewport_id)
@@ -647,6 +705,8 @@ class TabController(QObject):
             return
 
         if isinstance(result, MprRenderResult):
+            if self.discard_stale_mpr_window_result(result):
+                return
             expected_viewport_id = self._active_mpr_requests.get(
                 result.response_id
             )
@@ -668,6 +728,7 @@ class TabController(QObject):
                 return
 
             self._active_mpr_requests.pop(result.response_id)
+            self._mpr_request_window_revisions.pop(result.response_id, None)
             self._mpr_request_phase_identifiers.pop(
                 result.response_id,
                 None,
@@ -678,6 +739,13 @@ class TabController(QObject):
             # Bootstrap MPR with the axial view, then render the other views
             # after the first result establishes the shared frame.
             if needs_initial_mpr_frame and result.mpr_frame is not None:
+                if self._link_mpr_windows:
+                    self._initial_mpr_window = WindowLevelChange(result.frame_meta.window, result.frame_meta.inverted)
+                    self._set_mpr_window(self._initial_mpr_window, render=False)
+                    self._dirty_mpr_viewport_ids.discard(result.viewport_id)
+                    for peer in self._viewport_dict.values():
+                        if isinstance(peer, MprViewportController):
+                            peer._baseline_window = result.frame_meta.window
                 initial_state = MprState(
                     frame=result.mpr_frame,
                     view_grids=result.mpr_view_grids,
@@ -728,6 +796,7 @@ class TabController(QObject):
             return
 
         self._active_mpr_requests.pop(failure.request_id)
+        self._mpr_request_window_revisions.pop(failure.request_id, None)
         self._mpr_request_phase_identifiers.pop(
             failure.request_id,
             None,
@@ -819,6 +888,9 @@ class TabController(QObject):
         self._mpr_request_phase_identifiers = {
             request.request_id: request.phase_identifier
             for request in requests
+        }
+        self._mpr_request_window_revisions = {
+            request.request_id: self._mpr_window_revision for request in requests
         }
         for request in requests:
             self.renderRequested.emit(request)

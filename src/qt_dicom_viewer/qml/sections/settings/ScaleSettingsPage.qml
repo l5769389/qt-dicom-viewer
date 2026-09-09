@@ -14,7 +14,7 @@ SettingsSplit {
         Components.AppCheckBox { objectName: "setting-scale-enabled"; text: "显示比例尺"; checked: root.values.enabled; onClicked: root.settingsController.setValue("scale", "enabled", checked) }
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: "长度"; color: Theme.textSecondary; font.pixelSize: 12 }
+            Text { Layout.fillWidth: true; text: "最大长度"; color: Theme.textSecondary; font.pixelSize: 12 }
             Components.AppComboBox {
                 objectName: "setting-scale-lengthMm"
                 Layout.preferredWidth: 130
@@ -24,7 +24,7 @@ SettingsSplit {
             }
         }
         SettingColor { Layout.fillWidth: true; title: "颜色"; settingName: "scale-color"; value: root.values.color; onEdited: color => root.settingsController.setValue("scale", "color", color) }
-        Text { Layout.fillWidth: true; text: "用于 2D、MPR 和 4D 视图。长度随缩放调整；缺少有效物理像素间距时隐藏。"; color: Theme.textMuted; font.pixelSize: 12; wrapMode: Text.Wrap }
+        Text { Layout.fillWidth: true; text: "用于 2D、MPR 和 4D 视图。长度按上限、视图宽度与缩放自动调整；缺少有效物理像素间距时隐藏。"; color: Theme.textMuted; font.pixelSize: 12; wrapMode: Text.Wrap }
     }
     preview: Component {
         ColumnLayout {

@@ -310,15 +310,14 @@ def test_dispose_releases_all_retained_images() -> None:
     assert controller._active_request is None
 
 
-def test_montage_tool_whitelist_and_disabled_invert_placeholder() -> None:
+def test_montage_tool_whitelist_includes_pseudocolor() -> None:
     tool_controller = ToolController(tab_type=TabType.MONTAGE)
     tools = tool_controller.tools
 
     assert [item["toolType"] for item in tools] == [
-        "window", "pan", "zoom", "rotate", "invert", "export", "reset",
+        "window", "pan", "zoom", "rotate", "pseudocolor", "export", "reset",
     ]
-    invert = next(item for item in tools if item["toolType"] == "invert")
-    assert invert["enabled"] is False
+    assert next(item for item in tools if item["toolType"] == "pseudocolor")["enabled"]
 
     tool_controller.activateTool("measure")
     tool_controller.selectInteraction("scroll")

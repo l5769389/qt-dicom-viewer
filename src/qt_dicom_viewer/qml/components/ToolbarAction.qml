@@ -19,6 +19,7 @@ Item {
     property color normalIconColor: Theme.iconDefault
     property color disabledIconColor: Theme.iconDisabled
     property bool prominent: false
+    property bool primaryAction: false
     property bool segmented: false
     property string directionFace: ""
     property color directionColor: Theme.iconDefault
@@ -48,27 +49,16 @@ Item {
         rightPadding: 2
         momentary: true
         minimumButtonWidth: 0
-        normalColor: action.prominent ? Theme.folderSurface : "transparent"
-        disabledColor: "transparent"
-        hoverColor: action.resetAction ? Theme.resetActionHover
+        normalColor: action.primaryAction ? Theme.primaryButtonBackground
+            : action.prominent ? Theme.folderSurface : "transparent"
+        disabledColor: action.primaryAction ? Theme.primaryButtonDisabled : "transparent"
+        hoverColor: action.primaryAction ? Theme.primaryButtonHover : action.resetAction ? Theme.resetActionHover
             : action.segmented ? "transparent" : Theme.controlHover
-        pressedColor: action.resetAction ? Theme.resetActionPressed
+        pressedColor: action.primaryAction ? Theme.primaryButtonPressed : action.resetAction ? Theme.resetActionPressed
             : action.segmented ? "transparent" : Theme.controlPressed
         Accessible.name: action.label
         Accessible.description: action.tooltipText
         onClicked: action.triggered()
-
-        Rectangle {
-            objectName: "sourceSelectionIndicator"
-            visible: action.segmented && button.checked
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 1
-            width: 18
-            height: 2
-            radius: 1
-            color: action.normalIconColor
-        }
 
         contentItem: Item {
             Column {

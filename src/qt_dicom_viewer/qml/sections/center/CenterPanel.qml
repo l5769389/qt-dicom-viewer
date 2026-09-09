@@ -18,6 +18,7 @@ Rectangle {
     required property var viewportController
     required property var currentTabAllViewports
 
+    readonly property var opening: workspaceController.activeLoadState
     readonly property bool imageWorkspace: ["2d", "mpr", "4d", "petctfusion"].includes(workspaceController.activeTabType)
 
     readonly property Item exportItem: workspaceLoader.item
@@ -44,29 +45,65 @@ Rectangle {
             workspaceController: centerPanel.workspaceController
         }
 
-        Loader {
-            id: workspaceLoader
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            active: centerPanel.hasTabs
-            sourceComponent: centerPanel.workspaceController.activeTabType === "manual"
-                ? manualComponent
-                : centerPanel.workspaceController.activeTabType === "settings"
-                ? settingsComponent
-                : centerPanel.workspaceController.activeTabType === "pacs"
-                ? pacsComponent
-                : centerPanel.workspaceController.activeTabType === "tag"
-                ? tagComponent
-                : centerPanel.workspaceController.activeTabType === "3d"
-                    ? volumeComponent
-                    : centerPanel.workspaceController.activeTabType === "montage"
-                        ? montageComponent : imageComponent
+            Loader {
+                id: workspaceLoader
+                objectName: "workspaceLoader"
+                anchors.fill: parent
+                asynchronous: true
+                property string loadedTabId: ""
+                function openCurrentTab() {
+                    loadedTabId = ""
+                    Qt.callLater(() => { loadedTabId = centerPanel.workspaceController.activeTabId ?? "" })
+                }
+                active: centerPanel.hasTabs && loadedTabId === centerPanel.workspaceController.activeTabId
+                visible: status === Loader.Ready
+                Component.onCompleted: openCurrentTab()
+                Connections {
+                    target: centerPanel.workspaceController
+                    function onActiveTabChanged() { workspaceLoader.openCurrentTab() }
+                }
+                sourceComponent: centerPanel.workspaceController.activeTabType === "manual"
+                    ? manualComponent
+                    : centerPanel.workspaceController.activeTabType === "settings"
+                    ? settingsComponent
+                    : centerPanel.workspaceController.activeTabType === "pacs"
+                    ? pacsComponent
+                    : centerPanel.workspaceController.activeTabType === "tag"
+                    ? tagComponent
+                    : centerPanel.workspaceController.activeTabType === "3d"
+                        ? volumeComponent
+                        : centerPanel.workspaceController.activeTabType === "montage"
+                            ? montageComponent : imageComponent
+            }
+            WorkspaceLoadingState {
+                anchors.fill: parent
+                visible: centerPanel.hasTabs && (workspaceLoader.status !== Loader.Ready
+                    || centerPanel.opening?.status === "loading" || centerPanel.opening?.status === "error")
+                loading: workspaceLoader.status !== Loader.Error && centerPanel.opening?.status !== "error"
+                message: workspaceLoader.status === Loader.Error ? "视图界面加载失败"
+                    : centerPanel.opening?.status === "error" ? centerPanel.opening.errorMessage
+                    : workspaceLoader.status !== Loader.Ready ? "正在打开视图…"
+                    : (centerPanel.opening?.message ?? "正在准备影像…")
+                onRetryRequested: {
+                    if (workspaceLoader.status === Loader.Error) workspaceLoader.openCurrentTab()
+                    centerPanel.workspaceController.retryActiveTab()
+                }
+                onCloseRequested: centerPanel.workspaceController.closeTab(centerPanel.workspaceController.activeTabId)
+            }
         }
+
     }
 
     Component {
         id: manualComponent
-        Manual.OperationManual { controller: centerPanel.workspaceController.manualController }
+        Manual.OperationManual {
+            controller: centerPanel.workspaceController.manualController
+            active: centerPanel.workspaceController.activeTabType === "manual"
+                && workspaceLoader.status === Loader.Ready
+        }
     }
 
     Component {

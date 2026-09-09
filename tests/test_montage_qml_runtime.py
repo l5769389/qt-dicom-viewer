@@ -100,6 +100,21 @@ def test_montage_grid_scrolls_on_wheel_event(qt_app, tmp_path) -> None:
         QTest.qWait(80)
 
         assert float(grid.property("contentY")) > before
+        scroll = float(grid.property("contentY"))
+        header = root.findChild(QQuickItem, "montageHeader")
+        height = header.height()
+        controller.toggleDetails()
+        QTest.qWait(60)
+        assert header.height() < height
+        assert abs(float(grid.property("contentY")) - scroll) <= 1
+        controller.toggleDetails()
+        QTest.qWait(60)
+        assert abs(float(grid.property("contentY")) - scroll) <= 1
+        view.resize(360, 600)
+        QTest.qWait(60)
+        toggle = root.findChild(QQuickItem, "montageDetailsToggle")
+        assert toggle.mapToScene(QPointF(toggle.width(), 0)).x() <= 360
+        assert header.height() < 240
         assert not warnings, warnings
 
         screenshot = view.grabWindow()

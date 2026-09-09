@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "CursorPolicy.js" as CursorPolicy
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../components" as Components
@@ -9,6 +10,7 @@ import "../../../theme"
 Item {
     id: montageRoot
 
+    property bool anonymousExport: false
     required property var viewportController
     readonly property var metadataItems: [
         {
@@ -65,17 +67,21 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 158
+            objectName: "montageHeader"
+            Layout.preferredHeight: headerContents.implicitHeight + 24
             color: Theme.panelBackgroundSoft
 
             ColumnLayout {
+                id: headerContents
                 anchors.fill: parent
-                anchors.margins: 16
+                anchors.margins: 12
                 spacing: 10
 
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    columns: montageRoot.width < 560 ? 1 : 2
+                    columnSpacing: 12
+                    rowSpacing: 8
 
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -109,25 +115,47 @@ Item {
                         }
                     }
 
-                    Repeater {
-                        model: [2, 3, 4, 5, 6]
+                    RowLayout {
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        spacing: 4
+                        Repeater {
+                            model: [2, 3, 4, 5, 6]
 
-                        delegate: Components.AppButton {
-                            required property int modelData
+                            delegate: Components.AppButton {
+                                required property int modelData
 
+                                compact: true
+                                minimumButtonWidth: 32
+                                Accessible.name: modelData + " 列"
+                                text: String(modelData)
+                                checked: modelData
+                                    === montageRoot.viewportController.columnCount
+                                onClicked: montageRoot.setColumnCount(modelData)
+                            }
+                        }
+                        Components.AppButton {
+                            objectName: "montageDetailsToggle"
                             compact: true
-                            minimumButtonWidth: 38
-                            text: String(modelData)
-                            checked: modelData
-                                === montageRoot.viewportController.columnCount
-                            onClicked: montageRoot.setColumnCount(modelData)
+                            minimumButtonWidth: 32
+                            Layout.preferredWidth: 32
+                            iconName: montageRoot.viewportController.detailsExpanded ? "chevron-up" : "chevron-down"
+                            textColor: Theme.textMuted
+                            normalColor: "transparent"
+                            Accessible.name: montageRoot.viewportController.detailsExpanded ? "收起序列信息" : "展开序列信息"
+                            onClicked: montageRoot.viewportController.toggleDetails()
+                            Basic.ToolTip.visible: hovered
+                            Basic.ToolTip.delay: 500
+                            Basic.ToolTip.text: Accessible.name
                         }
                     }
                 }
 
                 GridLayout {
+                    objectName: "montageDetails"
+                    opacity: montageRoot.anonymousExport ? 0 : 1
+                    visible: montageRoot.viewportController.detailsExpanded
                     Layout.fillWidth: true
-                    columns: 3
+                    columns: montageRoot.width < 560 ? 2 : 3
                     columnSpacing: 24
                     rowSpacing: 8
 
@@ -325,6 +353,7 @@ Item {
 
                     Text {
                         id: sliceLabel
+                        objectName: "montageSliceLabel"
                         anchors.centerIn: parent
                         text: (tile.sliceIndex + 1) + " / "
                             + montageRoot.viewportController.sliceCount
@@ -334,13 +363,20 @@ Item {
                     }
                 }
 
+                readonly property string cursorKind: CursorPolicy.resolve(
+                    montageRoot.viewportController.activeInteraction, "", "", "")
+                CursorGlyph {
+                    objectName: "montageToolCursor"
+                    iconName: tile.cursorKind
+                    width: 40; height: 32
+                    x: (tileDrag.active ? tileDrag.centroid.position.x : tileHover.point.position.x) - 2
+                    y: (tileDrag.active ? tileDrag.centroid.position.y : tileHover.point.position.y) - 2
+                    visible: !!iconName && (tileHover.hovered || tileDrag.active)
+                    z: 100
+                }
                 HoverHandler {
                     id: tileHover
-                    cursorShape: montageRoot.viewportController.activeInteraction
-                        === "pan" ? Qt.SizeAllCursor
-                        : montageRoot.viewportController.activeInteraction
-                            === "zoom" ? Qt.SizeVerCursor
-                            : Qt.CrossCursor
+                    cursorShape: tile.cursorKind ? Qt.BlankCursor : Qt.ArrowCursor
                 }
 
                 TapHandler {
@@ -352,6 +388,7 @@ Item {
 
                 DragHandler {
                     id: tileDrag
+                    cursorShape: tile.cursorKind ? Qt.BlankCursor : Qt.ArrowCursor
                     target: null
                     acceptedButtons: Qt.LeftButton
                         | Qt.RightButton

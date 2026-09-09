@@ -7,6 +7,7 @@ Item {
     objectName: "viewportMetadataOverlay"
     required property var viewportController
     property bool hideSensitiveInfo: false
+    property bool multiViewport: false
     readonly property var overlay: viewportController ? viewportController.overlayInfo : ({})
     readonly property var cursorInfo: viewportController ? viewportController.cursorController.cursorInfo : ({})
     readonly property var options: viewportController?.settingsController.values.corners ?? ({})
@@ -15,7 +16,7 @@ Item {
                                                      bottomRight.visible ? bottomRight.height : 0)
     readonly property real topLeftTextHeight: topLeft.visible ? topLeft.height : 0
     readonly property real bottomLeftTextHeight: bottomLeft.visible ? bottomLeft.height : 0
-    readonly property real fontScale: viewportController?.reconstructionController?.isFusion === true ? 0.85 : 1
+    readonly property real fontScale: multiViewport || width < 640 || height < 480 ? 0.85 : 1
     readonly property color backgroundColor: viewportController?.canvasBackgroundColor ?? "#000000"
     readonly property bool lightBackground: backgroundColor.r * 0.299 + backgroundColor.g * 0.587 + backgroundColor.b * 0.114 > 0.6
     readonly property color textColor: options.colorMode === "custom" ? options.color : lightBackground ? "#182334" : Theme.overlayText
@@ -84,26 +85,47 @@ Item {
         }
     }
     function lines(corner) {
-        const compactFields = ["viewPosition", "slice", "patientName", "patientId", "window", "cursor"]
+        const compactFields = ["viewPosition", "slice", "patientName", "patientId", "window", "transform", "cursor"]
         return (options[corner] ?? []).filter(key => !overlay.compactOverlay || compactFields.includes(key))
             .map(key => field(key)).filter(Boolean).join("\n")
     }
-    component CornerText: Text {
-        color: root.textColor
-        font.pixelSize: Math.max(1, Math.round((root.options.fontSize ?? 12) * root.fontScale))
-        font.weight: root.overlay.compactOverlay ? Font.Normal : Font.DemiBold
-        lineHeight: root.options.lineHeight ?? 1.2
-        style: Text.Outline
-        styleColor: root.lightBackground ? "#99ffffff" : Theme.overlayOutline
-        textFormat: Text.PlainText
-        wrapMode: Text.WrapAnywhere
+    component CornerText: Item {
+        id: corner
+        property string text: ""
+        property int horizontalAlignment: Text.AlignLeft
+        readonly property real pixelSize: Math.max(10, Math.round((root.options.fontSize ?? 12) * root.fontScale))
+        readonly property real rowHeight: pixelSize * (root.options.lineHeight ?? 1.2)
+        readonly property int rowLimit: Math.max(0, Math.min(root.overlay.compactOverlay ? 4 : 12,
+            Math.floor((root.height / 2 - 12) / rowHeight)))
+        readonly property var rows: text.split("\n").filter(Boolean).slice(0, rowLimit)
         width: Math.max(0, (root.width - 24) / 2)
-        maximumLineCount: Math.max(1, Math.min(root.overlay.compactOverlay ? 4 : 12,
-            Math.floor((root.height / 2 - 12) / (font.pixelSize * lineHeight))))
-        height: Math.min(implicitHeight, Math.max(0, root.height / 2 - 12))
+        height: rows.length * rowHeight
         clip: true
-        elide: Text.ElideRight
         visible: root.viewportController !== null && text.length > 0
+        Column {
+            width: parent.width
+            Repeater {
+                model: corner.rows.length
+                Text {
+                    required property int index
+                    objectName: "cornerInformationLine"
+                    width: corner.width
+                    height: corner.rowHeight
+                    text: corner.rows[index] ?? ""
+                    color: root.textColor
+                    font.pixelSize: corner.pixelSize
+                    font.weight: root.overlay.compactOverlay ? Font.Normal : Font.DemiBold
+                    horizontalAlignment: corner.horizontalAlignment
+                    verticalAlignment: Text.AlignVCenter
+                    style: Text.Outline
+                    styleColor: root.lightBackground ? "#99ffffff" : Theme.overlayOutline
+                    textFormat: Text.PlainText
+                    wrapMode: Text.NoWrap
+                    maximumLineCount: 1
+                    elide: Text.ElideRight
+                }
+            }
+        }
     }
     CornerText { id: topLeft; objectName: "overlay-topLeft"; anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 2; text: root.lines("topLeft") }
     CornerText { objectName: "overlay-topRight"; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 2; horizontalAlignment: Text.AlignRight; text: root.lines("topRight") }

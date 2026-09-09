@@ -83,7 +83,7 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 
-应用现名 Voxenra。安装器 AppId、macOS bundle ID、Windows AppUserModelID 和原有设置标识保持兼容；Windows 升级会移除旧品牌可执行文件和快捷方式，不清理影像、日志或设置。归档旧构建时，工作流从对应源码读取品牌名称，支持已有 DICOMVision 版本。
+应用现名 Voxenra，macOS bundle ID 与 Windows AppUserModelID 统一为 `com.junliu.voxenra`，Qt 的组织名及应用名均为 Voxenra，日志为 `voxenra.log`。安装器 AppId 保持不变以支持原安装升级；升级时清理旧品牌可执行文件和快捷方式，启动时复制旧版配置且不覆盖新配置。旧影像与日志不移动或删除。旧名称只在配置迁移、安装升级清理及历史构建记录中保留。Qt 工程与资源清单分别为 `Voxenra.qmlproject`、`Voxenra.qrc`。
 
 ## 验收清单
 

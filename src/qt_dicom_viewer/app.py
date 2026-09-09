@@ -4,7 +4,7 @@ import logging
 import sys
 from importlib.resources import as_file, files
 
-from PySide6.QtCore import QCoreApplication
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication
@@ -27,13 +27,17 @@ def configure_process_identity() -> None:
         set_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
         set_id.argtypes = [ctypes.c_wchar_p]
         set_id.restype = ctypes.c_long
-        result = set_id("com.junliu.dicomvision")
+        result = set_id("com.junliu.voxenra")
         if result != 0:
             logger.warning("Could not set Windows application identity: %s", result)
 
 
 def configure_application_identity(app: QApplication) -> None:
+    from qt_dicom_viewer import __version__
     app.setApplicationDisplayName("Voxenra")
+    app.setApplicationVersion(__version__)
+    # Native decorations and dialogs should match the application surfaces.
+    app.styleHints().setColorScheme(Qt.ColorScheme.Dark)
     pixmap = QPixmap()
     brand = files("qt_dicom_viewer").joinpath("qml/assets/brand/voxenra-mark.png")
     if pixmap.loadFromData(brand.read_bytes()):
@@ -46,10 +50,8 @@ def main() -> None:
     configure_process_identity()
     app = QApplication(sys.argv)
     configure_application_identity(app)
-    QCoreApplication.setOrganizationName("QtDicomViewer")
-    QCoreApplication.setApplicationName(
-        "Qt DICOM Viewer"
-    )
+    from qt_dicom_viewer.infrastructure.brand_settings import configure_storage_identity
+    configure_storage_identity()
 
     log_path = configure_logging(debug=True)
 

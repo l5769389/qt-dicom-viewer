@@ -36,6 +36,7 @@ class PetWorkspaceController(TabController):
         self._compact_crosshair = True
         self._compact_overlay = True
         self._ct_window = None
+        self._ct_inverted = False
         self._opacity = 0.5
         self._pet_color = "grayscale"
         self._fusion_color = "hotIron"
@@ -93,7 +94,7 @@ class PetWorkspaceController(TabController):
     def _create_viewport_dict(self):
         pet_meta = next(m for m in self._tab_config.series_metas if m.modality.upper() == "PT")
         ct_meta = next((m for m in self._tab_config.series_metas if m.modality.upper() == "CT"), None)
-        roles = ("ct", "pet", "fusion", "mip") if ct_meta else ("axial", "coronal", "sagittal", "mip")
+        roles = ("ct", "pet", "fusion", "mip") if ct_meta else ("axial", "coronal", "sagittal")
         for role in roles:
             meta = ct_meta if role == "ct" else pet_meta
             plane = TwoDViewType.PET_MIP if role == "mip" else MprPlane.AXIAL if ct_meta else MprPlane(role)
@@ -143,6 +144,17 @@ class PetWorkspaceController(TabController):
     def setCompactOverlay(self, compact):
         self._compact_overlay = bool(compact)
         self.settingsChanged.emit()
+
+    @Property(bool, notify=settingsChanged)
+    def ctInverted(self):
+        return self._ct_inverted
+
+    @Slot()
+    def toggleCtInverted(self):
+        if self.isFusion and not self._closed and self._ct_window is not None:
+            self._ct_inverted = not self._ct_inverted
+            self.settingsChanged.emit()
+            self.request_render()
 
     @Property(float, notify=settingsChanged)
     def ctCenter(self):
@@ -218,6 +230,9 @@ class PetWorkspaceController(TabController):
                              and request.interaction_id == self._locator_interaction_id))
                     and request.revision > self._presented_revision)
 
+    def retry_initial_load(self):
+        self.init_render()
+
     def init_render(self):
         self.request_render()
 
@@ -242,6 +257,7 @@ class PetWorkspaceController(TabController):
             state=self._target_mpr_state, plane=self._plane,
             value_unit=state.meta.unit_id if state else None,
             pet_window=state.window if state else None, ct_window=self._ct_window,
+            ct_inverted=self._ct_inverted,
             transform=tuple(self.matrix.ravel()), opacity=self._opacity,
             pet_color_map=self._pet_color, fusion_color_map=self._fusion_color,
             preview=preview, interaction_id=self._registration_interaction_id,
@@ -300,6 +316,7 @@ class PetWorkspaceController(TabController):
             self._registration_changed = not np.allclose(self.matrix, np.eye(4))
             self._plane = request.plane
             self._ct_window = self._last_result.ct_window
+            self._ct_inverted = request.ct_inverted
             self._target_mpr_state = self._last_result.state
             self._opacity = request.opacity
             self._pet_color = request.pet_color_map
@@ -573,6 +590,10 @@ class PetWorkspaceController(TabController):
     def _handle_tool_command(self, command):
         if command == "viewport:reset":
             self._target_mpr_state = self._initial_mpr_state
+            self._ct_inverted = False
+            if self._last_result and self._last_result.ct_volume:
+                self._ct_window = self._last_result.ct_volume.default_window
+            self.settingsChanged.emit()
             self.pet_display.reset()
             for v in self._viewport_dict.values():
                 v.reset_all_view_state(reset_slice=False)
@@ -582,6 +603,7 @@ class PetWorkspaceController(TabController):
         if value == "registration":
             self.resetRegistration()
         elif value == "ct-window":
+            self._ct_inverted = False
             if self._last_result:
                 self.set_ct_window(self._last_result.ct_volume.default_window)
         elif value == "pet-window":

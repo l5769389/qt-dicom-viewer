@@ -43,9 +43,10 @@ def test_measurement_settings_update_existing_geometry_and_labels(viewport, kind
     item = visible(view.rootObject(), 'measurementItem')
     geometry = next(i for i in _visual_children(item) if i.isVisible() and i.property('styleSettings') is not None)
     color_key = 'measurementColor' if kind == 'length' else 'lineColor'
-    assert geometry.property(color_key).name() == '#e55555'
-    assert not geometry.property('dashed')
-    colored = [p for p in paths(geometry) if p.property('strokeColor') == QColor('#e55555')]
+    assert geometry.property('isSelected') and not geometry.property('isDraft')
+    assert geometry.property(color_key).name() == '#55cc99'
+    assert geometry.property('dashed')
+    colored = [p for p in paths(geometry) if p.property('strokeColor') == QColor('#55cc99')]
     assert colored and all(p.property('strokeWidth') == 4 for p in colored)
     if kind in ('length', 'angle'):
         assert visible(item, 'measurementLabel').property('font').pixelSize() == 18
@@ -58,8 +59,8 @@ def test_measurement_settings_update_existing_geometry_and_labels(viewport, kind
         texts = [i for i in _visual_children(card) if i.isVisible() and i.property('text')]
         assert texts and all(i.property('font').pixelSize() == 18 for i in texts)
     frame = view.grabWindow()
-    assert sum(abs(frame.pixelColor(x, y).red()-229) < 15
-               and abs(frame.pixelColor(x, y).green()-85) < 15
+    assert sum(abs(frame.pixelColor(x, y).red()-85) < 15
+               and abs(frame.pixelColor(x, y).green()-204) < 15
                for x in range(frame.width()) for y in range(frame.height())) > 50
     controller.measurementController.clear_selection()
     QTest.qWait(40)

@@ -12,9 +12,9 @@ SettingsSplit {
     SettingsSection {
         Layout.fillWidth: true
         title: "测量线条"
-        description: "选中时使用编辑样式，取消选中后使用完成样式。"
-        SettingColor { Layout.fillWidth: true; title: "编辑 / 选中"; settingName: "measurement-editingColor"; value: root.values.editingColor; onEdited: color => root.settingsController.setValue("measurement", "editingColor", color) }
-        Components.AppCheckBox { objectName: "setting-measurement-editingDash"; text: "选中时使用虚线"; checked: root.values.editingDash; onClicked: root.settingsController.setValue("measurement", "editingDash", checked) }
+        description: "绘制或拖动编辑时使用编辑样式；松开完成后使用完成样式，选中时保留控制点。"
+        SettingColor { Layout.fillWidth: true; title: "绘制 / 编辑"; settingName: "measurement-editingColor"; value: root.values.editingColor; onEdited: color => root.settingsController.setValue("measurement", "editingColor", color) }
+        Components.AppCheckBox { objectName: "setting-measurement-editingDash"; text: "绘制 / 编辑时使用虚线"; checked: root.values.editingDash; onClicked: root.settingsController.setValue("measurement", "editingDash", checked) }
         SettingColor { Layout.fillWidth: true; title: "完成后"; settingName: "measurement-completedColor"; value: root.values.completedColor; onEdited: color => root.settingsController.setValue("measurement", "completedColor", color) }
         Components.AppCheckBox { objectName: "setting-measurement-completedDash"; text: "完成后使用虚线"; checked: root.values.completedDash; onClicked: root.settingsController.setValue("measurement", "completedDash", checked) }
         SettingSlider { Layout.fillWidth: true; title: "线宽"; settingName: "measurement-lineWidth"; value: root.values.lineWidth; onEdited: value => root.settingsController.setValue("measurement", "lineWidth", value) }
@@ -41,7 +41,7 @@ SettingsSplit {
                     const ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
                     ctx.fillStyle = Theme.canvasBackground; ctx.fillRect(0, 0, width, height)
-                    ;[{y: 62, color: options.editingColor, dash: options.editingDash, label: "编辑 / 选中"},
+                    ;[{y: 62, color: options.editingColor, dash: options.editingDash, label: "绘制 / 编辑"},
                       {y: 140, color: options.completedColor, dash: options.completedDash, label: "完成"}].forEach(row => {
                         ctx.font = "11px sans-serif"; ctx.fillStyle = Theme.textMuted; ctx.fillText(row.label, 16, row.y - 30)
                         ctx.strokeStyle = row.color; ctx.fillStyle = row.color; ctx.lineWidth = options.lineWidth

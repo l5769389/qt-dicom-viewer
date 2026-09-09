@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
-import "../components" as Controls
 import "../../../components" as Components
 import "../../../theme"
 
@@ -18,29 +17,47 @@ ColumnLayout {
         font.pixelSize: 13
         font.weight: Font.DemiBold
     }
+    Components.AppCheckBox {
+        id: anonymous
+        objectName: "viewportExportAnonymous"
+        text: "匿名导出"
+        checked: true
+        enabled: !!root.exportController && !root.exportController.busy
+    }
     RowLayout {
         Layout.fillWidth: true
         spacing: 6
-        Controls.ToolActionButton {
+        Components.AppButton {
             objectName: "exportPng"
             Layout.fillWidth: true
-            iconName: "export-png"
-            label: "导出 PNG"
+            text: "导出 PNG"
+            normalColor: Theme.primaryButtonBackground
+            hoverColor: Theme.primaryButtonHover
+            pressedColor: Theme.primaryButtonPressed
+            disabledColor: Theme.primaryButtonDisabled
+            textColor: Theme.textOnPrimary
+            compact: true
             enabled: !!root.exportController && !root.exportController.busy
-            onClicked: root.exportController.exportPng(root.exportItem, Screen.devicePixelRatio)
+            onClicked: root.exportController.exportPng(root.exportItem, Screen.devicePixelRatio, anonymous.checked)
         }
-        Controls.ToolActionButton {
+        Components.AppButton {
             objectName: "exportDicom"
             Layout.fillWidth: true
-            iconName: "export-dicom"
-            label: "导出 DICOM"
+            text: "导出 DICOM"
+            normalColor: "transparent"
+            baseBorderWidth: 1
+            baseBorderColor: Theme.primaryButtonBorder
+            textColor: Theme.iconActive
+            compact: true
             enabled: !!root.exportController && !root.exportController.busy
-            onClicked: root.exportController.exportDicom()
+            onClicked: root.exportController.exportDicom(anonymous.checked)
         }
     }
     Text {
         Layout.fillWidth: true
-        text: "PNG · 当前视口与可见标注\nDICOM · 原始序列文件，保留像素与标签"
+        text: anonymous.checked
+            ? "PNG · 当前视口，隐藏四角文字及文字标注\nDICOM · 清理身份标签，保留原始像素\n匿名不会擦除原始像素内的文字。"
+            : "PNG · 当前视口与可见标注\nDICOM · 原始序列文件，保留像素与身份标签"
         color: Theme.textMuted
         font.pixelSize: 11
         wrapMode: Text.Wrap

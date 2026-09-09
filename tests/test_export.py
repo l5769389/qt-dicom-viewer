@@ -4,6 +4,8 @@ from threading import Event
 
 import pytest
 from PySide6.QtGui import QImage
+import pydicom
+import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 
@@ -59,8 +61,9 @@ def test_export_catalog_and_panel_are_available(kind):
     assert tools.tools[-1]['toolType'] == 'reset'
 
 
+@pytest.mark.parametrize('anonymous', [True, False])
 @pytest.mark.parametrize('width, kind', [(1000, TabType.TWO_D), (1400, TabType.TWO_D), (1400, TabType.MPR), (1400, TabType.MONTAGE)])
-def test_real_export_buttons_save_viewport_png_and_original_dicom(sidebar_scene, monkeypatch, tmp_path, width, kind):
+def test_real_export_buttons_save_viewport_png_and_original_dicom(sidebar_scene, monkeypatch, tmp_path, width, kind, anonymous):
     window, app, records, warnings = sidebar_scene
     window.resize(width, 800)
     ws = app.workspaceController
@@ -70,6 +73,7 @@ def test_real_export_buttons_save_viewport_png_and_original_dicom(sidebar_scene,
     else:
         wait_until(lambda: ws.activeViewport.loadState in ('ready', 'error'), timeout=15000)
         assert ws.activeViewport.loadState == 'ready', ws.activeViewport.errorMessage
+    wait_until(lambda: ws.activeLoadState.status == "ready", timeout=15000)
     if kind == TabType.MPR:
         coronal = next(v for v in ws.activeTab.viewports_by_id.values()
                        if v.viewport_config.viewport_type == 'coronal')
@@ -80,6 +84,10 @@ def test_real_export_buttons_save_viewport_png_and_original_dicom(sidebar_scene,
     right = find(window, 'rightPanel')
     item = right.property('exportItem')
     assert item is not None and item.width() < window.width()
+    checkbox = find(window, 'viewportExportAnonymous')
+    assert checkbox.property('checked')  # A newly opened export panel starts anonymous.
+    if not anonymous:
+        click(window, checkbox)
     png = tmp_path / 'frame.png'
     monkeypatch.setattr('qt_dicom_viewer.ui.controller.export_controller.QFileDialog.getSaveFileName', lambda *args: (str(png), 'PNG'))
     click(window, find(window, 'exportPng'))
@@ -97,7 +105,18 @@ def test_real_export_buttons_save_viewport_png_and_original_dicom(sidebar_scene,
     assert not app.exportController.isError, app.exportController.message
     exported = sorted(target.rglob('*.dcm'))
     assert len(exported) == len(records[0].instances)
-    assert [p.read_bytes() for p in exported] == [i.path.read_bytes() for i in records[0].instances]
+    if anonymous:
+        assert not image.textKeys()
+        assert not item.property('anonymousExport')  # Live preferences restored after capture.
+        for path, instance in zip(exported, records[0].instances):
+            result, source = pydicom.dcmread(path), pydicom.dcmread(instance.path)
+            assert result.PatientName == 'ANONYMOUS' and result.PatientIdentityRemoved == 'YES'
+            assert result.PatientID != source.PatientID
+            assert result.StudyInstanceUID != source.StudyInstanceUID
+            assert result.SeriesInstanceUID != source.SeriesInstanceUID
+            assert result.PixelData == source.PixelData
+    else:
+        assert [p.read_bytes() for p in exported] == [i.path.read_bytes() for i in records[0].instances]
     assert find(window, 'exportMessage').property('text')
     assert window.grabWindow().save(str(tmp_path / f'export-{width}.png'))
     monkeypatch.setattr('qt_dicom_viewer.ui.controller.export_controller.QFileDialog.getSaveFileName', lambda *args: ('', ''))

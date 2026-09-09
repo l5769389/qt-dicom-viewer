@@ -95,6 +95,7 @@ Basic.Button {
 
             AppIcon {
                 visible: control.iconName !== ""
+                anchors.verticalCenter: parent.verticalCenter
                 iconName: control.iconName
                 iconSize: control.iconSize
                 iconColor: control.enabled ? control.textColor : control.disabledTextColor
@@ -103,6 +104,7 @@ Basic.Button {
             Image {
                 visible: control.iconName === "" && control.hasIcon
 
+                anchors.verticalCenter: parent.verticalCenter
                 width: control.iconSize
                 height: control.iconSize
                 sourceSize.width: Math.ceil(control.iconSize * Math.max(1, Screen.devicePixelRatio))
@@ -118,6 +120,7 @@ Basic.Button {
             Label {
                 visible: control.hasText
 
+                anchors.verticalCenter: parent.verticalCenter
                 text: control.text
                 color: control.enabled
                     ? control.textColor

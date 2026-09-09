@@ -11,6 +11,7 @@ Item {
     required property var coordinateMapper
     required property var transformState
     property var preferences: ({})
+    property bool hideText: false
     readonly property var styleSettings: preferences.measurement ?? ({})
 
     Repeater {
@@ -72,6 +73,7 @@ Item {
             readonly property color arrowColor: modelData.color
 
             Shape {
+                preferredRendererType: Shape.CurveRenderer
                 objectName: "annotationArrow-" + annotationItem.modelData.annotationId
                 readonly property bool draftStyle: annotationItem.modelData.draft
                 anchors.fill: parent
@@ -80,10 +82,11 @@ Item {
                 opacity: draftStyle ? 0.78 : 1
 
                 ShapePath {
+                    objectName: "annotationStem"
                     strokeColor: annotationItem.arrowColor
                     strokeWidth: annotationLayer.styleSettings.lineWidth ?? 1.5
                     fillColor: "transparent"
-                    strokeStyle: (annotationItem.modelData.draft || annotationItem.modelData.selected
+                    strokeStyle: (annotationItem.modelData.draft
                         ? (annotationLayer.styleSettings.editingDash ?? true)
                         : (annotationLayer.styleSettings.completedDash ?? false))
                         ? ShapePath.DashLine : ShapePath.SolidLine
@@ -162,7 +165,7 @@ Item {
                 width: annotationText.implicitWidth + 12
                 height: annotationText.implicitHeight + 8
                 radius: 4
-                visible: annotationItem.modelData.text.length > 0
+                visible: !annotationLayer.hideText && annotationItem.modelData.text.length > 0
                 color: annotationItem.modelData.draft
                     ? "#6602070e"
                     : annotationItem.modelData.selected

@@ -12,13 +12,14 @@ CORNER_FIELDS = {
     "studyDescription": "检查描述", "modality": "模态", "slice": "切片 / 总数",
     "patientName": "患者姓名", "patientId": "患者 ID", "exposure": "kV / mA",
     "sliceThickness": "层厚", "window": "窗宽 / 窗位", "cursor": "坐标 / 像素值",
-    "zoom": "缩放", "transform": "旋转 / 镜像", "instanceNumber": "实例号",
+    "zoom": "缩放", "transform": "旋转 / 水平与垂直翻转", "instanceNumber": "实例号",
     "matrix": "图像矩阵", "spacing": "像素间距", "seriesUid": "序列 UID",
 }
 CORNERS = ("topLeft", "topRight", "bottomLeft", "bottomRight")
 METRICS = {"mean": "均值 Mean", "std": "标准差 StdDev", "minimum": "最小值 Min",
            "maximum": "最大值 Max", "area": "面积 Area", "dimensions": "宽度与高度", "count": "有效像素数"}
 DEFAULTS = {
+    "layout": {"rightPanelWidth": 250, "settingsNavigationWidth": 180},
     "export": {"directory": ""},
     "colormap": {"gray": "grayscale", "pet": "grayscale"},
     "window": {"hidden": [], "custom": []},
@@ -28,7 +29,7 @@ DEFAULTS = {
                 "colorMode": "auto", "color": "#f8fafc",
                 "topLeft": ["viewPosition", "manufacturer", "seriesDescription", "slice"],
                 "topRight": ["patientName", "patientId"],
-                "bottomLeft": ["exposure", "sliceThickness", "window"], "bottomRight": ["cursor"]},
+                "bottomLeft": ["exposure", "sliceThickness", "window"], "bottomRight": ["transform", "cursor"]},
     "scale": {"enabled": True, "color": "#f8fafc", "lengthMm": 100},
     "measurement": {"editingColor": "#66d0ff", "completedColor": "#ffd45c", "lineWidth": 1.5,
                     "editingDash": True, "completedDash": False, "fontSize": 13,
@@ -68,7 +69,8 @@ def validate_value(section, key, value):
             raise ValueError("请选择有效比例尺长度")
         value = int(value)
     elif isinstance(default, (int, float)):
-        limits = {"fontSize": (10, 20), "lineHeight": (1, 1.8), "lineWidth": (1, 6), "annotationSize": (8, 28)}
+        limits = {"fontSize": (10, 20), "lineHeight": (1, 1.8), "lineWidth": (1, 6), "annotationSize": (8, 28),
+                  "rightPanelWidth": (220, 420), "settingsNavigationWidth": (156, 300)}
         low, high = limits.get(key, (1, 6))
         if isinstance(value, bool) or not isinstance(value, (float, int)) or not isfinite(value) or not low <= value <= high:
             raise ValueError(f"数值范围为 {low}–{high}")
@@ -115,6 +117,13 @@ def normalize_settings(raw):
                     entries[key] = validate_value(section, key, candidate[key])
                 except (ValueError, TypeError):
                     pass
+    # Upgrade only the former default layout. A versioned save keeps an
+    # explicitly removed field removed on every subsequent launch.
+    if raw.get("schemaVersion", 0) == 0:
+        corners = raw.get("corners", {})
+        if (isinstance(corners, dict) and corners.get("bottomRight") == ["cursor"]
+                and not any("transform" in data["corners"][corner] for corner in CORNERS)):
+            data["corners"]["bottomRight"] = ["transform", "cursor"]
     # Migrate the former independent flags without turning a hidden size back on.
     legacy_roi = raw.get("roi", {})
     if isinstance(legacy_roi, dict) and "dimensions" not in legacy_roi:

@@ -26,7 +26,7 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
-        text: "Esc 取消绘制 · Delete / Backspace 删除选中测量"
+        text: "松开完成并选中 · 在空白处拖动可新建\nEsc 取消绘制 · Delete / Backspace 删除所选"
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap

@@ -15,7 +15,8 @@ Rectangle {
     property string feedbackTool: ""
     signal toolTriggered(var toolDefinition)
 
-    implicitHeight: toolFlow.childrenRect.height + 12
+    readonly property real buttonHeight: 36
+    implicitHeight: toolFlow.height + 8
     color: Theme.panelBackgroundStrong
     radius: Theme.controlRadius
 
@@ -27,18 +28,20 @@ Rectangle {
 
     Flow {
         id: toolFlow
-        readonly property real availableWidth: Math.max(0, toolBar.width - 12)
-        readonly property int columns: Math.max(1, Math.min(5,
-            Math.floor((availableWidth + spacing) / (44 + spacing))))
+        readonly property real availableWidth: Math.max(0, toolBar.width - 8)
+        readonly property int columns: Math.max(1, Math.min(6,
+            Math.floor((availableWidth + spacing) / (36 + spacing))))
         readonly property int rows: Math.ceil(toolBar.tools.length / columns)
+        // Integer cell widths prevent floating-point overflow from wrapping
+        // the last button into an unaccounted-for row.
         readonly property real buttonWidth: Math.max(0,
-            (availableWidth - (columns - 1) * spacing) / columns)
+            Math.floor((availableWidth - (columns - 1) * spacing) / columns))
         anchors.top: parent.top
-        anchors.topMargin: 6
+        anchors.topMargin: 4
         anchors.horizontalCenter: parent.horizontalCenter
-        width: availableWidth
-        height: rows * Theme.toolbarButtonHeight + Math.max(0, rows - 1) * spacing
-        spacing: 4
+        width: columns * buttonWidth + Math.max(0, columns - 1) * spacing
+        height: rows * toolBar.buttonHeight + Math.max(0, rows - 1) * spacing
+        spacing: 2
 
         Repeater {
             model: toolBar.tools
@@ -47,12 +50,12 @@ Rectangle {
                 required property var modelData
                 readonly property bool bedAction: modelData.toolType === "volume-bed"
                 width: toolFlow.buttonWidth
-                height: Theme.toolbarButtonHeight
+                height: toolBar.buttonHeight
                 buttonObjectName: "primaryTool-" + modelData.toolType
                 label: modelData.label
                 shortLabel: modelData.toolType === "mpr-rotate-3d" ? "3D旋转" : label
                 iconName: modelData.iconName
-                iconSize: modelData.toolType === "service" ? 20 : Theme.toolbarIconSize
+                iconSize: Theme.toolbarIconSize
                 placeholder: modelData.available === false
                 actionEnabled: (!toolBar.playbackActive || modelData.toolType === "play")
                     && (!bedAction || (toolBar.volumeController

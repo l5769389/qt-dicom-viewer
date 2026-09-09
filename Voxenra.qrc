@@ -1,6 +1,29 @@
 <RCC>
     <qresource>
-        <file>QtDicomViewer.qmlproject</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/ScrollToolPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/ZoomToolPanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/annotate-arrow.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/annotate-text.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/crosshair-move.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/crosshair-rotate.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/fillColor.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/measure-angle.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/measure-ellipse.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/measure-line.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/measure-rect.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/mtf.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/pan.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/qa.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/resize.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/rotate.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/rotate-3d.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/scroll.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/segmentation.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/strokeColor.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/voi.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/window.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/zoom.svg</file>
+        <file>Voxenra.qmlproject</file>
         <file>src/qt_dicom_viewer/qml/Main.qml</file>
         <file>src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.png</file>
         <file>src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.svg</file>
@@ -35,11 +58,13 @@
         <file>src/qt_dicom_viewer/qml/sections/FusionSeriesDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/ExportDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/SidebarContainer.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/CompactSeriesRail.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/RightPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/CenterPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/TagPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/TabBarSection.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/WorkspaceEmptyState.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/center/WorkspaceLoadingState.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ImageCanvas.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/MprSlabGuideLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/InteractionLayer.qml</file>
@@ -179,5 +204,25 @@
         <file>src/qt_dicom_viewer/qml/assets/help/manual.json</file>
         <file>src/qt_dicom_viewer/qml/assets/help/measurement.png</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/manual.svg</file>
-</qresource>
+        <file>src/qt_dicom_viewer/qml/components/WidthResizeHandle.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/right/panels/StandalonePetVolumePanel.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/ApplicationTitleBar.qml</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/check.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/chevron-down.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/chevron-up.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/close.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/folder.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/fullscreen.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/help.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/pet-window.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/pseudocolor.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/registration.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/rotate-3d-variant.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/settings.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/shield.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/slice-next.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/slice-previous.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/view-tile.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/volume-bed.svg</file>
+    </qresource>
 </RCC>

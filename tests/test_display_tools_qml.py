@@ -77,10 +77,13 @@ def test_display_tool_panels_change_live_viewport_state(display_panel):
         if item.objectName().startswith("primaryTool-") and item.isVisible()
     ]
     assert primary_buttons
-    assert {button.height() for button in primary_buttons} == {48.0}
+    assert {button.height() for button in primary_buttons} == {36.0}
 
     _click(view, _find(root, "primaryTool-annotate"))
     _find(root, "annotatePanel")
+    assert not _find(root, "annotationTextEditor", visible=False).isVisible()
+    assert not _find(root, "annotationFontSize", visible=False).isVisible()
+    _click(view, _find(root, "annotateTextMode"))
     _find(root, "annotationTextEditor")
     viewport_controller.textAnnotationController.setAnnotationText("病灶")
     viewport_controller.textAnnotationController.addAnnotation(10, 12, 48, 34)
@@ -169,4 +172,31 @@ def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
         output = tmp_path / "arrow-annotation.png"
         assert screenshot.save(str(output))
         print(f"QML preview: {output}")
+    assert not warnings, warnings
+
+
+@pytest.mark.parametrize("width", [220, 250, 420])
+def test_primary_toolbar_compact_spacing_keeps_detail_space(display_panel, width, tmp_path):
+    view, controller, warnings = display_panel
+    view.resize(width, 600)
+    QTest.qWait(60)
+    buttons = sorted((item for item in _visual_children(view.rootObject())
+        if item.objectName().startswith("primaryTool-") and item.isVisible()),
+        key=lambda item: (item.mapToScene(QPointF()).y(), item.mapToScene(QPointF()).x()))
+    assert buttons[-1].objectName() == "primaryTool-reset"
+    rows = {}
+    for button in buttons:
+        pos = button.mapToScene(QPointF())
+        assert button.height() == 36 and button.width() >= 36
+        assert 0 <= pos.x() < pos.x() + button.width() <= width
+        rows.setdefault(pos.y(), []).append(button)
+    for row in rows.values():
+        for left, right in zip(row, row[1:]):
+            assert right.mapToScene(QPointF()).x() - left.mapToScene(QPointF(left.width(), 0)).x() == pytest.approx(2)
+    tops = sorted(rows)
+    assert all(b - a == 38 for a, b in zip(tops, tops[1:]))
+    detail = _find(view.rootObject(), "toolDetailFlickable")
+    assert detail.mapToScene(QPointF()).y() == tops[-1] + 36 + 4
+    assert detail.height() >= 600 - len(rows) * 38 - 64
+    assert view.grabWindow().save(str(tmp_path / f"compact-toolbar-{width}.png"))
     assert not warnings, warnings

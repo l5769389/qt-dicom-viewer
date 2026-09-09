@@ -99,7 +99,8 @@ class PetVolumeRenderBackend(VolumeRenderBackend):
         self.camera_geometry = fusion_camera_geometry(scene.ct_volume, scene.pet_volume, transform)
         preset = VOLUME_PRESET_BY_ID[c.ctPreset]
         colors, opacity = create_transfer_functions(preset,
-            preset.default_window or scene.ct_window, c.ctOpacity if c.volumeMode != "pet" else 0)
+            state.window or preset.default_window or scene.ct_window,
+            c.ctOpacity if c.volumeMode != "pet" else 0)
         ct_prop = self.layers[0].GetProperty()
         ct_prop.SetColor(colors)
         ct_prop.SetScalarOpacity(opacity)

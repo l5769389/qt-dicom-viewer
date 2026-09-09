@@ -30,7 +30,9 @@ ColumnLayout {
             required property var modelData
             objectName: "colorMap-" + modelData.colorMap
             Layout.fillWidth: true
-            implicitHeight: Math.max(38, contentItem.implicitHeight + 12)
+            implicitHeight: 36
+            topPadding: 6
+            bottomPadding: 6
             Layout.minimumWidth: 0
             checked: pseudoColorPanel.viewportController
                 && pseudoColorPanel.viewportController.activeColorMap
@@ -47,6 +49,8 @@ ColumnLayout {
                     Layout.preferredWidth: Math.min(80, colorMapButton.width * 0.3)
                     Layout.preferredHeight: 16
 
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
                     onPaint: {
                         const context = getContext("2d")
                         context.reset()
@@ -66,7 +70,8 @@ ColumnLayout {
                     color: colorMapButton.checked
                         ? Theme.textPrimary : Theme.textSecondary
                     Layout.minimumWidth: 0
-                    wrapMode: Text.Wrap
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
                     font.pixelSize: 12
                     font.weight: colorMapButton.checked
                         ? Font.DemiBold : Font.Normal

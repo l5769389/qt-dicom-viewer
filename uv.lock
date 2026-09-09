@@ -879,7 +879,7 @@ wheels = [
 
 [[package]]
 name = "qt-dicom-viewer"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -904,7 +904,7 @@ dev = [
 requires-dist = [
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pydicom", specifier = ">=3.0.2" },
-    { name = "pyside6", specifier = ">=6.8.0" },
+    { name = "pyside6", specifier = ">=6.9.0" },
     { name = "vtk", specifier = "==9.5.2" },
 ]
 

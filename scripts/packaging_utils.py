@@ -8,8 +8,8 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_NAME = "Voxenra"
-# Preserve the installed application's identity across the public brand rename.
-BUNDLE_ID = "com.junliu.dicomvision"
+# Match the runtime process identity and installed shortcuts.
+BUNDLE_ID = "com.junliu.voxenra"
 
 
 def app_version(root: Path = PROJECT_ROOT) -> str:

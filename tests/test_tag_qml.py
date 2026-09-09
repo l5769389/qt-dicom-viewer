@@ -38,8 +38,13 @@ def descendants(item):
 
 
 def find(window, name):
-    return next(item for item in descendants(window.contentItem())
-                if item.objectName() == name and item.isVisible())
+    # Workspace components now incubate asynchronously. Wait for a visible
+    # target rather than assuming a fixed sleep has completed page creation.
+    def target():
+        return next((item for item in descendants(window.contentItem())
+                     if item.objectName() == name and item.isVisible()), None)
+    wait_until(lambda: target() is not None)
+    return target()
 
 
 def click(window, item):

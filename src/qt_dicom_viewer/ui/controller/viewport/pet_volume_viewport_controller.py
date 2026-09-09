@@ -1,5 +1,7 @@
 """Independent 3D display, following committed PET/CT registration snapshots."""
+from dataclasses import replace
 import numpy as np
+from qt_dicom_viewer.volume_presets import VOLUME_PRESET_BY_ID
 from PySide6.QtCore import Property, Signal, Slot
 
 from qt_dicom_viewer.core.pseudocolor import color_map_options, COLOR_MAP_SPECS
@@ -22,6 +24,9 @@ class PetVolumeViewportController(VolumeViewportController):
         self._source_open = False
         super().__init__(config, tools, parent)
         self.attach_source(source)
+
+    @Property(bool, constant=True)
+    def supportsCtWindow(self): return True
 
     @Property(bool, constant=True)
     def isFusionVolume(self): return True
@@ -89,6 +94,8 @@ class PetVolumeViewportController(VolumeViewportController):
     def setCtPreset(self, value):
         if not self._disposed and value in ("bone", "general", "lung"):
             self._ct_preset = value
+            self._set_display_state(replace(self.display_state,
+                window=VOLUME_PRESET_BY_ID[value].default_window or self.scene.ct_window))
             self._scene_changed()
 
     @Slot(str)
@@ -123,8 +130,11 @@ class PetVolumeViewportController(VolumeViewportController):
     def accept_snapshot(self, result):
         if self._disposed or result is None or result.ct_volume is None:
             return
+        initial = self.scene is None
         self.scene = result
         self.volume = result.ct_volume
+        if initial:
+            self._reset_ct_window()
         self._set_status("ready")
         self._scene_changed()
 
@@ -144,16 +154,24 @@ class PetVolumeViewportController(VolumeViewportController):
             self._set_status("ready")
             self._scene_changed()
 
+    def _reset_ct_window(self):
+        if self.scene:
+            self._set_display_state(replace(self.display_state,
+                window=VOLUME_PRESET_BY_ID[self._ct_preset].default_window or self.scene.ct_window))
+
     @Slot()
     def resetSceneDisplay(self):
         if self._disposed:
             return
         self._ct_opacity, self._pet_opacity = .25, .8
         self._threshold_fraction, self._ct_preset, self._palette = .1, "bone", "hotIron"
+        self._reset_ct_window()
         self._scene_changed()
 
     def reset_tool_state(self, tool):
-        if tool == ToolType.VOLUME_PRESET:
+        if tool == ToolType.WINDOW:
+            self._reset_ct_window()
+        elif tool == ToolType.VOLUME_PRESET:
             self.resetSceneDisplay()
         else:
             super().reset_tool_state(tool)

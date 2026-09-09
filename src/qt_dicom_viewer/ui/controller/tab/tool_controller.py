@@ -31,10 +31,21 @@ MONTAGE_TOOL_TYPES = frozenset((
     ToolType.PAN,
     ToolType.ZOOM,
     ToolType.ROTATE,
-    ToolType.INVERT,
+    ToolType.PSEUDOCOLOR,
     ToolType.EXPORT,
     ToolType.RESET,
 ))
+
+
+# Filter one common order for every view; specialised actions follow navigation
+# and everyday image tools. Export and reset form the stable final pair.
+TOOL_ORDER = (
+    "window", "ct-window", "pet-window", "scroll", "play", "pan", "zoom",
+    "rotate", "volume-rotate", "measure", "annotate",
+    "pseudocolor", "volume-preset", "volume-direction", "viewport-settings", "invert",
+    "fusion-blend", "mip", "mpr-rotate-3d", "segmentation", "voi", "volume-crop", "volume-bed",
+    "registration", "service", "export", "reset",
+)
 
 
 class ToolController(QObject):
@@ -132,7 +143,7 @@ class ToolController(QObject):
 
     @Property(str, notify=resetStateChanged)
     def resetLabel(self) -> str:
-        if self._modality == "PETCT3D" and self._active_tool == ToolType.VOLUME_PRESET:
+        if (self._modality == "PETCT3D" or self._modality == "PT" and self._tab_type == TabType.THREE_D) and self._active_tool == ToolType.VOLUME_PRESET:
             return "重置三维显示"
         if self._modality == "PT" and self._active_tool == ToolType.WINDOW:
             return "重置 PET 强度"
@@ -192,9 +203,9 @@ class ToolController(QObject):
             case ToolBehavior.INTERACTION_PANEL:
                 self._set_active_tool(definition.tool_type)
                 self._set_active_interaction(definition.default_interaction)
-                # 3D windowing is drag-only; do not open the 2D preset panel.
                 self._set_active_panel(None if self._tab_type == TabType.THREE_D
-                                       and tool_type == ToolType.WINDOW else definition.tool_type)
+                    and tool_type == ToolType.WINDOW and self._modality not in ("CT", "PETCT3D")
+                    else definition.tool_type)
 
             case ToolBehavior.PANEL:
                 self._set_active_tool(definition.tool_type)
@@ -422,6 +433,7 @@ def build_tool_items(
                 "PET 强度"
                 if modality.upper() == "PT"
                 and definition.tool_type == ToolType.WINDOW
+                else "PET 三维显示" if modality == "PT" and tab_type == TabType.THREE_D and definition.tool_type == ToolType.VOLUME_PRESET
                 else "三维显示" if modality == "PETCT3D" and definition.tool_type == ToolType.VOLUME_PRESET
                 else definition.label
             ),
@@ -433,9 +445,8 @@ def build_tool_items(
         for definition in TOOL_CATALOG
         if tool_available(definition.tool_type, tab_type, modality)
     ]
-    if tab_type == TabType.PETCT_FUSION:
-        priority = {"ct-window": 0, "pet-window": 1, "pseudocolor": 2, "fusion-blend": 3, "registration": 4}
-        items.sort(key=lambda item: priority.get(item["toolType"], 5))
+    priority = {tool: index for index, tool in enumerate(TOOL_ORDER)}
+    items.sort(key=lambda item: priority[item["toolType"]])
     placeholders = [
         {"toolType": item.key, "label": item.label, "iconName": item.key,
          "behavior": "placeholder", "available": False}
@@ -453,7 +464,7 @@ def tool_available(
     modality: str = "",
 ) -> bool:
     if modality == "PETCT3D":
-        return tool in (ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
+        return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
                         ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.RESET)
     if tab_type == TabType.PETCT_FUSION:
         return tool in (ToolType.REGISTRATION, ToolType.FUSION_BLEND, ToolType.CT_WINDOW, ToolType.PET_WINDOW, ToolType.SCROLL,
@@ -464,6 +475,10 @@ def tool_available(
         return False
     if tab_type == TabType.MONTAGE:
         return tool in MONTAGE_TOOL_TYPES
+    if tab_type == TabType.THREE_D and modality.upper() == "PT":
+        return tool in (ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
+                       ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET,
+                       ToolType.VOLUME_CROP, ToolType.EXPORT, ToolType.RESET)
     if tab_type == TabType.THREE_D:
         return tool in (ToolType.WINDOW, ToolType.PAN, ToolType.ZOOM, ToolType.VOLUME_ROTATE,
                         ToolType.VOLUME_DIRECTION, ToolType.VOLUME_PRESET, ToolType.VOLUME_BED,

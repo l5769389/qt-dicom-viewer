@@ -56,6 +56,10 @@ from qt_dicom_viewer.ui.controller.viewport.viewport_controller import (
     ViewportController,
 )
 
+from qt_dicom_viewer.core.color_maps import COLOR_MAPS
+from qt_dicom_viewer.core.pseudocolor import color_map_options
+from qt_dicom_viewer.model import DisplayStyle
+
 logger = logging.getLogger(__name__)
 
 
@@ -139,6 +143,7 @@ class MontageSliceModel(QAbstractListModel):
 
 class MontageViewportController(ViewportController):
     columnCountChanged = Signal()
+    detailsExpandedChanged = Signal()
     displayStateChanged = Signal()
     transformChanged = Signal()
     activeInteractionChanged = Signal()
@@ -163,7 +168,10 @@ class MontageViewportController(ViewportController):
         )
         self._slice_model = MontageSliceModel(slice_count, self)
         self._tool_controller = tool_controller
+        self._set_default_color_map()
+        self.settingsController.sectionChanged.connect(self._preferences_changed)
         self._column_count = 4
+        self._details_expanded = True
         self._baseline_window: WindowLevel | None = None
         self._visible_indices: set[int] = set()
         self._retained_indices: set[int] = set()
@@ -185,6 +193,46 @@ class MontageViewportController(ViewportController):
         self._tool_controller.activeInteractionChanged.connect(
             self.activeInteractionChanged.emit
         )
+
+    def _set_default_color_map(self):
+        category = "pet" if self.modality.upper() in ("PT", "PET") else "gray"
+        name = self.settingsController.section("colormap")[category]
+        self._state = replace(self._state, display_style=DisplayStyle(name, COLOR_MAPS[name][1][0]))
+
+    def _preferences_changed(self, section):
+        if section == "colormap":
+            before = self._state.display_style
+            self._set_default_color_map()
+            if before != self._state.display_style:
+                self.displayStateChanged.emit()
+                self.request_render()
+
+    @Property("QVariantList", constant=True)
+    def colorMapOptions(self):
+        return color_map_options()
+
+    @Property(str, notify=displayStateChanged)
+    def activeColorMap(self):
+        return self._state.display_style.color_map
+
+    @Slot(str)
+    def applyColorMap(self, name):
+        if name not in COLOR_MAPS or self._disposed or name == self.activeColorMap:
+            return
+        self._state = replace(self._state, display_style=DisplayStyle(name, COLOR_MAPS[name][1][0]))
+        self.displayStateChanged.emit()
+        self.request_render()
+
+    @Property(bool, constant=True)
+    def supportsCtWindow(self):
+        return self.modality.upper() == "CT"
+
+    @Slot()
+    def toggleInverted(self):
+        if not self._disposed and self.hasWindow and self.supportsCtWindow:
+            self._state = replace(self._state, inverted=not self.inverted)
+            self.displayStateChanged.emit()
+            self.request_render()
 
     @Property(QObject, constant=True)
     def sliceModel(self) -> QObject:
@@ -283,6 +331,15 @@ class MontageViewportController(ViewportController):
     def sliceCount(self) -> int:
         return self._state.slice_count or 0
 
+    @Property(bool, notify=detailsExpandedChanged)
+    def detailsExpanded(self):
+        return self._details_expanded
+
+    @Slot()
+    def toggleDetails(self):
+        self._details_expanded = not self._details_expanded
+        self.detailsExpandedChanged.emit()
+
     @Property(int, notify=columnCountChanged)
     def columnCount(self) -> int:
         return self._column_count
@@ -310,6 +367,10 @@ class MontageViewportController(ViewportController):
     @Property(bool, notify=displayStateChanged)
     def inverted(self) -> bool:
         return self._state.inverted
+
+    @Property(QObject, constant=True)
+    def settingsController(self):
+        return self._tool_controller.settingsController
 
     @Property(float, notify=transformChanged)
     def panX(self) -> float:
@@ -364,7 +425,7 @@ class MontageViewportController(ViewportController):
         self._start_next_request()
 
     def request_render(self) -> None:
-        if self._disposed or self._baseline_window is None:
+        if self._disposed:
             return
         self._display_revision += 1
         self._dirty_indices.update(self._retained_indices)
@@ -438,8 +499,8 @@ class MontageViewportController(ViewportController):
             series_uid=self.viewport_config.series_uid,
             slice_index=slice_index,
             window=self._state.window if self._baseline_window else None,
-            # The placeholder invert tool deliberately has no behavior.
-            inverted=False,
+            inverted=self.inverted,
+            color_map=self.activeColorMap,
         )
         self._active_request = (
             request.request_id,
@@ -645,9 +706,9 @@ class MontageViewportController(ViewportController):
             center=float(window.center),
             width=max(float(window.width), 1.0),
         )
-        if self._state.window == window and not self._state.inverted:
+        if self._state.window == window:
             return
-        self._state = replace(self._state, window=window, inverted=False)
+        self._state = replace(self._state, window=window)
         self.displayStateChanged.emit()
         self.request_render()
 
@@ -671,6 +732,11 @@ class MontageViewportController(ViewportController):
             pan_y=normalized_y,
         )
         self.transformChanged.emit()
+
+    @Slot(float)
+    def setZoom(self, zoom: float) -> None:
+        """Set an absolute multiple of the default fitted view."""
+        self.apply_zoom(zoom)
 
     def apply_zoom(self, zoom: float) -> None:
         if not isfinite(zoom):
@@ -719,7 +785,16 @@ class MontageViewportController(ViewportController):
         match tool_type:
             case ToolType.WINDOW:
                 if self._baseline_window is not None:
-                    self._set_window(self._baseline_window)
+                    changed = state.window != self._baseline_window or state.inverted
+                    self._state = replace(state, window=self._baseline_window, inverted=False)
+                    if changed:
+                        self.displayStateChanged.emit()
+                        self.request_render()
+            case ToolType.PSEUDOCOLOR:
+                self._set_default_color_map()
+                if self._state.display_style != state.display_style:
+                    self.displayStateChanged.emit()
+                    self.request_render()
             case ToolType.PAN:
                 if state.pan_x or state.pan_y:
                     self._state = replace(state, pan_x=0.0, pan_y=0.0)
@@ -748,6 +823,10 @@ class MontageViewportController(ViewportController):
             self._baseline_window is not None
             and state.window != self._baseline_window
         )
+        window_changed = window_changed or state.inverted
+        self._set_default_color_map()
+        default_style = self._state.display_style
+        window_changed = window_changed or default_style != state.display_style
         transform_changed = any((
             state.pan_x,
             state.pan_y,
@@ -759,6 +838,7 @@ class MontageViewportController(ViewportController):
         self._state = replace(
             state,
             window=self._baseline_window or state.window,
+            display_style=default_style,
             inverted=False,
             pan_x=0.0,
             pan_y=0.0,
@@ -782,7 +862,7 @@ class MontageViewportController(ViewportController):
             slice_index,
             self._state.window.center,
             self._state.window.width,
-            False,
+            self.inverted,
         )
 
     def dispose(self) -> None:

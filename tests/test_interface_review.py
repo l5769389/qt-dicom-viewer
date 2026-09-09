@@ -41,7 +41,7 @@ def test_toolbar_placeholders_hover_but_cannot_activate(service_panel, tmp_path)
         state = (controller.activeTool, controller.activePanel, controller.activeInteraction)
         for definition in controller.tools:
             button = _find(view, "primaryTool-" + definition["toolType"])
-            assert button.width() >= 44 and button.height() >= 44
+            assert button.width() >= 36 and button.height() == 36
             start = button.mapToScene(QPointF())
             end = button.mapToScene(QPointF(button.width(), button.height()))
             assert 0 <= start.x() < end.x() <= width

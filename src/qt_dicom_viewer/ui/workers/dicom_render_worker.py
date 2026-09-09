@@ -121,12 +121,18 @@ class DicomRenderWorker(QObject):
                 series = self.series_catalog.get_series(request.series_uid)
                 if series is None:
                     raise LookupError("找不到该序列")
-                if getattr(series, "modality", "").upper() == "PT":
-                    raise ValueError(
-                        "暂不支持 PET 体绘制，请使用 PET 2D 或 MPR"
-                    )
                 validate_volume_series(series)
                 volume = self._volume_manager.get_or_build(series)
+                if getattr(series, "modality", "").upper() == "PT":
+                    volume = volume.in_unit(request.value_unit)
+                    # Sanitize padding in the worker, before native VTK creation.
+                    from dataclasses import replace
+                    finite = np.isfinite(volume.modality_pixels)
+                    if not finite.any():
+                        raise ValueError("PET 三维体数据没有有效像素")
+                    if not finite.all():
+                        volume = replace(volume, modality_pixels=np.where(
+                            finite, volume.modality_pixels, 0).astype(np.float32))
                 self.render_finished.emit(VolumeLoadResult(
                     response_id=request.request_id, viewport_id=request.viewport_id,
                     series_uid=request.series_uid, volume=volume,
@@ -211,7 +217,7 @@ class DicomRenderWorker(QObject):
                 viewport_id=request.viewport_id,
                 view_type=request.view_type,
                 slice_index=slice_index,
-                image=image,
+                image=apply_color_map(image, request.color_map),
                 # Montage never samples pixels or measures in the thumbnails.
                 modality_pixel=None,
                 frame_meta=FrameDisplayMeta(

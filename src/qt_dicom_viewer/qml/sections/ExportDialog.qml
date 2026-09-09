@@ -99,6 +99,9 @@ Basic.Dialog {
         }
         Components.AppButton {
             text: "更改导出位置…"
+            normalColor: "transparent"
+            baseBorderWidth: 1
+            baseBorderColor: Theme.controlBorder
             compact: true
             enabled: dialog.controller && !dialog.controller.busy
             onClicked: dialog.settingsController.chooseExportDirectory()
@@ -144,6 +147,8 @@ Basic.Dialog {
             Item { Layout.fillWidth: true }
             Components.AppButton {
                 objectName: "cancelExport"
+                normalColor: "transparent"
+                textColor: Theme.textMuted
                 text: dialog.controller && dialog.controller.busy ? "取消导出" : "关闭"
                 onClicked: {
                     if (dialog.controller.busy) dialog.controller.cancelExport()
@@ -153,6 +158,12 @@ Basic.Dialog {
             Components.AppButton {
                 objectName: "startExport"
                 text: "开始导出"
+                normalColor: Theme.primaryButtonBackground
+                hoverColor: Theme.primaryButtonHover
+                pressedColor: Theme.primaryButtonPressed
+                disabledColor: Theme.primaryButtonDisabled
+                textColor: Theme.textOnPrimary
+                fontWeight: Font.DemiBold
                 enabled: dialog.controller && !dialog.controller.busy && dialog.controller.instanceCount > 0
                 onClicked: dialog.controller.startExport(format.currentIndex === 0 ? "dicom" : "png", anonymous.checked)
             }

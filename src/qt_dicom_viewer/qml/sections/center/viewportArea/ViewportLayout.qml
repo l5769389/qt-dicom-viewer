@@ -15,8 +15,9 @@ Item {
     required property bool hasTabs
     property string layoutMode: "grid"
     property string focusedViewportId: ""
-    readonly property bool petWorkspace: currentTabAllViewports.length === 4
-        && currentTabAllViewports.some(v => v.viewportRole === "mip")
+    readonly property bool petWorkspace: currentTabAllViewports.length > 0
+        && !!currentTabAllViewports[0]?.reconstructionController
+    readonly property bool fusionWorkspace: petWorkspace && petController?.isFusion === true
     readonly property var petController: petWorkspace ? currentTabAllViewports[0].reconstructionController : null
     readonly property var petPlacements: ({
         "axial": {row: 0, column: 0}, "coronal": {row: 0, column: 1},
@@ -90,7 +91,7 @@ Item {
             }
         }
 
-        const placement = viewportLayout.petWorkspace
+        const placement = viewportLayout.fusionWorkspace
             ? viewportLayout.petPlacements[role]
             : (viewportLayout.tabType === "mpr" || viewportLayout.tabType === "4d")
             ? viewportLayout.mprPlacements[viewportType]
@@ -109,7 +110,7 @@ Item {
 
     RowLayout {
         id: petNavigation
-        visible: viewportLayout.petWorkspace
+        visible: viewportLayout.fusionWorkspace || (viewportLayout.petController?.warning ?? "") !== ""
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -206,6 +207,7 @@ Item {
 
                     Viewport {
                         id: imageViewport
+                        multiViewport: !viewportLayout.singleViewMode && viewportLayout.currentTabAllViewports.length > 1
                         anchors.fill: parent
                         anchors.margins: 1
                         anchors.topMargin: 1

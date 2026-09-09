@@ -5,6 +5,8 @@ import "../../../theme"
 
 Item {
     id: viewportRoot
+    property bool multiViewport: false
+    property bool anonymousExport: false
     required property var viewportController
     required property bool hasTabs
     Keys.onEscapePressed: event => {
@@ -106,12 +108,13 @@ Item {
     // 四角信息
     Overlay {
         id: metadataOverlay
+        multiViewport: viewportRoot.multiViewport
         anchors.fill: parent
         z: 10
         anchors.margins: 8
         viewportController: viewportRoot.viewportController
-        visible: viewportRoot.viewportController
-            ? viewportRoot.viewportController.showWindowAnnotations : false
+        visible: !viewportRoot.anonymousExport && (viewportRoot.viewportController
+            ? viewportRoot.viewportController.showWindowAnnotations : false)
         hideSensitiveInfo: viewportRoot.viewportController
             ? viewportRoot.viewportController.hideSensitiveInfo : false
 
@@ -177,6 +180,7 @@ Item {
     }
 
     TextAnnotationLayer {
+        hideText: viewportRoot.anonymousExport
         preferences: viewportRoot.viewportController?.settingsController.values ?? ({})
         anchors.fill: parent
         z: 14

@@ -19,7 +19,7 @@ ColumnLayout {
         Components.AppButton {
             objectName: "paletteTarget-pet"
             Layout.fillWidth: true
-            text: "PET / MIP"
+            text: panel.controller.isFusion ? "PET / MIP" : "PET"
             checkable: true
             checked: !panel.fusionTarget
             onClicked: panel.fusionTarget = false

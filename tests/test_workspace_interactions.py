@@ -139,6 +139,8 @@ def test_calendar_selection_clear_and_invalid_date(scene, tmp_path):
     app.pacsController.saveProfile({'name': 'Demo', 'url': 'http://127.0.0.1/dicom-web'})
     app.workspaceController.openPacs()
     QTest.qWait(60)
+    wait_until(lambda: any(item.objectName() == "pacsDateFrom" and item.isVisible()
+                           for item in descendants(window.contentItem())))
     field = find(window, 'pacsDateFrom')
     type_text(window, field, '2024-02-01')
     click(window, find(window, 'pacsDateFrom-calendar'))
@@ -163,7 +165,7 @@ def test_scale_presets_preserve_physical_length_and_fit(qt_app):
     assert view.status() == QQuickView.Ready
     bar = view.rootObject()
     try:
-        for width, expected in [(300, 100), (150, 50), (90, 20), (60, 10), (40, 1), (33, 0)]:
+        for width, expected in [(300, 20), (150, 10), (90, 10), (60, 5), (40, 2), (33, .5), (32, 0)]:
             bar.setWidth(width)
             assert bar.property('lengthMm') == expected
             assert bar.property('barPixels') == expected * 2
@@ -197,14 +199,15 @@ def test_mru_tab_close_keeps_last_used_open_tab(sidebar_scene):
     assert not warnings
 
 
-@pytest.mark.parametrize('dpr', [1, 2])
+@pytest.mark.parametrize('dpr', [1, 1.25, 1.5, 2])
 def test_svg_assets_have_transparency_tint_and_native_resolution(qt_app, dpr):
     for name in NAMES:
-        frame = render_icon(name, '#45c9e9', '#5dc4c5', 28 * dpr, 28 * dpr)
+        frame = render_icon(name, '#45c9e9', '#5dc4c5', int(28 * dpr), int(28 * dpr))
         assert frame.width() == frame.height() == 28 * dpr
         assert frame.pixelColor(0, 0).alpha() == 0
         pixels = [frame.pixelColor(x, y) for x in range(frame.width()) for y in range(frame.height())]
         assert sum(c.alpha() > 128 and c.blue() > c.red() for c in pixels) > 12
+        assert any(0 < c.alpha() < 255 for c in pixels), name
 
 
 @pytest.mark.parametrize('width', [1000, 1400])

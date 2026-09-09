@@ -30,6 +30,7 @@ from qt_dicom_viewer.model import (
     CrosshairTargetKind,
 )
 from qt_dicom_viewer.core.mpr_rotation import resolve_sampling_basis
+from qt_dicom_viewer.model.interaction import WindowLevelChange
 from qt_dicom_viewer.model.ui_models import CrosshairColor, CrosshairStyle
 from qt_dicom_viewer.ui.controller.tab.tool_controller import ToolController
 from .image_2d_viewport_controller import (
@@ -60,6 +61,7 @@ class MprViewportController(Image2DViewportController):
     crosshairRotationRequested = Signal(object, float)
     mpr3DRotationRequested = Signal(object, float)
     renderInvalidated = Signal(str)
+    linkedWindowChangeRequested = Signal(object)
     mprSlabGuidesChanged = Signal()
 
     def __init__(
@@ -73,6 +75,7 @@ class MprViewportController(Image2DViewportController):
                 "MprViewportController requires an MPR plane config"
             )
         super().__init__(viewport_config, tool_controller, parent)
+        self.linked_window = False
         self._voi_controller = getattr(parent, "_voi_controller", None)
         self._voi_volume = None
         if self._voi_controller is not None:
@@ -156,6 +159,12 @@ class MprViewportController(Image2DViewportController):
             mpr_frame=None,
             initial=initial,
         )
+
+    def apply_window_level(self, result: WindowLevelChange) -> None:
+        if self.linked_window:
+            self.linkedWindowChangeRequested.emit(result)
+        else:
+            super().apply_window_level(result)
 
     def request_render(self) -> None:
         """Report stale local state; TabController decides when to render."""

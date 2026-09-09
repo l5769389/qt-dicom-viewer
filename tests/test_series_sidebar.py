@@ -289,7 +289,8 @@ def test_sidebar_group_search_selection_and_thumbnails(sidebar_scene, tmp_path):
     assert sum(row["kind"] == "patient" for row in panel.sidebarItems) == 1
     assert sum(row["kind"] == "series" for row in panel.sidebarItems) == 2
     click(window, find(window, "sidebarToggle"))
-    assert not any(item.objectName() == "leftPanel" and item.isVisible() for item in descendants(window.contentItem()))
+    assert find(window, "compactSeriesRail").isVisible()
+    assert not any(item.objectName() == "sidebarPatientSearch" and item.isVisible() for item in descendants(window.contentItem()))
     click(window, find(window, "sidebarToggle"))
     assert panel.activeSeriesUid == first_uid
     assert find(window, "sidebarPatientSearch").property("text") == "demo-a"
@@ -315,7 +316,7 @@ def test_sidebar_resize_limits_auto_collapse_and_restore(sidebar_scene, tmp_path
     QTest.qWait(80)
     assert window.grabWindow().save(str(tmp_path / "dicom-sidebar-minimum.png"))
     drag_width(window, 199)
-    assert sidebar.width() == 0 and sidebar.property("collapsed")
+    assert sidebar.width() == 52 and sidebar.property("collapsed")
     assert find(window, "sidebarToggle").property("text") == "›"
     QTest.mouseMove(window, QPoint(600, 300))
     QTest.qWait(80)

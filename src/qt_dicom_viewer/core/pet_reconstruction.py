@@ -128,8 +128,8 @@ class PetReconstructor:
             pet_gray = self._cached(pet_gray_key, lambda: DicomLoader.apply_window(pet_pixels, pet_window, False, minimum))
             if ct:
                 sampled_ct = sampled_reference
-                ct_gray_key = ("display", ref_key, ct_window, "gray")
-                ct_gray = self._cached(ct_gray_key, lambda: DicomLoader.apply_window(sampled_ct, ct_window, False))
+                ct_gray_key = ("display", ref_key, ct_window, "gray", request.ct_inverted)
+                ct_gray = self._cached(ct_gray_key, lambda: DicomLoader.apply_window(sampled_ct, ct_window, request.ct_inverted))
                 if role == "fusion":
                     ct_samples = sampled_ct
                     overlap = self._cached(("overlap", ref_key, pet_key),
@@ -148,7 +148,7 @@ class PetReconstructor:
                 image = self._cached(content_key, lambda: pet_gray if request.pet_color_map == "grayscale" else pet_rgb(pet_gray, request.pet_color_map))
             frames.append(MprRenderResult(response_id=request.request_id, viewport_id=viewport_id,
                 series_uid=volume.series_uid, view_type=plane, image=image, modality_pixel=pixels,
-                frame_meta=self._meta(volume, ref_slice, window), mpr_frame=state.frame,
+                frame_meta=self._meta(volume, ref_slice, window, request.ct_inverted if role == "ct" else False), mpr_frame=state.frame,
                 plane_geometry=geometry, mpr_view_grids=state.view_grids, content_key=content_key,
                 volume=ct if role == "ct" else transformed_pet))
         return PetBatchRenderResult(response_id=request.request_id, viewport_id=request.viewport_id,
@@ -157,14 +157,14 @@ class PetReconstructor:
             ct_samples=ct_samples, warning=warning, request=request)
 
     @staticmethod
-    def _meta(volume, sampled, window):
+    def _meta(volume, sampled, window, inverted=False):
         g = sampled.geometry
         spacing = PixelSpacing(g.row_spacing, g.column_spacing)
         instance = replace(volume.representative_instance_meta, sop_instance_uid=None,
                            rows=g.rows, columns=g.columns, pixel_spacing=(g.row_spacing, g.column_spacing),
                            image_position=g.image_origin_patient)
         return FrameDisplayMeta(slice_index=sampled.slice_index, slice_count=sampled.slice_count,
-            window=window, inverted=False, instance_meta=instance,
+            window=window, inverted=inverted, instance_meta=instance,
             geometry=ImageGeometryMeta(g.rows, g.columns, spacing, g.image_origin_patient,
                                        g.image_orientation_patient), pixel_value_meta=volume.pixel_value_meta)
 

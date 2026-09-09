@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Shapes
 import QtQuick.Controls.Basic as Basic
 import "../components" as Components
 import "../theme"
@@ -17,7 +18,7 @@ Item {
     property real expandedWidth: 300
     property bool collapsed: false
     property bool resizing: false
-    implicitWidth: collapsed ? 0 : expandedWidth
+    implicitWidth: collapsed ? 52 : expandedWidth
     z: 10
 
     function resizeTo(candidate) {
@@ -30,12 +31,54 @@ Item {
     }
 
     LeftPanel {
+        id: panel
         anchors.fill: parent
-        visible: !sidebar.collapsed
+        compact: sidebar.collapsed
         panelController: sidebar.panelController
         pacsController: sidebar.pacsController
         workspaceController: sidebar.workspaceController
         exportController: sidebar.exportController
+    }
+
+    Components.AppButton {
+        id: toggle
+        objectName: "sidebarToggle"
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: (panel.footerRowHeight - height) / 2
+        x: sidebar.collapsed ? (parent.width - width) / 2 : parent.width - width - 8
+        width: 28; height: 28
+        minimumButtonWidth: 0
+        compact: true
+        momentary: true
+        text: sidebar.collapsed ? "›" : "‹"
+        padding: 0
+        contentItem: Item {
+            Shape {
+                objectName: "sidebarToggleChevron"
+                anchors.centerIn: parent
+                width: 18; height: 18
+                antialiasing: true
+                ShapePath {
+                    strokeColor: Theme.textPrimary
+                    strokeWidth: 1.8
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+                    PathSvg { path: sidebar.collapsed ? "M6.5 4 L11.5 9 L6.5 14" : "M11.5 4 L6.5 9 L11.5 14" }
+                }
+            }
+        }
+        Accessible.name: sidebar.collapsed ? "展开侧栏" : "收起侧栏"
+        normalColor: "transparent"
+        onClicked: sidebar.collapsed = !sidebar.collapsed
+        Basic.ToolTip {
+            id: toggleTip
+            visible: toggle.hovered
+            delay: 600
+            text: sidebar.collapsed ? "展开侧栏" : "收起侧栏"
+            contentItem: Text { text: toggleTip.text; color: Theme.textPrimary; font.pixelSize: 12 }
+            background: Rectangle { color: Theme.elevatedBackground; border.color: Theme.borderStrong; radius: 4 }
+        }
     }
 
     Rectangle {
@@ -73,27 +116,4 @@ Item {
         onCanceled: sidebar.resizing = false
     }
 
-    Components.AppButton {
-        objectName: "sidebarToggle"
-        x: sidebar.collapsed ? sidebar.width + 8 : sidebar.width - width - 2
-        anchors.verticalCenter: parent.verticalCenter
-        width: 20
-        height: 32
-        minimumButtonWidth: 20
-        compact: true
-        momentary: true
-        text: sidebar.collapsed ? "›" : "‹"
-        textColor: hovered || down ? Theme.textMuted : Theme.textSubtle
-        normalColor: Theme.panelBackgroundStrong
-        hoverColor: Theme.controlBackground
-        pressedColor: Theme.secondarySoft
-        activeColor: Theme.controlBackground
-        focusBorderColor: Theme.borderDefault
-        activeBorderColor: Theme.borderDefault
-        cornerRadius: 4
-        onClicked: sidebar.collapsed = !sidebar.collapsed
-        Basic.ToolTip.visible: hovered
-        Basic.ToolTip.delay: 600
-        Basic.ToolTip.text: sidebar.collapsed ? "展开侧栏" : "收起侧栏"
-    }
 }

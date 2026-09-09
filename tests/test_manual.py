@@ -8,7 +8,7 @@ from PySide6.QtTest import QTest
 
 from qt_dicom_viewer.ui.controller.manual_tab_controller import ManualTabController, manual_content
 from qt_dicom_viewer.ui.svg_icon_provider import render_icon
-from test_dicom_tags import qt_app
+from test_dicom_tags import qt_app, wait_until
 from test_pacs_qml import scene
 from test_series_sidebar import sidebar_scene
 from test_tag_qml import find, click, type_text, descendants
@@ -22,7 +22,7 @@ def test_manual_content_and_bundled_resources(qt_app):
     categories = {c['id'] for c in content['categories']}
     chapters = content['chapters']
     assert len(categories) == 8 and len({c['id'] for c in chapters}) == len(chapters) == 31
-    resources = {f.text for f in ET.parse(ROOT / 'QtDicomViewer.qrc').iter('file')}
+    resources = {f.text for f in ET.parse(ROOT / 'Voxenra.qrc').iter('file')}
     expected = {'assets/help/manual.json', 'assets/icons/manual.svg'}
     for chapter in chapters:
         assert chapter['category'] in categories
@@ -63,7 +63,7 @@ def test_manual_empty_workspace_singleton_mru_and_export(scene):
     book, settings = find(window, 'sidebarManual'), find(window, 'sidebarSettings')
     assert (book.width(), book.height()) == (28, 28)
     assert settings.mapToScene(QPointF()).x() - book.mapToScene(QPointF(book.width(), 0)).x() == 4
-    assert find(window, 'sidebarSettingsFooter').height() == 32
+    assert find(window, 'sidebarSettingsFooter').height() == 36
     click(window, book)
     assert ws.activeTabType == 'manual' and ws.activeViewport is None
     assert ws.currentTabAllViewports == [] and len(ws.tabs) == 1
@@ -95,6 +95,7 @@ def test_manual_search_scroll_restore_and_context_jump(scene):
     ws = app.workspaceController
     ws.openManual('measurement')
     QTest.qWait(80)
+    wait_until(lambda: not find(window, 'operationManual').property('restoring'))
     reading = find(window, 'manualReadingArea')
     assert reading.property('contentHeight') > reading.height() + 150
     reading.setProperty('contentY', 140)
@@ -106,6 +107,7 @@ def test_manual_search_scroll_restore_and_context_jump(scene):
     QTest.qWait(40)
     ws.openManual()
     QTest.qWait(80)
+    wait_until(lambda: not find(window, 'operationManual').property('restoring'))
     assert find(window, 'manualReadingArea').property('contentY') == 140
     ws.openManual('voi')
     QTest.qWait(80)

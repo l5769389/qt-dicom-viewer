@@ -21,18 +21,20 @@ def test_annotation_controls_fit_narrow_pane_and_long_text(display_panel, tmp_pa
     view, controller, warnings = display_panel
     view.resize(width, 600)
     _click(view, _find(view.rootObject(), 'primaryTool-annotate'))
+    _click(view, _find(view.rootObject(), 'annotateTextMode'))
     controller.textAnnotationController.setAnnotationText('这是一段用于检查换行和滚动的很长标注。' * 20)
     QTest.qWait(100)
     panel = _find(view.rootObject(), 'annotatePanel')
     inside_width(panel, view.rootObject())
     names = ['annotateArrowMode', 'annotateTextMode', 'annotationTextEditor',
-             'annotationFontSize', 'deleteSelectedAnnotation', 'clearAllAnnotations']
+             'annotationFontSize', 'annotationLineWidth', 'annotationArrowSize', 'deleteSelectedAnnotation']
     controls = [_find(panel, name) for name in names]
     swatches = [i for i in _visual_children(panel) if i.objectName().startswith('annotationColor-')]
     assert len(swatches) == 7
     for item in controls + swatches:
         inside_width(item, panel)
     assert all(item.width() >= 24 for item in swatches)
+    assert len({round(item.mapToItem(panel, QPointF()).y()) for item in swatches}) == 1
     slider = _find(panel, 'annotationFontSize')
     slider.forceActiveFocus()
     previous = controller.textAnnotationController.annotationFontSize

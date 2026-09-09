@@ -57,7 +57,7 @@ def test_montage_tab_badge_is_responsive() -> None:
 
 
 def test_montage_qml_is_in_the_compiled_resource_manifest() -> None:
-    qrc = _read("QtDicomViewer.qrc")
+    qrc = _read("Voxenra.qrc")
     assert (
         "src/qt_dicom_viewer/qml/sections/center/viewportArea/"
         "MontageViewport.qml"

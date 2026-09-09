@@ -7,6 +7,7 @@ import uuid
 from PySide6.QtCore import QObject, Property, Signal, Slot, QStandardPaths, QSaveFile, QIODevice
 from PySide6.QtWidgets import QFileDialog
 
+from qt_dicom_viewer import __version__
 from qt_dicom_viewer.core.color_maps import COLOR_MAPS
 from qt_dicom_viewer.preset import CT_WINDOW_PRESETS
 from qt_dicom_viewer.settings.preferences import DEFAULTS, CORNER_FIELDS, CORNERS, METRICS, normalize_settings, validate_value
@@ -30,6 +31,10 @@ class SettingsController(QObject):
             except (OSError, ValueError):
                 self._message = "读取显示设置失败，已使用默认值。"
 
+    @Property(str, constant=True)
+    def applicationVersion(self):
+        return __version__
+
     @Property(str, notify=categoryChanged)
     def activeCategory(self):
         return self._active_category
@@ -51,7 +56,7 @@ class SettingsController(QObject):
     @Property(str, constant=True)
     def defaultExportDirectory(self):
         documents = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
-        return str((Path(documents) if documents else Path.home() / "Documents") / "Qt DICOM Viewer" / "Exports")
+        return str((Path(documents) if documents else Path.home() / "Documents") / "Voxenra" / "Exports")
 
     @Property(str, notify=changed)
     def exportDirectory(self):
@@ -100,7 +105,7 @@ class SettingsController(QObject):
             try:
                 self._path.parent.mkdir(parents=True, exist_ok=True)
                 target = QSaveFile(str(self._path))
-                payload = json.dumps(candidate, ensure_ascii=False, indent=2).encode("utf-8")
+                payload = json.dumps({"schemaVersion": 1, **candidate}, ensure_ascii=False, indent=2).encode("utf-8")
                 if not target.open(QIODevice.WriteOnly) or target.write(payload) != len(payload) or not target.commit():
                     raise OSError("Cannot save settings")
             except OSError:

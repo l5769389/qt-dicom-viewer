@@ -67,7 +67,7 @@ class VolumeViewportController(ViewportController):
         if self._host is None or self._load_state != "ready":
             raise ValueError("3D 影像尚未加载完成。")
         window = self._host.backend.window
-        window.Render()
+        self._host.backend.render(self.state, False, self.display_state, self.visible_mask)
         capture = vtkWindowToImageFilter()
         capture.SetInput(window)
         capture.SetInputBufferTypeToRGB()
@@ -89,6 +89,17 @@ class VolumeViewportController(ViewportController):
     @Property(str, notify=activeInteractionChanged)
     def activeInteraction(self):
         return self._tools.activeInteraction
+
+    @Property(float, notify=stateChanged)
+    def zoom(self):
+        return self.state.zoom
+
+    @Slot(float)
+    def setZoom(self, zoom):
+        if self._disposed or self._load_state != "ready" or not np.isfinite(zoom):
+            return
+        self._drag = None
+        self._set_state(replace(self.state, zoom=max(0.1, min(float(zoom), 20.0))))
 
     @Property(str, notify=loadStateChanged)
     def loadState(self):
@@ -126,6 +137,19 @@ class VolumeViewportController(ViewportController):
     @Property(float, notify=displayStateChanged)
     def windowWidth(self):
         return self.display_state.window.width if self.display_state.window else 0.0
+
+    @Property(bool, constant=True)
+    def supportsCtWindow(self):
+        return self.viewport_config.series_meta.modality.strip().upper() == "CT"
+
+    @Slot(float, float)
+    def applyWindowPreset(self, center, width):
+        if (self._disposed or self._load_state != "ready" or not self.supportsCtWindow
+                or not np.isfinite([center, width]).all() or width < 1):
+            return
+        from qt_dicom_viewer.model import WindowLevel
+        self.cancel_drag()
+        self._set_display_state(replace(self.display_state, window=WindowLevel(center, width)))
 
     def _preset_available(self, preset):
         return not preset.ct_only or self.viewport_config.series_meta.modality.strip().upper() == "CT"

@@ -34,5 +34,5 @@ def test_windows_process_identity_matches_installer_shortcuts(monkeypatch):
     monkeypatch.setattr(ctypes, "windll", SimpleNamespace(shell32=SimpleNamespace(
         SetCurrentProcessExplicitAppUserModelID=set_identity)), raising=False)
     application.configure_process_identity()
-    assert calls == ["com.junliu.dicomvision"]
+    assert calls == ["com.junliu.voxenra"]
     assert set_identity.argtypes == [ctypes.c_wchar_p]

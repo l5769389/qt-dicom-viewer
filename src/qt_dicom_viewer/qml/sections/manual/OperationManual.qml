@@ -13,6 +13,11 @@ Rectangle {
     readonly property var article: controller?.currentChapter ?? ({})
     readonly property string chapter: controller?.chapterId ?? ""
     property bool restoring: true
+    property bool active: true
+    onActiveChanged: {
+        if (active) restorePosition()
+        else restoring = true
+    }
     property bool petExample: false
     color: Theme.panelBackgroundStrong
 
@@ -31,12 +36,20 @@ Rectangle {
 
     function restorePosition() {
         restoring = true
-        Qt.callLater(function() {
-            if (!manual.controller) return
+        restoreTimer.restart()
+    }
+    Timer {
+        id: restoreTimer
+        // Incubation completes before wrapped text and images finish layout.
+        // Restore only after their geometry has settled, without saving the
+        // temporary zero/clamped offset back into the chapter controller.
+        interval: 16
+        onTriggered: {
+            if (!manual.controller || !manual.active) return
             readingArea.contentY = Math.max(0, Math.min(manual.controller.scrollPosition,
                 readingArea.contentHeight - readingArea.height))
             manual.restoring = false
-        })
+        }
     }
     Component.onCompleted: restorePosition()
     Connections {
@@ -153,7 +166,10 @@ Rectangle {
             contentHeight: readingContent.implicitHeight + 40
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            onContentYChanged: if (!manual.restoring) manual.controller?.setScrollPosition(contentY)
+            onMovementStarted: { restoreTimer.stop(); manual.restoring = false }
+            onContentHeightChanged: if (manual.active && manual.restoring) restoreTimer.restart()
+            onHeightChanged: if (manual.active && manual.restoring) restoreTimer.restart()
+            onContentYChanged: if (manual.active && !manual.restoring) manual.controller?.setScrollPosition(contentY)
             Basic.ScrollBar.vertical: Components.AppScrollBar {}
             ColumnLayout {
                 id: readingContent
@@ -215,7 +231,7 @@ Rectangle {
                     columns: width < 600 ? 2 : 3
                     columnSpacing: 8; rowSpacing: 8
                     Repeater {
-                        model: [{key:"segmentation",label:"新建分割"}, {key:"voi",label:"新建 VOI"},
+                        model: [{key:"segmentation",label:"箭头 + 分割"}, {key:"voi",label:"箭头 + VOI"},
                             {key:"pan",label:"移动 / 平移"}, {key:"resize",label:"调整尺寸"},
                             {key:"crosshair-move",label:"十字线定位"}, {key:"crosshair-rotate",label:"旋转切面"},
                             {key:"window",label:"调窗"}, {key:"zoom",label:"缩放"}, {key:"scroll",label:"翻页"}]
@@ -228,7 +244,10 @@ Rectangle {
                             radius: 4
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 8
-                                ViewportUi.CursorGlyph { Layout.preferredWidth: 24; Layout.preferredHeight: 24; iconName: legend.modelData.key }
+                                ViewportUi.CursorGlyph {
+                                    visible: true
+                                    Layout.preferredWidth: 40; Layout.preferredHeight: 32; iconName: legend.modelData.key
+                                }
                                 Text { Layout.fillWidth: true; text: legend.modelData.label; color: Theme.textSecondary; font.pixelSize: 12; wrapMode: Text.Wrap }
                             }
                         }
