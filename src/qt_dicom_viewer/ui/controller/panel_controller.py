@@ -190,7 +190,7 @@ class PanelController(QObject):
     def openFilesDialog(self):
         if self._scanning: return
         files, _ = QFileDialog.getOpenFileNames(None, "打开 DICOM 文件或压缩包", "",
-            "DICOM 与压缩包 (*.dcm *.dicom *.ima *.zip *.7z *.tar *.gz *.tgz *.bz2 *.tbz2 *.xz *.txz);;所有文件 (*)")
+            "DICOM 与压缩包 (*.dcm *.dicom *.ima *.zip *.rar *.7z *.tar *.gz *.tgz *.bz2 *.tbz2 *.xz *.txz);;所有文件 (*)")
         if files: self._start_import(files)
 
     def cleanup_imports(self):

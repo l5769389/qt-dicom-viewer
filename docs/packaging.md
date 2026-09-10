@@ -124,4 +124,8 @@ PyInstaller 必须在目标 OS 上构建，参见 [PyInstaller 使用文档](htt
 
 ## 0.4.0 压缩导入依赖
 
-构建环境通过锁定的 `uv.lock` 安装 py7zr、pylibjpeg / libjpeg / openjpeg / rle 和 pyjpegls。共享的 PyInstaller 命令收集解码器模块、原生动态库及入口点 metadata，macOS 和 Windows 都使用同一组参数；不能只复制 Python 源码而遗漏解码库。验证打包结果时需实际打开压缩 DICOM，并导入 ZIP / 7z，以检查动态插件发现。
+构建环境通过锁定的 `uv.lock` 安装 py7zr 和 unrar2-cffi 0.5.0。后者包含原生 UnRAR 库，用户无需安装 WinRAR 或外部 unrar 命令。支持的 Python 范围为 3.11–3.14，正式构建继续使用 Python 3.13。
+
+共享 PyInstaller 命令使用 `--collect-all py7zr`、`--collect-all unrar`、`--hidden-import _cffi_backend` 和 `--copy-metadata unrar2-cffi`，macOS、Windows 共用这些收集参数；`licenses/` 中的 UnRAR 与封装库许可也随包收集。不能只复制 Python 文件而遗漏原生库。
+
+打包验证需在不依赖外部解包命令的环境中，实际导入 RAR4、RAR5 固实压缩、ZIP 与 7z；RAR 只在私有临时目录中输出经路径检查的文件。新增压缩支持针对文件／文件夹归档，不额外安装 DICOM 像素解码器。

@@ -1,0 +1,412 @@
+[
+  {
+    "file": "test_anonymous_view_export.py",
+    "exit_code": 0,
+    "summary": "9 passed in 4.07s"
+  },
+  {
+    "file": "test_app_icon_qml.py",
+    "exit_code": 0,
+    "summary": "1 passed in 2.56s"
+  },
+  {
+    "file": "test_application_identity.py",
+    "exit_code": 0,
+    "summary": "2 passed in 0.32s"
+  },
+  {
+    "file": "test_bead_mtf.py",
+    "exit_code": 0,
+    "summary": "36 passed in 1.48s"
+  },
+  {
+    "file": "test_compact_series_rail.py",
+    "exit_code": 0,
+    "summary": "3 passed in 4.63s"
+  },
+  {
+    "file": "test_dicom_overlay.py",
+    "exit_code": 0,
+    "summary": "8 passed in 0.20s"
+  },
+  {
+    "file": "test_dicom_scanner.py",
+    "exit_code": 0,
+    "summary": "4 passed in 0.08s"
+  },
+  {
+    "file": "test_dicom_tags.py",
+    "exit_code": 0,
+    "summary": "7 passed in 1.06s"
+  },
+  {
+    "file": "test_display_completion.py",
+    "exit_code": 0,
+    "summary": "7 passed in 2.08s"
+  },
+  {
+    "file": "test_display_settings.py",
+    "exit_code": 0,
+    "summary": "22 passed in 0.21s"
+  },
+  {
+    "file": "test_display_settings_qml.py",
+    "exit_code": 0,
+    "summary": "12 passed in 9.38s"
+  },
+  {
+    "file": "test_display_tools.py",
+    "exit_code": 0,
+    "summary": "5 passed in 0.17s"
+  },
+  {
+    "file": "test_display_tools_qml.py",
+    "exit_code": 0,
+    "summary": "5 passed in 1.69s"
+  },
+  {
+    "file": "test_export.py",
+    "exit_code": 0,
+    "summary": "18 passed in 20.85s"
+  },
+  {
+    "file": "test_export_qml.py",
+    "exit_code": 0,
+    "summary": "2 passed in 2.44s"
+  },
+  {
+    "file": "test_four_d.py",
+    "exit_code": 0,
+    "summary": "40 passed in 0.45s"
+  },
+  {
+    "file": "test_four_d_qml.py",
+    "exit_code": 0,
+    "summary": "3 passed in 1.00s"
+  },
+  {
+    "file": "test_geometry_2d.py",
+    "exit_code": 0,
+    "summary": "5 passed in 0.05s"
+  },
+  {
+    "file": "test_installers.py",
+    "exit_code": 0,
+    "summary": "10 passed in 0.28s"
+  },
+  {
+    "file": "test_interface_review.py",
+    "exit_code": 0,
+    "summary": "11 passed in 7.91s"
+  },
+  {
+    "file": "test_linked_ct_window.py",
+    "exit_code": 0,
+    "summary": "12 passed in 0.23s"
+  },
+  {
+    "file": "test_local_import.py",
+    "exit_code": 0,
+    "summary": "31 passed, 3 skipped in 10.38s"
+  },
+  {
+    "file": "test_manual.py",
+    "exit_code": 0,
+    "summary": "8 passed in 7.91s"
+  },
+  {
+    "file": "test_measurement_controller.py",
+    "exit_code": 0,
+    "summary": "12 passed in 0.08s"
+  },
+  {
+    "file": "test_measurement_finish_style.py",
+    "exit_code": 0,
+    "summary": "12 passed in 3.23s"
+  },
+  {
+    "file": "test_measurement_geometry.py",
+    "exit_code": 0,
+    "summary": "12 passed in 0.05s"
+  },
+  {
+    "file": "test_measurement_hit_test.py",
+    "exit_code": 0,
+    "summary": "29 passed in 0.09s"
+  },
+  {
+    "file": "test_measurement_qml.py",
+    "exit_code": 0,
+    "summary": "42 passed in 9.53s"
+  },
+  {
+    "file": "test_mip_qml.py",
+    "exit_code": 0,
+    "summary": "2 passed in 1.05s"
+  },
+  {
+    "file": "test_montage_controller.py",
+    "exit_code": 0,
+    "summary": "13 passed in 0.21s"
+  },
+  {
+    "file": "test_montage_qml.py",
+    "exit_code": 0,
+    "summary": "4 passed in 1.49s"
+  },
+  {
+    "file": "test_montage_qml_runtime.py",
+    "exit_code": 0,
+    "summary": "1 passed in 0.83s"
+  },
+  {
+    "file": "test_montage_rendering.py",
+    "exit_code": 0,
+    "summary": "1 passed in 0.11s"
+  },
+  {
+    "file": "test_mpr_reslicer.py",
+    "exit_code": 0,
+    "summary": "23 passed in 0.13s"
+  },
+  {
+    "file": "test_mpr_rotation.py",
+    "exit_code": 0,
+    "summary": "17 passed in 0.05s"
+  },
+  {
+    "file": "test_mpr_rotation_operations.py",
+    "exit_code": 0,
+    "summary": "2 passed in 0.05s"
+  },
+  {
+    "file": "test_mpr_state.py",
+    "exit_code": 0,
+    "summary": "19 passed in 0.05s"
+  },
+  {
+    "file": "test_mpr_voi.py",
+    "exit_code": 0,
+    "summary": "13 passed in 0.27s"
+  },
+  {
+    "file": "test_mpr_voi_controller.py",
+    "exit_code": 0,
+    "summary": "9 passed in 2.47s"
+  },
+  {
+    "file": "test_mpr_voi_qml.py",
+    "exit_code": 0,
+    "summary": "2 passed in 5.65s"
+  },
+  {
+    "file": "test_mtf_controller.py",
+    "exit_code": 0,
+    "summary": "21 passed in 2.91s"
+  },
+  {
+    "file": "test_mtf_qml.py",
+    "exit_code": 0,
+    "summary": "6 passed, 2 warnings in 6.49s"
+  },
+  {
+    "file": "test_navigation_shortcuts.py",
+    "exit_code": 0,
+    "summary": "10 passed in 19.54s"
+  },
+  {
+    "file": "test_pacs.py",
+    "exit_code": 0,
+    "summary": "35 passed in 16.68s"
+  },
+  {
+    "file": "test_pacs_live.py",
+    "exit_code": 0,
+    "summary": "15 skipped in 0.22s"
+  },
+  {
+    "file": "test_pacs_qml.py",
+    "exit_code": 0,
+    "summary": "4 passed in 7.66s"
+  },
+  {
+    "file": "test_patient_orientation.py",
+    "exit_code": 0,
+    "summary": "15 passed in 0.01s"
+  },
+  {
+    "file": "test_pet_2d.py",
+    "exit_code": 0,
+    "summary": "36 passed in 0.70s"
+  },
+  {
+    "file": "test_pet_fusion.py",
+    "exit_code": 0,
+    "summary": "26 passed in 0.57s"
+  },
+  {
+    "file": "test_pet_locator_performance.py",
+    "exit_code": 0,
+    "summary": "20 passed in 3.64s"
+  },
+  {
+    "file": "test_pet_navigation.py",
+    "exit_code": 0,
+    "summary": "10 passed in 0.39s"
+  },
+  {
+    "file": "test_pet_render_transactions.py",
+    "exit_code": 0,
+    "summary": "13 passed in 3.19s"
+  },
+  {
+    "file": "test_pet_volume.py",
+    "exit_code": 0,
+    "summary": "4 passed, 3 warnings in 0.35s"
+  },
+  {
+    "file": "test_pet_workspace_qml.py",
+    "exit_code": 0,
+    "summary": "5 passed in 6.55s"
+  },
+  {
+    "file": "test_rar_import.py",
+    "exit_code": 0,
+    "summary": "22 passed in 0.11s"
+  },
+  {
+    "file": "test_resizable_view_layout.py",
+    "exit_code": 0,
+    "summary": "7 passed, 3 skipped in 2.27s"
+  },
+  {
+    "file": "test_series_export.py",
+    "exit_code": 0,
+    "summary": "21 passed, 1 warning in 0.91s"
+  },
+  {
+    "file": "test_series_sidebar.py",
+    "exit_code": 0,
+    "summary": "11 passed in 6.27s"
+  },
+  {
+    "file": "test_series_tools_polish.py",
+    "exit_code": 0,
+    "summary": "15 passed, 1 warning in 12.13s"
+  },
+  {
+    "file": "test_service_panel_qml.py",
+    "exit_code": 0,
+    "summary": "7 passed, 1 warning in 1.84s"
+  },
+  {
+    "file": "test_settings_effects.py",
+    "exit_code": 0,
+    "summary": "10 passed in 3.25s"
+  },
+  {
+    "file": "test_settings_redesign.py",
+    "exit_code": 0,
+    "summary": "15 passed in 4.86s"
+  },
+  {
+    "file": "test_standalone_pet_volume.py",
+    "exit_code": 0,
+    "summary": "10 passed, 2 warnings in 0.39s"
+  },
+  {
+    "file": "test_tag_qml.py",
+    "exit_code": 0,
+    "summary": "5 passed in 8.02s"
+  },
+  {
+    "file": "test_tool_controller.py",
+    "exit_code": 0,
+    "summary": "26 passed in 0.10s"
+  },
+  {
+    "file": "test_tool_cursors.py",
+    "exit_code": 0,
+    "summary": "84 passed in 0.25s"
+  },
+  {
+    "file": "test_ui_polish.py",
+    "exit_code": 0,
+    "summary": "16 passed in 6.77s"
+  },
+  {
+    "file": "test_view_opening.py",
+    "exit_code": 0,
+    "summary": "21 passed in 2.60s"
+  },
+  {
+    "file": "test_viewport_controller_hierarchy.py",
+    "exit_code": 0,
+    "summary": "27 passed in 0.23s"
+  },
+  {
+    "file": "test_viewport_transform.py",
+    "exit_code": 0,
+    "summary": "10 passed in 0.16s"
+  },
+  {
+    "file": "test_volume_display.py",
+    "exit_code": 0,
+    "summary": "21 passed in 0.31s"
+  },
+  {
+    "file": "test_volume_edit.py",
+    "exit_code": 0,
+    "summary": "28 passed, 529 warnings in 0.58s"
+  },
+  {
+    "file": "test_volume_panel_qml.py",
+    "exit_code": 0,
+    "summary": "5 passed in 1.60s"
+  },
+  {
+    "file": "test_volume_view.py",
+    "exit_code": 0,
+    "summary": "16 passed, 1 warning in 0.28s"
+  },
+  {
+    "file": "test_water_qa.py",
+    "exit_code": 0,
+    "summary": "26 passed, 21 warnings in 0.28s"
+  },
+  {
+    "file": "test_water_qa_controller.py",
+    "exit_code": 0,
+    "summary": "9 passed, 19 warnings in 0.53s"
+  },
+  {
+    "file": "test_water_qa_qml.py",
+    "exit_code": 0,
+    "summary": "7 passed, 9 warnings in 3.39s"
+  },
+  {
+    "file": "test_window_chrome.py",
+    "exit_code": 0,
+    "summary": "3 passed, 1 skipped in 0.70s"
+  },
+  {
+    "file": "test_window_level_operation.py",
+    "exit_code": 0,
+    "summary": "3 passed in 0.05s"
+  },
+  {
+    "file": "test_windows_packaging.py",
+    "exit_code": 0,
+    "summary": "10 passed in 0.04s"
+  },
+  {
+    "file": "test_workspace_interactions.py",
+    "exit_code": 0,
+    "summary": "15 passed in 6.06s"
+  },
+  {
+    "file": "test_worktree_integration.py",
+    "exit_code": 0,
+    "summary": "4 passed in 2.24s"
+  }
+]

@@ -29,6 +29,7 @@ class ImportLimits:
     max_file_bytes: int = 8 * 1024**3
     max_total_bytes: int = 32 * 1024**3
     max_depth: int = 3
+    max_rar_dictionary_bytes: int = 512 * 1024**2
 
 
 def archive_kind(path):
@@ -195,10 +196,6 @@ class _Preparation:
             if depth == 0:
                 self.count_file()
             return [path]
-        if kind == "rar":
-            raise ImportErrorDetail(
-                "暂不支持 RAR 压缩包，请先解压或转换为 ZIP / 7z 后导入。"
-            )
         if depth >= self.store.limits.max_depth:
             raise ImportErrorDetail("压缩包嵌套层数过多，请先解压后导入。")
         root = Path(tempfile.mkdtemp(prefix="archive-", dir=self.store.root))
@@ -241,6 +238,10 @@ class _Preparation:
                             extracted.append(self.copy(stream, target))
             elif kind == "7z":
                 extracted = self.seven_zip(path, root, used)
+            elif kind == "rar":
+                from .rar_archive import extract_rar
+
+                extracted = extract_rar(path, self, root, used)
             else:
                 self.count_file()
                 target = root / "decompressed.dcm"

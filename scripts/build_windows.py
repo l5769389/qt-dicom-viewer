@@ -41,6 +41,7 @@ def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = 
         # 保持包内目录结构，兼容应用中的 importlib.resources.files()。
         # 整个目录一并收集，包括 qmldir、图片、SVG 和图标许可说明。
         "--add-data", f"{qml_directory}:qt_dicom_viewer/qml",
+        "--add-data", f"{root / 'licenses'}:licenses",
         # 这些模块也会由 QML 间接使用，显式触发 Qt 的插件收集钩子。
         "--hidden-import", "PySide6.QtQuick",
         "--hidden-import", "PySide6.QtQuickControls2",
@@ -51,11 +52,11 @@ def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = 
         "--hidden-import", "vtkmodules.vtkRenderingVolumeOpenGL2",
         "--hidden-import", "vtkmodules.vtkRenderingFreeType",
         "--hidden-import", "vtkmodules.vtkInteractionStyle",
-        # Pixel codecs are discovered through entry-point metadata at runtime.
-        *[arg for package in ("pylibjpeg", "libjpeg", "openjpeg", "rle", "jpeg_ls", "py7zr")
-          for arg in ("--collect-all", package)],
-        *[arg for distribution in ("pylibjpeg", "pylibjpeg-libjpeg", "pylibjpeg-openjpeg", "pylibjpeg-rle", "pyjpegls")
-          for arg in ("--copy-metadata", distribution)],
+        # Archive readers include native libraries; no external unrar executable.
+        "--collect-all", "py7zr",
+        "--collect-all", "unrar",
+        "--hidden-import", "_cffi_backend",
+        "--copy-metadata", "unrar2-cffi",
         # pydicom 动态解码模块和数据文件由其官方打包钩子收集。
         str(entry),
     ]

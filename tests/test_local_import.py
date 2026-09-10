@@ -25,6 +25,7 @@ from qt_dicom_viewer.core.dicom_scanner import _read_instance, _build_series_rec
 from test_pet_fusion import paired_series
 from test_pacs_qml import scene
 from test_tag_qml import find, click
+from rar_fixture import stored_rar
 
 
 def make_series(root, count):
@@ -39,7 +40,15 @@ def make_series(root, count):
 
 def make_archive(root, series, kind):
     target = root / ("scans." + kind)
-    if kind == "zip":
+    if kind == "rar":
+        stored_rar(
+            target,
+            [
+                ("影像/检查/" + i.path.name, i.path.read_bytes())
+                for i in series.instances
+            ],
+        )
+    elif kind == "zip":
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as out:
             for i in series.instances:
                 out.write(i.path, "影像/" + i.path.name)
@@ -66,7 +75,8 @@ def make_archive(root, series, kind):
 
 
 @pytest.mark.parametrize(
-    "kind", ["zip", "7z", "tar", "tar.gz", "tar.bz2", "tar.xz", "gz", "bz2", "xz"]
+    "kind",
+    ["rar", "zip", "7z", "tar", "tar.gz", "tar.bz2", "tar.xz", "gz", "bz2", "xz"],
 )
 def test_archive_preparation_preserves_source_bytes_and_session_lifetime(
     tmp_path, kind
@@ -207,7 +217,7 @@ def drop_files(window, paths, *, actions=Qt.CopyAction, position=QPoint(550, 260
     return event.isAccepted() and event.dropAction() == Qt.CopyAction
 
 
-@pytest.mark.parametrize("kind", ["files", "folder", "zip", "7z"])
+@pytest.mark.parametrize("kind", ["files", "folder", "zip", "7z", "rar"])
 def test_real_qml_drop_imports_without_modifying_source_and_can_open_views(
     scene, tmp_path, kind
 ):
@@ -375,7 +385,7 @@ def test_native_volume_receives_file_drop(scene, paired_series, tmp_path, kind):
     folder = tmp_path / "drop"
     folder.mkdir()
     incoming = make_series(folder, 2)
-    archive = make_archive(tmp_path, incoming, "zip")
+    archive = make_archive(tmp_path, incoming, "rar")
     widget = view._host.vtk_widget
     assert drop_files(
         widget,

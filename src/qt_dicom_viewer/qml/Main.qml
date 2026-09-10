@@ -196,7 +196,7 @@ ApplicationWindow {
                 anchors.centerIn: parent
                 spacing: 8
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "松开以导入 DICOM"; color: Theme.textPrimary; font.pixelSize: 22 }
-                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "文件、文件夹或 ZIP / 7z / TAR / GZ 压缩包"; color: Theme.textMuted; font.pixelSize: 13 }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "文件、文件夹或 ZIP / RAR / 7z / TAR / GZ 压缩包"; color: Theme.textMuted; font.pixelSize: 13 }
             }
         }
     }

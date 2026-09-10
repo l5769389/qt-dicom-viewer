@@ -1,5 +1,7 @@
 # 0.4.0：拖拽、压缩导入与窗值精度验证
 
+> 历史记录：以下是 `f9301bb` 的验证结果，其中 DICOM 像素编码扩展误解了需求，已在后续修正中撤回。当前支持文件／文件夹压缩包（含 RAR），请以 [RAR 导入修正验证](rar-import-correction.md) 为准。本文及对应结果 JSON 保留当时的测试事实。
+
 环境：macOS Apple Silicon，Python 3.13.14，PySide6 6.11，VTK 9.5.2，pydicom 3.0.2。继续使用 series-tools-polish worktree；上一轮 0.3.0 已提交为 `068f381`，新版本分支为 `codex/import-compressed-dicom`。
 
 ## 覆盖内容
