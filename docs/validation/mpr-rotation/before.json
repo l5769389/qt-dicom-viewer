@@ -1,0 +1,131 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "qt_platform": "cocoa",
+  "numpy": "2.5.2",
+  "reslicer": "/private/tmp/voxenra_mpr_reslicer_before.py",
+  "scenarios": {
+    "crosshair_sampling": {
+      "batch_ms": {
+        "median": 40.656020981259644,
+        "p95": 50.996856257552274
+      },
+      "peak_temporary_mib": 48.51308822631836
+    },
+    "3d_sampling": {
+      "batch_ms": {
+        "median": 61.26997951650992,
+        "p95": 71.38627534150146
+      },
+      "peak_temporary_mib": 48.51308822631836
+    },
+    "crosshair_qml_view_0": {
+      "events": 60,
+      "input_ms": {
+        "median": 0.4102294915355742,
+        "p95": 1.7211395548656578
+      },
+      "request_to_image_ms": {
+        "median": 40.49320804188028,
+        "p95": 51.58668571384624
+      },
+      "image_uploads": 20,
+      "painted_frames": 36,
+      "final_settle_ms": 72.71324994508177,
+      "duration_ms": 603.5855839727446
+    },
+    "crosshair_qml_view_1": {
+      "events": 60,
+      "input_ms": {
+        "median": 0.3843750455416739,
+        "p95": 1.3884851767215873
+      },
+      "request_to_image_ms": {
+        "median": 26.847458037082106,
+        "p95": 35.82777338451706
+      },
+      "image_uploads": 28,
+      "painted_frames": 34,
+      "final_settle_ms": 40.36120802629739,
+      "duration_ms": 554.9557500053197
+    },
+    "crosshair_qml_view_2": {
+      "events": 60,
+      "input_ms": {
+        "median": 0.36383303813636303,
+        "p95": 1.242720725713297
+      },
+      "request_to_image_ms": {
+        "median": 46.587896009441465,
+        "p95": 68.23580011259764
+      },
+      "image_uploads": 18,
+      "painted_frames": 37,
+      "final_settle_ms": 100.55495903361589,
+      "duration_ms": 620.8157079527155
+    },
+    "3d_qml_view_0": {
+      "events": 60,
+      "input_ms": {
+        "median": 0.3724170383065939,
+        "p95": 1.7587786307558415
+      },
+      "request_to_image_ms": {
+        "median": 41.6674999287352,
+        "p95": 85.83954197820276
+      },
+      "image_uploads": 21,
+      "painted_frames": 37,
+      "final_settle_ms": 106.86595796141773,
+      "duration_ms": 624.347708071582
+    },
+    "3d_qml_view_1": {
+      "events": 60,
+      "input_ms": {
+        "median": 0.32512506004422903,
+        "p95": 1.0650625394191577
+      },
+      "request_to_image_ms": {
+        "median": 48.00908302422613,
+        "p95": 68.16958298441023
+      },
+      "image_uploads": 21,
+      "painted_frames": 35,
+      "final_settle_ms": 53.136207978241146,
+      "duration_ms": 573.1517090462148
+    },
+    "3d_qml_view_2": {
+      "events": 60,
+      "input_ms": {
+        "median": 0.3382085124030709,
+        "p95": 2.0151458214968434
+      },
+      "request_to_image_ms": {
+        "median": 58.10695898253471,
+        "p95": 86.34683291893452
+      },
+      "image_uploads": 21,
+      "painted_frames": 38,
+      "final_settle_ms": 130.72733394801617,
+      "duration_ms": 656.9950829725713
+    }
+  },
+  "volume_shape": [
+    457,
+    512,
+    512
+  ],
+  "grids": {
+    "axial": [
+      512,
+      512
+    ],
+    "sagittal": [
+      457,
+      512
+    ],
+    "coronal": [
+      457,
+      512
+    ]
+  }
+}

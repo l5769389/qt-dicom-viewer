@@ -362,38 +362,25 @@ class MprReslicer:
         voxel_row_step = image_to_voxel[:3, 1]
         voxel_column_step = image_to_voxel[:3, 2]
 
-        row_indices = np.arange(
-            # (rows, 1) 与 (1, columns) 通过广播生成完整二维坐标网格。
-            geometry.rows,
-            dtype=np.float64,
-        )[:, None]
-        column_indices = np.arange(
-            geometry.columns,
-            dtype=np.float64,
-        )[None, :]
-
-        slice_coordinates = (
-            voxel_origin[0]
-            + row_indices * voxel_row_step[0]
-            + column_indices * voxel_column_step[0]
-        )
-        row_coordinates = (
-            voxel_origin[1]
-            + row_indices * voxel_row_step[1]
-            + column_indices * voxel_column_step[1]
-        )
-        column_coordinates = (
-            voxel_origin[2]
-            + row_indices * voxel_row_step[2]
-            + column_indices * voxel_column_step[2]
-        )
-        # 三线性插值
-        return self._trilinear_sample(
-            volume.modality_pixels,
-            slice_coordinates,
-            row_coordinates,
-            column_coordinates,
-        )
+        column_indices = np.arange(geometry.columns, dtype=np.float64)[None, :]
+        pixels = np.empty((geometry.rows, geometry.columns), dtype=np.float32)
+        # Keep coordinate grids and the eight interpolation neighbourhoods small
+        # enough for CPU caches. The output grid/precision never changes while
+        # dragging, and no full-volume copy or retained per-angle cache is needed.
+        rows_per_block = max(1, 16384 // geometry.columns)
+        for start in range(0, geometry.rows, rows_per_block):
+            stop = min(start + rows_per_block, geometry.rows)
+            row_indices = np.arange(start, stop, dtype=np.float64)[:, None]
+            coordinates = tuple(
+                voxel_origin[axis]
+                + row_indices * voxel_row_step[axis]
+                + column_indices * voxel_column_step[axis]
+                for axis in range(3)
+            )
+            pixels[start:stop] = self._trilinear_sample(
+                volume.modality_pixels, *coordinates
+            )
+        return pixels
 
     def _sample_slab(
         self,
@@ -524,19 +511,44 @@ class MprReslicer:
         row_weight = rows - row0
         column_weight = columns - column0
 
-        value000 = volume[slice0, row0, column0]
-        value001 = volume[slice0, row0, column1]
-        value010 = volume[slice0, row1, column0]
-        value011 = volume[slice0, row1, column1]
-        value100 = volume[slice1, row0, column0]
-        value101 = volume[slice1, row0, column1]
-        value110 = volume[slice1, row1, column0]
-        value111 = volume[slice1, row1, column1]
+        if volume.flags.c_contiguous:
+            # One flat index avoids rebuilding three-dimensional advanced
+            # indices eight times. Boundary neighbours still clamp independently,
+            # including volumes with a single voxel along an axis.
+            flat = volume.reshape(-1)
+            base = (slice0 * volume.shape[1] + row0) * volume.shape[2] + column0
+            ds = (slice1 - slice0) * (volume.shape[1] * volume.shape[2])
+            dr = (row1 - row0) * volume.shape[2]
+            dc = column1 - column0
+            values = (flat[base], flat[base + dc],
+                      flat[base + dr], flat[base + dr + dc],
+                      flat[base + ds], flat[base + ds + dc],
+                      flat[base + ds + dr], flat[base + ds + dr + dc])
+        else:
+            # Transposed/strided data must not incur a whole-volume copy per plane.
+            values = tuple(volume[s, r, c]
+                           for s in (slice0, slice1)
+                           for r in (row0, row1)
+                           for c in (column0, column1))
 
+        if all(np.isfinite(value).all() for value in values):
+            # The usual CT/PET neighbourhood has no missing voxels. Separable
+            # linear interpolation needs neither eight weight arrays nor a
+            # validity denominator. Float64 weights preserve signed HU and tiny
+            # PET values until the final float32 output, as in the masked path.
+            row_values = tuple(a * (1 - column_weight) + b * column_weight
+                               for a, b in zip(values[::2], values[1::2]))
+            slice_values = tuple(a * (1 - row_weight) + b * row_weight
+                                 for a, b in zip(row_values[::2], row_values[1::2]))
+            sampled = np.asarray(slice_values[0] * (1 - slice_weight)
+                                 + slice_values[1] * slice_weight, dtype=np.float32)
+            sampled[~valid] = np.nan
+            return np.ascontiguousarray(sampled)
+
+        # Missing/non-finite neighbours retain the original finite-weight
+        # renormalization; they must not turn valid tissue into black holes.
         numerator = np.zeros_like(slices, dtype=np.float64)
         denominator = np.zeros_like(slices, dtype=np.float64)
-        values = (value000, value001, value010, value011,
-                  value100, value101, value110, value111)
         for index, value in enumerate(values):
             weight = ((slice_weight if index & 4 else 1 - slice_weight)
                       * (row_weight if index & 2 else 1 - row_weight)
