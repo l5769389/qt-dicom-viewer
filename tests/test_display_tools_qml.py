@@ -176,7 +176,7 @@ def test_viewport_drag_renders_arrow_label_scale_and_color_overlays(
 
 
 @pytest.mark.parametrize("width", [220, 250, 420])
-def test_primary_toolbar_compact_spacing_keeps_detail_space(display_panel, width, tmp_path):
+def test_primary_toolbar_spacing_keeps_detail_space(display_panel, width, tmp_path):
     view, controller, warnings = display_panel
     view.resize(width, 600)
     QTest.qWait(60)
@@ -192,11 +192,11 @@ def test_primary_toolbar_compact_spacing_keeps_detail_space(display_panel, width
         rows.setdefault(pos.y(), []).append(button)
     for row in rows.values():
         for left, right in zip(row, row[1:]):
-            assert right.mapToScene(QPointF()).x() - left.mapToScene(QPointF(left.width(), 0)).x() == pytest.approx(2)
+            assert right.mapToScene(QPointF()).x() - left.mapToScene(QPointF(left.width(), 0)).x() == pytest.approx(4)
     tops = sorted(rows)
-    assert all(b - a == 38 for a, b in zip(tops, tops[1:]))
+    assert all(b - a == 40 for a, b in zip(tops, tops[1:]))
     detail = _find(view.rootObject(), "toolDetailFlickable")
-    assert detail.mapToScene(QPointF()).y() == tops[-1] + 36 + 4
-    assert detail.height() >= 600 - len(rows) * 38 - 64
+    assert detail.mapToScene(QPointF()).y() == tops[-1] + 36 + 6
+    assert detail.height() >= 600 - len(rows) * 40 - 64
     assert view.grabWindow().save(str(tmp_path / f"compact-toolbar-{width}.png"))
     assert not warnings, warnings

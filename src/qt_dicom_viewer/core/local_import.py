@@ -11,6 +11,7 @@ import stat
 import tarfile
 import tempfile
 import zipfile
+import time
 
 from qt_dicom_viewer.core.dicom_scanner import _iter_visible_files
 
@@ -107,6 +108,7 @@ class LocalImportStore:
     def prepare(self, paths, *, cancelled=lambda: False, progress=lambda message: None):
         preparation = _Preparation(self, cancelled, progress)
         try:
+            preparation.report("正在枚举文件", force=True)
             result, seen = [], set()
             for value in paths:
                 preparation.check()
@@ -117,7 +119,12 @@ class LocalImportStore:
                 if not path.exists():
                     raise ImportErrorDetail("部分文件已移动或不存在，请重新选择。")
                 if path.is_dir():
-                    for file in _iter_visible_files(path):
+                    def unreadable(error):
+                        raise ImportErrorDetail("无法读取部分文件夹，请检查访问权限或磁盘连接后重试。") from error
+                    def checkpoint():
+                        preparation.check()
+                        preparation.report("正在枚举文件")
+                    for file in _iter_visible_files(path, checkpoint=checkpoint, onerror=unreadable):
                         if (
                             self._root is not None
                             and not path.is_relative_to(self._root)
@@ -143,6 +150,19 @@ class _Preparation:
         self.store, self.cancelled, self.progress = store, cancelled, progress
         self.created, self.seen = [], set()
         self.count, self.bytes = 0, 0
+        self._last_report = 0.0
+        self._phase = "正在枚举文件"
+
+    def report(self, phase=None, *, force=False):
+        if phase:
+            self._phase = phase
+        now = time.monotonic()
+        if force or now - self._last_report >= 0.15:
+            self._last_report = now
+            detail = f" · 已发现 {self.count:,} 个文件"
+            if self.bytes:
+                detail += f" · 已解压 {self.bytes / 1024**2:.1f} MiB"
+            self.progress(self._phase + detail)
 
     def check(self):
         if self.cancelled():
@@ -152,13 +172,14 @@ class _Preparation:
         self.check()
         self.count += 1
         if self.count > self.store.limits.max_files:
-            raise ImportErrorDetail("导入文件数量超过上限，请分批导入。")
+            raise ImportErrorDetail(f"本次导入文件数量超过 {self.store.limits.max_files:,} 个上限，请减少所选目录并分批导入。")
         if size < 0 or size > self.store.limits.max_file_bytes:
             raise ImportErrorDetail("压缩包中的单个文件过大，请解压后单独导入。")
 
     def account(self, size, file_size):
         self.check()
         self.bytes += size
+        self.report()
         limits = self.store.limits
         if file_size > limits.max_file_bytes or self.bytes > limits.max_total_bytes:
             raise ImportErrorDetail("压缩包解压体积超过上限，请分批导入。")
@@ -191,7 +212,10 @@ class _Preparation:
         if path in self.seen:
             return []
         self.seen.add(path)
-        kind = archive_kind(path)
+        try:
+            kind = archive_kind(path)
+        except OSError as error:
+            raise ImportErrorDetail("无法读取部分文件，请检查访问权限或磁盘连接后重试。") from error
         if not kind:
             if depth == 0:
                 self.count_file()
@@ -200,7 +224,7 @@ class _Preparation:
             raise ImportErrorDetail("压缩包嵌套层数过多，请先解压后导入。")
         root = Path(tempfile.mkdtemp(prefix="archive-", dir=self.store.root))
         self.created.append(root)
-        self.progress("正在解压文件…")
+        self.report("正在解压文件")
         used, extracted = set(), []
         try:
             if kind == "zip":

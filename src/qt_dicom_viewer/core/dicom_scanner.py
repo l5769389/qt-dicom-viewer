@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from collections import defaultdict
 from dataclasses import replace
 from pathlib import Path
@@ -117,14 +118,14 @@ def _string_values(value) -> tuple[str, ...]:
         return (text,) if text else ()
 
 
-def _iter_visible_files(folder: Path):
-    for root, dirnames, filenames in os.walk(folder):
-            # dirnames 和 os.walk(folder) 返回的对象指向同一块区域。
-            # 如果采用 dirnames = xxx 。则下次遍历还会遍历.xx的文件夹。
-            dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
-            for filename in sorted(filenames):
-                if filename.startswith("."):
-                    continue
+def _iter_visible_files(folder: Path, *, checkpoint=lambda: None, onerror=None):
+    for root, dirnames, filenames in os.walk(folder, onerror=onerror):
+        # Check even empty directories so large trees remain cancellable.
+        checkpoint()
+        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
+        for filename in sorted(filenames):
+            checkpoint()
+            if not filename.startswith("."):
                 yield Path(root) / filename
 
 
@@ -623,7 +624,9 @@ class DicomFolderScanner:
 
         yield from self.scan_files(_iter_visible_files(folder), folder=folder)
 
-    def scan_files(self, files, *, folder, cancelled=lambda: False):
+    def scan_files(self, files, *, folder, cancelled=lambda: False,
+                   snapshot_interval=0.0, can_publish=lambda: True,
+                   progress=lambda processed, dicom, skipped: None):
         """Group a mixed file selection with the same spatial/4D rules as folders."""
         folder = Path(folder)
         total_file_count = 0
@@ -632,9 +635,10 @@ class DicomFolderScanner:
         instances: list[DicomInstanceMeta] = []
         identities = set()
         seen = set()
+        last_snapshot = time.monotonic()
         for file_path in files:
             if cancelled():
-                return
+                break
             file_path = Path(file_path)
             if file_path.resolve() in seen:
                 continue
@@ -656,6 +660,9 @@ class DicomFolderScanner:
 
                 series_map[key].append(instance)
 
+            progress(total_file_count, len(instances), skipped_file_count)
+            if time.monotonic() - last_snapshot < snapshot_interval or not can_publish():
+                continue
             yield DicomFolderScanSnapshot(
                 folder=folder,
                 total_file_count=total_file_count,
@@ -666,7 +673,10 @@ class DicomFolderScanner:
                     link_cross_series=False,
                 ),
             )
+            # Start the interval after aggregation/consumer work, not before it.
+            last_snapshot = time.monotonic()
 
+        progress(total_file_count, len(instances), skipped_file_count)
         yield DicomFolderScanSnapshot(
             folder=folder,
             total_file_count=total_file_count,

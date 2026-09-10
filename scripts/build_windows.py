@@ -38,9 +38,9 @@ def pyinstaller_command(root: Path, *, console: bool = False, installer: bool = 
         "--workpath", str(root / "build" / "windows" / name),
         "--specpath", str(root / "build" / "windows"),
         "--paths", str(root / "src"),
-        # 保持包内目录结构，兼容应用中的 importlib.resources.files()。
-        # 整个目录一并收集，包括 qmldir、图片、SVG 和图标许可说明。
-        "--add-data", f"{qml_directory}:qt_dicom_viewer/qml",
+        "--additional-hooks-dir", str(root / "packaging" / "hooks"),
+        # hook-qt_dicom_viewer.py preserves package-relative QML/SVG/brand assets
+        # and omits superseded PNG icon originals (still kept in the repository).
         "--add-data", f"{root / 'licenses'}:licenses",
         # 这些模块也会由 QML 间接使用，显式触发 Qt 的插件收集钩子。
         "--hidden-import", "PySide6.QtQuick",

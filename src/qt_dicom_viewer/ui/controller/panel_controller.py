@@ -1,8 +1,6 @@
 from typing import Dict
-from dataclasses import replace
 
 from qt_dicom_viewer.core.local_import import LocalImportStore
-from qt_dicom_viewer.core.dicom_scanner import _build_series_from_map
 
 from PySide6.QtCore import QObject, Signal, QThread, QTimer, Slot, Property, QUrl
 from PySide6.QtGui import QDesktopServices
@@ -22,6 +20,7 @@ from qt_dicom_viewer.service.thumbnail_service import ThumbnailRequest, Thumbnai
 
 class PanelController(QObject):
     statusMessageChanged = Signal()
+    importTaskChanged = Signal()
     scanningChanged = Signal()
     seriesItemsChanged = Signal()
     sidebarItemsChanged = Signal()
@@ -40,9 +39,11 @@ class PanelController(QObject):
         self._scanning = False
         self._status_message = ""
         self._import_error = False
+        self._import_task_open = False
+        self._import_progress = -1.0
+        self._last_import_paths = []
         self._last_import_directory = ""
         self._import_store = LocalImportStore()
-        self._import_base = {}
         self._last_import_snapshot = None
         self._scan_series_record: Dict[str, DicomSeriesRecord] = {}
         self._removed_series_uids: set[str] = set()
@@ -79,13 +80,17 @@ class PanelController(QObject):
         if self._closing or self._scanning or not paths:
             return
         self._last_import_snapshot = None
-        self._import_base = dict(self._scan_series_record)
+        self._last_import_paths = list(paths)
+        self._import_task_open = True
+        self._import_progress = -1.0
         self._set_status("正在准备导入…")
         # An explicit new import can restore items removed from the previous scan.
         self._removed_series_uids.clear()
         self._set_scanning(True)
         thread = QThread(self)
-        worker = DicomScanWorker(paths, self._import_store)
+        worker = DicomScanWorker(paths, self._import_store,
+            base_series=self._series_catalog.snapshot() if self._series_catalog else {})
+        self.importTaskChanged.emit()
 
         self._scan_thread = thread
         self._scan_worker = worker
@@ -108,29 +113,43 @@ class PanelController(QObject):
 
         worker.process.connect(self._handle_scan_process)
         worker.status.connect(self._set_status)
+        worker.progress.connect(self._handle_import_progress)
 
     @Slot(object)
     def _handle_scan_process(self, result:DicomFolderScanSnapshot) -> None:
         if self._closing or result is None: return
         self._last_import_snapshot = result
-        merged = self._merge_import(result)
-        self._update_series_record(merged)
-        self.update_series_session(merged)
-        self._set_status(f"正在读取影像 · {result.dicom_file_count} 个 DICOM / {result.total_file_count} 个文件")
+        try:
+            self._update_series_record(result)
+            self.update_series_session(result)
+        finally:
+            if self._scan_worker:
+                self._scan_worker.acknowledge_process()
 
-    def _merge_import(self, result):
-        grouped = {}
-        for series in result.series:
-            uid = series.series_instance_uid
-            if uid not in self._import_base:
-                # Sidebar removal deliberately retains records used by open views.
-                self._import_base[uid] = self._series_catalog.get_series(uid)
-            old = self._import_base.get(uid)
-            combined = {i.sop_instance_uid: i for i in old.instances} if old else {}
-            combined.update({i.sop_instance_uid: i for i in series.instances})
-            for instance in combined.values():
-                grouped.setdefault((instance.study_instance_uid, instance.series_instance_uid), []).append(instance)
-        return replace(result, series=_build_series_from_map(grouped))
+    @Slot(int, int, int, int)
+    def _handle_import_progress(self, processed, total, dicom, skipped):
+        if self._closing or (self._scan_thread and self._scan_thread.isInterruptionRequested()):
+            return
+        self._import_progress = processed / total if total else 0.0
+        self.importTaskChanged.emit()
+        self._set_status(f"正在读取影像 · {processed:,} / {total:,} 个文件\n"
+                         f"识别 {dicom:,} 个 DICOM · 跳过 {skipped:,} 个重复或非 DICOM 文件")
+
+    @Property(bool, notify=importTaskChanged)
+    def importTaskOpen(self): return self._import_task_open
+
+    @Property(float, notify=importTaskChanged)
+    def importProgress(self): return self._import_progress
+
+    @Slot()
+    def closeImportTask(self):
+        self._import_task_open = False
+        self.importTaskChanged.emit()
+
+    @Slot()
+    def retryImport(self):
+        if not self._scanning and self._last_import_paths:
+            self._start_import(self._last_import_paths)
 
     def update_series_session(self, dicom_scan_snapshot:DicomFolderScanSnapshot):
         self._series_catalog.update(dicom_scan_snapshot)
@@ -139,7 +158,7 @@ class PanelController(QObject):
     @Slot(object)
     def _handle_scan_finished(self, result: DicomFolderScanSnapshot | None) -> None:
         if self._closing: return
-        if result is not None:
+        if result is not None and result is not self._last_import_snapshot:
             self._handle_scan_process(result)
         final = self._last_import_snapshot
         if self._scan_thread and self._scan_thread.isInterruptionRequested():
@@ -220,7 +239,6 @@ class PanelController(QObject):
             thread.wait()
         self._scan_thread = None
         self._scan_worker = None
-        self._import_base = {}
         self._set_scanning(False)
 
         if thread is not None:
@@ -537,6 +555,7 @@ class PanelController(QObject):
     @Slot()
     def shutdown(self):
         self._closing = True
+        self.closeImportTask()
         self._thumbnail_timer.stop()
         if self._thumbnail_service is not None:
             self._thumbnail_service.shutdown()

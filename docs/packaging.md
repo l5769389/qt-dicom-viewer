@@ -83,7 +83,7 @@ PowerShell 若被组织执行策略阻止，请按组织策略允许脚本，或
 macOS 架构随 runner 而定，以产物文件名为准；Intel 包可在 Intel Mac 本机构建。
 CI 默认也是测试签名/未签名产物；Windows CI 安装当前 Inno Setup 版本，因此编译器版本不由 uv.lock 锁定。
 
-应用现名 Voxenra，macOS bundle ID 与 Windows AppUserModelID 统一为 `com.junliu.voxenra`，Qt 的组织名及应用名均为 Voxenra，日志为 `voxenra.log`。安装器 AppId 保持不变以支持原安装升级；升级时清理旧品牌可执行文件和快捷方式，启动时复制旧版配置且不覆盖新配置。旧影像与日志不移动或删除。旧名称只在配置迁移、安装升级清理及历史构建记录中保留。Qt 工程与资源清单分别为 `Voxenra.qmlproject`、`Voxenra.qrc`。
+应用现名 Voxenra，macOS bundle ID 与 Windows AppUserModelID 统一为 `com.junliu.voxenra`，Qt 的组织名及应用名均为 Voxenra，日志为 `voxenra.log`。安装器 AppId 保持不变以支持原安装升级；安装向导默认使用 `%LOCALAPPDATA%\Programs\Voxenra`，不再从注册表沿用旧品牌目录，仍可在目录页或 `/DIR` 指定自定义位置。升级时刷新安装器管理的 `_internal\PySide6` 运行库，防止已精简的 Qt 插件残留；清理安装目标内的旧品牌可执行文件和旧快捷方式，启动时复制旧版配置且不覆盖新配置。旧影像与日志不移动或删除。旧名称只在配置迁移、安装升级清理及历史构建记录中保留。Qt 工程与资源清单分别为 `Voxenra.qmlproject`、`Voxenra.qrc`。
 
 ## 验收清单
 
@@ -129,3 +129,28 @@ PyInstaller 必须在目标 OS 上构建，参见 [PyInstaller 使用文档](htt
 共享 PyInstaller 命令使用 `--collect-all py7zr`、`--collect-all unrar`、`--hidden-import _cffi_backend` 和 `--copy-metadata unrar2-cffi`，macOS、Windows 共用这些收集参数；`licenses/` 中的 UnRAR 与封装库许可也随包收集。不能只复制 Python 文件而遗漏原生库。
 
 打包验证需在不依赖外部解包命令的环境中，实际导入 RAR4、RAR5 固实压缩、ZIP 与 7z；RAR 只在私有临时目录中输出经路径检查的文件。新增压缩支持针对文件／文件夹归档，不额外安装 DICOM 像素解码器。
+
+
+## 依赖体积优化
+
+Windows 与 macOS 共用 `packaging/hooks` 中的资源筛选：
+
+- QML 依赖分析前移除未使用的 WebEngine、Qt Quick 3D、Qt 3D 桥接、PDF 视图和触屏虚拟键盘；保留全部 Controls 风格及桌面输入、JPEG / SVG 等图像插件。
+- 应用资源保留全部 QML、JS、SVG、品牌图标和许可文件；已经被 SVG 替换的旧 PNG 图标原稿保留在仓库中，不进入安装包。
+- VTK 三维绘制和 RAR / 7z 原生解包库保留。不使用 UPX 压缩 Qt DLL；macOS 调试符号裁剪实测几乎没有节省，未启用该选项。
+
+macOS DMG 改用 [ULMO / LZMA](https://dmgbuild.readthedocs.io/en/latest/settings.html) 压缩，要求 macOS 10.15+，低于本项目当前 Qt 运行时的系统要求。Windows 安装器改为 [LZMA2 / ultra64](https://jrsoftware.org/ishelp/topic_setup_compression.htm) 整体压缩，独立压缩进程约需 742 MiB 内存，安装解压字典约需 64 MiB；换取更小的下载包，构建时间会增加。
+
+本机 arm64 实测如下。安装内容按应用包内非符号链接文件的字节总和计算，DMG 为实际文件大小：
+
+| 阶段 | 安装内容 | DMG |
+| --- | --- | --- |
+| 已发布 v1.0.0 | 655.9 MiB | 227.2 MiB |
+| 第一轮精简 | 401.3 MiB | 129.4 MiB |
+| 第二轮资源精简及更强压缩 | 376.3 MiB | 71.9 MiB |
+
+第二轮安装内容再减少约 6.2%，下载包再减少约 44.4%。LZMA DMG 已通过只读挂载、2,590 个文件的逐项 SHA-256 比对及完整签名检查。Windows 实际节省量仍需以 Windows 构建产物为准。
+
+macOS 冻结验证已覆盖 ZIP / RAR / 7z 混合导入、CT 2D、PET MPR、CT / PET 原生 3D 截图、三维画面上的独立导入错误窗口、设置和操作手册；无 QML 警告。进度窗口的长中文、长英文路径、六位数文件计数和状态切换，均已验证窗口尺寸及底部按钮位置稳定。
+
+新包不会自动重命名电脑上已经存在的旧品牌文件夹；选择新安装位置时也不会搬动或清理旧目录中的用户文件。安装器的私有 Qt 运行库更新不涉及影像、用户设置和日志。Windows 新安装、旧品牌升级及空间回收仍需在下一次 Windows 构建后实测。

@@ -156,6 +156,9 @@ ApplicationWindow {
             }
         }
     }
+    Sections.ImportTaskDialog {
+        controller: window.panelController
+    }
     Sections.ExportDialog {
         controller: window.seriesExportController
         settingsController: appController.settingsController ?? null

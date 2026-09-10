@@ -3,7 +3,9 @@
 from pathlib import Path
 
 application = Path(defines["app"])
-format = "UDZO"
+# Qt 6 requires newer macOS versions than ULMO's macOS 10.15 minimum.
+format = "ULMO"
+compression_level = 9
 files = [str(application), (defines["readme"], "安装说明.txt")]
 symlinks = {"Applications": "/Applications"}
 icon = defines["icon"]

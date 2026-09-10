@@ -18,6 +18,9 @@ AppName=Voxenra
 AppVersion={#AppVersion}
 AppPublisher=Jun Liu
 VersionInfoVersion={#AppVersion}
+; Always suggest the current brand, including upgrades from DICOMVision.
+; The directory page and explicit /DIR remain available for custom locations.
+UsePreviousAppDir=no
 DefaultDirName={localappdata}\Programs\Voxenra
 DefaultGroupName=Voxenra
 PrivilegesRequired=lowest
@@ -34,7 +37,8 @@ UninstallDisplayIcon={app}\Voxenra.exe
 InfoBeforeFile=install-notes.txt
 OutputDir={#OutputDir}
 OutputBaseFilename=Voxenra-{#AppVersion}-windows-x64-setup
-Compression=lzma2
+Compression=lzma2/ultra64
+LZMAUseSeparateProcess=yes
 SolidCompression=yes
 CloseApplications=yes
 RestartApplications=no
@@ -51,6 +55,8 @@ Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Add
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
+; Replace the installer-owned Qt runtime so removed plugins do not survive upgrades.
+Type: filesandordirs; Name: "{app}\_internal\PySide6"
 ; Retire only the previous brand's executable and installer-owned shortcuts.
 Type: files; Name: "{app}\DICOMVision.exe"
 Type: files; Name: "{autoprograms}\DICOMVision.lnk"

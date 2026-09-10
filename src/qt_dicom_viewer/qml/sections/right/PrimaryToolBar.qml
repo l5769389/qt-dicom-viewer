@@ -16,7 +16,7 @@ Rectangle {
     signal toolTriggered(var toolDefinition)
 
     readonly property real buttonHeight: 36
-    implicitHeight: toolFlow.height + 8
+    implicitHeight: toolFlow.height + 12
     color: Theme.panelBackgroundStrong
     radius: Theme.controlRadius
 
@@ -28,7 +28,7 @@ Rectangle {
 
     Flow {
         id: toolFlow
-        readonly property real availableWidth: Math.max(0, toolBar.width - 8)
+        readonly property real availableWidth: Math.max(0, toolBar.width - 12)
         readonly property int columns: Math.max(1, Math.min(6,
             Math.floor((availableWidth + spacing) / (36 + spacing))))
         readonly property int rows: Math.ceil(toolBar.tools.length / columns)
@@ -37,11 +37,11 @@ Rectangle {
         readonly property real buttonWidth: Math.max(0,
             Math.floor((availableWidth - (columns - 1) * spacing) / columns))
         anchors.top: parent.top
-        anchors.topMargin: 4
+        anchors.topMargin: 6
         anchors.horizontalCenter: parent.horizontalCenter
         width: columns * buttonWidth + Math.max(0, columns - 1) * spacing
         height: rows * toolBar.buttonHeight + Math.max(0, rows - 1) * spacing
-        spacing: 2
+        spacing: 4
 
         Repeater {
             model: toolBar.tools

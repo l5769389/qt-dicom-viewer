@@ -28,7 +28,7 @@ def test_macos_command_preserves_qml_and_vtk(builders):
     assert "vtkmodules.vtkRenderingVolumeOpenGL2" in command
     assert command.count("--icon") == 1
     assert command[command.index("--icon") + 1] == str(ROOT / "build/installer assets/app.icns")
-    assert "qt_dicom_viewer/qml" in command[command.index("--add-data") + 1]
+    assert command[command.index("--additional-hooks-dir") + 1] == str(ROOT / "packaging/hooks")
 
 
 def test_windows_installer_and_portable_outputs_are_separate(builders):
@@ -64,6 +64,7 @@ def test_dmg_has_app_applications_link_and_instructions(builders, tmp_path):
     assert settings["symlinks"] == {"Applications": "/Applications"}
     assert set(settings["icon_locations"]) == {"Voxenra.app", "Applications", "安装说明.txt"}
     assert settings["show_toolbar"] is False
+    assert settings["format"] == "ULMO" and settings["compression_level"] == 9
     command = mac.dmg_command(ROOT, ROOT / "build/assets", Path(defines["app"]), ROOT / "dist/test.dmg")
     assert f"app={defines['app']}" in command
 
@@ -92,6 +93,11 @@ def test_windows_compile_error_is_propagated(builders, monkeypatch):
 def test_installer_is_per_user_and_does_not_delete_user_data():
     source = (ROOT / "packaging/windows/Voxenra.iss").read_text()
     assert "PrivilegesRequired=lowest" in source
+    assert "UsePreviousAppDir=no" in source
+    assert "Compression=lzma2/ultra64" in source
+    assert "LZMAUseSeparateProcess=yes" in source
+    assert r"DefaultDirName={localappdata}\Programs\Voxenra" in source
+    assert 'Type: filesandordirs; Name: "{app}\\_internal\\PySide6"' in source
     assert "[UninstallDelete]" not in source
     assert "skipifsilent" in source
     assert "ChineseSimplified.isl" in source

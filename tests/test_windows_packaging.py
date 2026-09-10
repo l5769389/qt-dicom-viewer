@@ -33,9 +33,8 @@ def test_onefile_build_keeps_package_resource_layout() -> None:
     assert "--windowed" in command
     assert "--console" not in command
     assert command[command.index("--name") + 1] == "Voxenra"
-    assert command[command.index("--add-data") + 1] == (
-        f"{PROJECT_ROOT / 'src/qt_dicom_viewer/qml'}:qt_dicom_viewer/qml"
-    )
+    assert command[command.index("--additional-hooks-dir") + 1] == str(PROJECT_ROOT / "packaging/hooks")
+    assert (PROJECT_ROOT / "packaging/hooks/hook-qt_dicom_viewer.py").is_file()
     assert command[-1] == str(PROJECT_ROOT / "scripts/windows_entry.py")
     assert command[command.index("--icon") + 1] == str(PROJECT_ROOT / "build/installer-assets/app.ico")
     assert {"PySide6.QtQuick", "PySide6.QtQuickControls2", "PySide6.QtSvg"} <= set(command)

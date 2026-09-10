@@ -57,6 +57,7 @@
         <file>src/qt_dicom_viewer/qml/sections/LeftPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/FusionSeriesDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/ExportDialog.qml</file>
+        <file>src/qt_dicom_viewer/qml/sections/ImportTaskDialog.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/SidebarContainer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/CompactSeriesRail.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/RightPanel.qml</file>
