@@ -152,7 +152,7 @@ def test_version_matches_runtime_build_and_settings_header(scene, tmp_path):
     assert app.settingsController.applicationVersion == __version__
     app.workspaceController.openSettings()
     label = find(window, "settingsApplicationVersion")
-    assert label.property("text") == f"Voxenra {__version__}"
+    assert label.property("text") == f"版本 {__version__}"
     assert label.isVisible()
     app.settingsController.setValue("layout", "settingsNavigationWidth", 156)
     window.resize(1000, 600)

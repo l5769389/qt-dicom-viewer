@@ -42,7 +42,8 @@ def find(window, name):
     # target rather than assuming a fixed sleep has completed page creation.
     def target():
         return next((item for item in descendants(window.contentItem())
-                     if item.objectName() == name and item.isVisible()), None)
+                     if item.objectName() == name and item.isVisible()
+                     and item.width() > 0 and item.height() > 0), None)
     wait_until(lambda: target() is not None)
     return target()
 

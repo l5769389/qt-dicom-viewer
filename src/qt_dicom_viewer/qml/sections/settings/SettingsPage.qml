@@ -53,7 +53,7 @@ Rectangle {
                         Layout.minimumHeight: Math.max(16, implicitHeight)
                         maximumLineCount: 1
                         verticalAlignment: Text.AlignVCenter
-                        text: "Voxenra " + page.settingsController.applicationVersion
+                        text: "版本 " + page.settingsController.applicationVersion
                         color: Theme.textMuted
                         font.pixelSize: 11
                         elide: Text.ElideRight

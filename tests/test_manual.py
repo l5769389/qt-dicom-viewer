@@ -173,8 +173,13 @@ def test_manual_roundtrip_preserves_mpr_measurement_and_segmentation(sidebar_sce
     tab.activateViewport(viewport.viewportId)
     tab.toolController.activateTool('measure')
     tab.toolController.selectInteraction('measure:rect')
-    QTest.qWait(80)
-    layer = next(i for i in descendants(window.contentItem()) if i.objectName() == 'dicomPixelLayer' and _owner(i) is viewport)
+    def active_layer():
+        return next((i for i in descendants(window.contentItem())
+                     if i.objectName() == 'dicomPixelLayer' and _owner(i) is viewport
+                     and i.isVisible() and i.width() > 0 and i.height() > 0), None)
+    # The worker may finish before the asynchronous MPR component is created.
+    wait_until(lambda: active_layer() is not None)
+    layer = active_layer()
     _mouse_drag(window, _scene(layer, 15, 18), _scene(layer, 30, 35))
     measurements = viewport.measurementController.measurementItems
     assert len(measurements) == 1
