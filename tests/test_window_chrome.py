@@ -2,6 +2,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 import os
+import sys
 import pytest
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtTest import QTest
@@ -19,7 +20,11 @@ def test_title_brand_replaces_sidebar_brand_and_compact_collapse(scene, tmp_path
     assert not any(i.objectName().startswith("windowControl-") for i in items)
     assert not (window.flags() & Qt.FramelessWindowHint)
     assert window.flags() & Qt.WindowMinMaxButtonsHint
-    assert window.flags() & Qt.WindowFullscreenButtonHint
+    if sys.platform == "darwin":
+        assert window.flags() & Qt.WindowFullscreenButtonHint
+    else:
+        # Windows keeps its native caption buttons and ignores the macOS hint.
+        assert window.flags() & Qt.WindowCloseButtonHint
     header = next(i for i in items if i.objectName() == "applicationTitleBar")
     assert marks[0].mapToScene(QPointF()).y() < header.height()
     assert header.property("color") == window.color()

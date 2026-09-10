@@ -23,7 +23,7 @@ Rectangle {
         {key: "measurement", title: "测量与标注", subtitle: "线条、文字与箭头", group: "测量"},
         {key: "roi", title: "ROI 指标", subtitle: "选择显示统计项"}
     ]
-    readonly property bool compactNavigation: height < 560
+    readonly property bool compactNavigation: height < 620
     property real dragWidth: -1
     readonly property real navigationLimit: Math.max(156, Math.min(300, width - 360 - 8))
     readonly property real navigationWidth: Math.min(navigationLimit,
@@ -46,10 +46,11 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.topMargin: 4
                     spacing: 3
-                    Text { text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
+                    Text { Layout.minimumHeight: implicitHeight; text: "工作区设置"; color: Theme.textPrimary; font.pixelSize: 15; font.bold: true }
                     Text {
                         objectName: "settingsApplicationVersion"
                         Layout.fillWidth: true
+                        Layout.minimumHeight: implicitHeight
                         text: "Voxenra " + page.settingsController.applicationVersion
                         color: Theme.textMuted
                         font.pixelSize: 11
@@ -88,7 +89,11 @@ Rectangle {
                                     id: category
                                     objectName: "settingsCategory-" + entry.modelData.key
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: page.compactNavigation ? 30 : 34
+                                    Layout.minimumHeight: page.compactNavigation ? 28 : 34
+                                    Layout.preferredHeight: Layout.minimumHeight
+                                    Layout.maximumHeight: Layout.minimumHeight
+                                    topPadding: 4
+                                    bottomPadding: 4
                                     checked: page.selectedCategory === entry.modelData.key
                                     onClicked: page.settingsController.selectCategory(entry.modelData.key)
                                     Accessible.name: entry.modelData.title

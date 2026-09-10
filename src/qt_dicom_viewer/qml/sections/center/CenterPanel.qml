@@ -53,30 +53,33 @@ Rectangle {
                 objectName: "workspaceLoader"
                 anchors.fill: parent
                 asynchronous: true
-                property string loadedTabId: ""
-                function openCurrentTab() {
-                    loadedTabId = ""
-                    Qt.callLater(() => { loadedTabId = centerPanel.workspaceController.activeTabId ?? "" })
-                }
-                active: centerPanel.hasTabs && loadedTabId === centerPanel.workspaceController.activeTabId
+                active: false
                 visible: status === Loader.Ready
+                function openCurrentTab() {
+                    // Cancel the previous incubation before selecting another component.
+                    // Binding sourceComponent directly to activeTabType can briefly start
+                    // loading the next page during the same active-tab signal delivery.
+                    active = false
+                    sourceComponent = null
+                    Qt.callLater(loadCurrentTab)
+                }
+                function loadCurrentTab() {
+                    if (!centerPanel.hasTabs)
+                        return
+                    const type = centerPanel.workspaceController.activeTabType
+                    sourceComponent = type === "manual" ? manualComponent
+                        : type === "settings" ? settingsComponent
+                        : type === "pacs" ? pacsComponent
+                        : type === "tag" ? tagComponent
+                        : type === "3d" ? volumeComponent
+                        : type === "montage" ? montageComponent : imageComponent
+                    active = true
+                }
                 Component.onCompleted: openCurrentTab()
                 Connections {
                     target: centerPanel.workspaceController
                     function onActiveTabChanged() { workspaceLoader.openCurrentTab() }
                 }
-                sourceComponent: centerPanel.workspaceController.activeTabType === "manual"
-                    ? manualComponent
-                    : centerPanel.workspaceController.activeTabType === "settings"
-                    ? settingsComponent
-                    : centerPanel.workspaceController.activeTabType === "pacs"
-                    ? pacsComponent
-                    : centerPanel.workspaceController.activeTabType === "tag"
-                    ? tagComponent
-                    : centerPanel.workspaceController.activeTabType === "3d"
-                        ? volumeComponent
-                        : centerPanel.workspaceController.activeTabType === "montage"
-                            ? montageComponent : imageComponent
             }
             WorkspaceLoadingState {
                 anchors.fill: parent

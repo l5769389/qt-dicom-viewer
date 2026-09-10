@@ -3,6 +3,7 @@
 from pathlib import Path
 import stat
 import struct
+import sys
 from threading import Event
 import zipfile
 
@@ -95,9 +96,21 @@ def test_truncated_rar_data_cannot_be_imported_as_partial_file(tmp_path):
 def test_rar_paths_cannot_escape_cache(tmp_path, name):
     source = stored_rar(tmp_path / "bad.rar", [("valid", b"first"), (name, b"bad")])
     store = LocalImportStore(tmp_path / "cache")
-    with pytest.raises(ImportErrorDetail, match="路径"):
-        store.prepare([source])
-    assert not list(store.root.iterdir())
+    original = source.read_bytes()
+    try:
+        files = store.prepare([source])
+    except ImportErrorDetail as error:
+        assert "路径" in str(error)
+        assert not list(store.root.iterdir())
+    else:
+        # Windows UnRAR can canonicalize invalid ':' characters in a header.
+        # Accept that only when the returned names are safe ordinary cache files.
+        assert sys.platform == "win32" and ":" in name, files
+        assert len(files) == 2
+        assert all(path.is_relative_to(store.root) and path.is_file() for path in files)
+        assert all(":" not in path.relative_to(store.root).as_posix() for path in files)
+        assert sorted(path.read_bytes() for path in files) == [b"bad", b"first"]
+    assert source.read_bytes() == original
     assert not (tmp_path / "outside").exists()
 
 

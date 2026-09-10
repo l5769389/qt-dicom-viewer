@@ -32,7 +32,9 @@ def qt_app():
 def wait_until(predicate, timeout=3000):
     deadline = time.monotonic() + timeout / 1000
     while not predicate() and time.monotonic() < deadline:
-        QTest.qWait(10)
+        QApplication.processEvents()
+        # Qt test waits may retain the GIL and starve Python render/import workers.
+        time.sleep(0.005)
     assert predicate(), "Timed out waiting for Qt state"
 
 
