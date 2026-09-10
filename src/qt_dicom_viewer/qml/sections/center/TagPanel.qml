@@ -10,6 +10,9 @@ Rectangle {
     id: panel
     objectName: "tagPanel"
     required property var tagController
+    property bool active: true
+    property bool completed: false
+    readonly property bool populate: active && completed
     property bool restoring: true
     property string detailTitle: ""
     property string detailValue: ""
@@ -31,7 +34,10 @@ Rectangle {
         })
     }
 
-    Component.onCompleted: restoreScroll()
+    // Worker results can reset delegates while the surrounding Loader incubates.
+    // Attach models only after that component tree is completely constructed.
+    Component.onCompleted: { completed = true; if (active) restoreScroll() }
+    onActiveChanged: { if (active && completed) restoreScroll() }
 
     Connections {
         target: panel.tagController
@@ -103,7 +109,7 @@ Rectangle {
                             Basic.ToolTip.text: "上一实例"
                         }
                         Repeater {
-                            model: panel.tagController.pageItems
+                            model: panel.populate ? panel.tagController.pageItems : []
                             delegate: Components.AppButton {
                                 required property int modelData
                                 objectName: "tagPage-" + modelData
@@ -270,7 +276,7 @@ Rectangle {
                         objectName: "tagList"
                         anchors.fill: parent
                         clip: true
-                        model: panel.tagController.tagModel
+                        model: panel.populate ? panel.tagController.tagModel : null
                         reuseItems: true
                         contentWidth: panel.tableWidth
                         flickableDirection: Flickable.AutoFlickDirection

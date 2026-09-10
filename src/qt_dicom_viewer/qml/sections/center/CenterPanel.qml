@@ -122,6 +122,7 @@ Rectangle {
     Component {
         id: tagComponent
         TagPanel {
+            active: workspaceLoader.status === Loader.Ready
             tagController: centerPanel.workspaceController.activeTab
                 ? centerPanel.workspaceController.activeTab.tagController
                 : null

@@ -50,7 +50,9 @@ Rectangle {
                     Text {
                         objectName: "settingsApplicationVersion"
                         Layout.fillWidth: true
-                        Layout.minimumHeight: implicitHeight
+                        Layout.minimumHeight: Math.max(16, implicitHeight)
+                        maximumLineCount: 1
+                        verticalAlignment: Text.AlignVCenter
                         text: "Voxenra " + page.settingsController.applicationVersion
                         color: Theme.textMuted
                         font.pixelSize: 11

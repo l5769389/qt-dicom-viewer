@@ -19,7 +19,9 @@ def open_page(scene, category, width=1400):
     window.resize(width, 900)
     app.workspaceController.openSettings()
     app.settingsController.selectCategory(category)
-    QTest.qWait(70)
+    # The asynchronous page may be visible before its nested layouts polish.
+    find(window, 'settingsPage')
+    assert not window.grabWindow().isNull()
     return window, app, warnings
 
 

@@ -157,6 +157,9 @@ def test_version_matches_runtime_build_and_settings_header(scene, tmp_path):
     app.settingsController.setValue("layout", "settingsNavigationWidth", 156)
     window.resize(1000, 600)
     QTest.qWait(80)
-    assert not label.property("truncated")
     assert window.grabWindow().save(str(tmp_path / "settings-version.png"))
+    assert not label.property("truncated"), {
+        key: label.property(key) for key in
+        ("width", "height", "implicitWidth", "implicitHeight", "contentWidth", "contentHeight")
+    }
     assert not warnings, warnings
