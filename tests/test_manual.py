@@ -186,7 +186,7 @@ def test_manual_roundtrip_preserves_mpr_measurement_and_segmentation(sidebar_sce
     click(window, find(window, 'measurementManualButton'))
     assert ws.activeTabType == 'manual' and ws.manualController.chapterId == 'measurement'
     ws.activateTabId(tab_id)
-    QTest.qWait(80)
+    wait_until(lambda: active_layer() is not None)
     assert viewport.measurementController.measurementItems == measurements
     tab.toolController.activateTool('segmentation')
     tab.voiController.begin(viewport, 28, 28, .1)
@@ -197,11 +197,11 @@ def test_manual_roundtrip_preserves_mpr_measurement_and_segmentation(sidebar_sce
     click(window, find(window, 'voiManualButton'))
     assert ws.activeTabType == 'manual' and ws.manualController.chapterId == 'segmentation'
     ws.closeTab('workspace-manual')
-    QTest.qWait(80)
+    wait_until(lambda: active_layer() is not None)
     assert ws.activeTabId == tab_id and ws.activeViewport is viewport
     assert tab.voiController.records == ranges
     assert viewport.measurementController.measurementItems == measurements
-    assert any(i.objectName() == 'mprVoiOverlay' and i.isVisible() for i in descendants(window.contentItem()))
+    assert find(window, 'mprVoiOverlay').isVisible()
     assert not warnings, warnings
 
 
