@@ -30,3 +30,5 @@ Windows 构建完成后，`manual/verify_windows_icons.py --icon <ICO> <EXE...>`
 一次性分析脚本与报告放在对应的 `docs/validation/<主题>/` 目录，额外科研依赖和原始数据要求由该报告说明，不加入应用运行依赖。例如本地 `spiral-mtf-slice11/` 中的 MTF 分析脚本与报告配套使用。
 
 新增 pytest 用例放在本目录；新增手动验收工具放在 `manual/`；生成的临时图片、日志和缓存不放进 `scripts/`。`scripts/` 仅维护打包入口。
+
+Windows 发布回归使用 `uv run --group dev python tests/run_isolated.py`，逐文件启动独立 pytest 进程，保留全部用例。每个文件的输出、JUnit XML 与汇总写入 `build/test-results/`，失败或超时阻止打包；Actions 同时归档这些诊断资料。可传入测试文件路径执行局部复查。
