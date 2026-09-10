@@ -54,6 +54,7 @@ Rectangle {
                 anchors.fill: parent
                 asynchronous: true
                 active: false
+                property var loadedTab: null
                 visible: status === Loader.Ready
                 function openCurrentTab() {
                     // Cancel the previous incubation before selecting another component.
@@ -66,6 +67,7 @@ Rectangle {
                 function loadCurrentTab() {
                     if (!centerPanel.hasTabs)
                         return
+                    loadedTab = centerPanel.workspaceController.activeTab
                     const type = centerPanel.workspaceController.activeTabType
                     // TagPanel's inline control contexts are sensitive to cancellation
                     // during incubation. Build that lightweight shell atomically;
@@ -127,8 +129,8 @@ Rectangle {
         id: tagComponent
         TagPanel {
             active: workspaceLoader.status === Loader.Ready
-            tagController: centerPanel.workspaceController.activeTab
-                ? centerPanel.workspaceController.activeTab.tagController
+            tagController: workspaceLoader.loadedTab
+                ? workspaceLoader.loadedTab.tagController
                 : null
         }
     }

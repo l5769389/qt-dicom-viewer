@@ -278,6 +278,10 @@ Rectangle {
                         clip: true
                         model: panel.populate ? panel.tagController.tagModel : null
                         reuseItems: true
+                        // Rows are virtualized and recycled, but not incubated offscreen:
+                        // a search reset or tab close can invalidate their bound context
+                        // before Qt finishes creating a buffered delegate on Windows.
+                        cacheBuffer: 0
                         contentWidth: panel.tableWidth
                         flickableDirection: Flickable.AutoFlickDirection
                         boundsBehavior: Flickable.StopAtBounds

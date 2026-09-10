@@ -163,7 +163,7 @@ def test_real_tag_click_search_paging_expand_and_layout(scene, tmp_path):
         assert not screenshot.isNull()
         assert screenshot.save(str(tmp_path / f"tags-{name}.png"))
         assert screenshot.save(str(tmp_path / f"dicom-tags-{name}.png"))
-    assert not warnings, warnings
+    assert not warnings, "\n".join(warnings)
 
 
 def reveal_row(window, controller, node_id):
@@ -213,7 +213,7 @@ def test_nested_indentation_survives_expand_search_and_tab_switch(scene, tmp_pat
     click(window, find(window, "openView-2d"))
     click(window, find(window, "openView-tag"))
     assert_indentation(window, controller, expected)
-    assert not warnings, warnings
+    assert not warnings, "\n".join(warnings)
 
 
 def test_deep_indentation_never_flattens_at_narrow_width(scene, tmp_path):
@@ -243,7 +243,7 @@ def test_deep_indentation_never_flattens_at_narrow_width(scene, tmp_path):
     assert leaf_vr.mapToScene(QPointF(0, 0)).x() == pytest.approx(
         header_vr.mapToScene(QPointF(0, 0)).x())
     assert window.grabWindow().save(str(tmp_path / "dicom-tags-deep.png"))
-    assert not warnings, warnings
+    assert not warnings, "\n".join(warnings)
 
 
 def test_full_value_is_plain_selectable_text(scene):
@@ -262,7 +262,7 @@ def test_full_value_is_plain_selectable_text(scene):
     displayed_text = QMetaObject.invokeMethod(
         value, "getText", Q_RETURN_ARG(str), Q_ARG(int, 0), Q_ARG(int, 3))
     assert displayed_text == "<b>"  # Markup is displayed literally, never interpreted.
-    assert not warnings, warnings
+    assert not warnings, "\n".join(warnings)
 
 
 def test_tag_tab_restores_scroll_query_and_image_toolbar(scene):
@@ -299,4 +299,24 @@ def test_tag_tab_restores_scroll_query_and_image_toolbar(scene):
     click(window, find(window, "openView-tag"))
     assert find(window, "tagSearch").property("text") == "PatientName"
     assert controller.tagModel.matchCount == 1
-    assert not warnings, warnings
+    assert not warnings, "\n".join(warnings)
+
+
+def test_tag_search_scroll_and_quick_tab_switches_keep_delegates_alive(scene):
+    window, workspace, series, warnings = scene
+    controller = open_tags(window, workspace, series)
+    tag_id = workspace.activeTabId
+    click(window, find(window, "openView-2d"))
+    image_id = workspace.activeTabId
+    for turn in range(16):
+        workspace.activateTabId(tag_id)
+        view = find(window, "tagList")
+        controller.setSearchText("" if turn % 2 == 0 else "Patient")
+        view.setProperty("contentY", 300 if turn % 2 == 0 else 0)
+        QTest.qWait(1 + turn % 4)
+        workspace.activateTabId(image_id)
+        QTest.qWait(1 + turn % 3)
+    workspace.activateTabId(tag_id)
+    assert find(window, "tagSearch").property("text") == "Patient"
+    assert controller.tagModel.matchCount > 0
+    assert not warnings, "\n".join(warnings)
