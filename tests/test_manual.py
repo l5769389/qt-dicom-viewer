@@ -179,6 +179,10 @@ def test_manual_roundtrip_preserves_mpr_measurement_and_segmentation(sidebar_sce
                      and i.isVisible() and i.width() > 0 and i.height() > 0), None)
     # The worker may finish before the asynchronous MPR component is created.
     wait_until(lambda: active_layer() is not None)
+    wait_until(lambda: ws.activeLoadState.status == 'ready')
+    # Physical pixel-layer dimensions exist before its parent layouts are polished.
+    # Render a frame before mapping image coordinates to mouse positions.
+    assert not window.grabWindow().isNull()
     layer = active_layer()
     _mouse_drag(window, _scene(layer, 15, 18), _scene(layer, 30, 35))
     measurements = viewport.measurementController.measurementItems

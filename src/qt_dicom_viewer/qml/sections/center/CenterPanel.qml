@@ -67,6 +67,10 @@ Rectangle {
                     if (!centerPanel.hasTabs)
                         return
                     const type = centerPanel.workspaceController.activeTabType
+                    // TagPanel's inline control contexts are sensitive to cancellation
+                    // during incubation. Build that lightweight shell atomically;
+                    // metadata reading and delegate population remain deferred.
+                    asynchronous = type !== "tag"
                     sourceComponent = type === "manual" ? manualComponent
                         : type === "settings" ? settingsComponent
                         : type === "pacs" ? pacsComponent

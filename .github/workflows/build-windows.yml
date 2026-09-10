@@ -96,6 +96,18 @@ jobs:
                   output.write(f"release_tag={tag}\n")
           PY
 
+      - name: Stress asynchronous QML transitions
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+          PYTHONUNBUFFERED: "1"
+        shell: pwsh
+        run: |
+          foreach ($iteration in 1..3) {
+            uv run --locked --python 3.13 --group dev --group build python tests/run_isolated.py tests/test_manual.py tests/test_tag_qml.py --output "build/test-results/transitions-$iteration"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
