@@ -57,15 +57,16 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 4
         Components.ToolbarAction {
+            id: openImport
             buttonObjectName: "compactSidebarImport"
             visible: !rail.pacsController || rail.pacsController.localEnabled
             width: 40; height: 32
-            label: "打开文件夹"
+            label: rail.panelController.scanning ? "取消导入" : "打开影像"
             tooltipText: label
             iconName: "nav-load-file"
             iconSize: 20
-            actionEnabled: !rail.panelController.scanning
-            onTriggered: rail.panelController.openFolderDialog()
+            actionEnabled: true
+            onTriggered: rail.panelController.openImportDialog()
         }
         Components.ToolbarAction {
             buttonObjectName: "compactSidebarPacs"

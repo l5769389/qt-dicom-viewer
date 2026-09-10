@@ -107,9 +107,10 @@ Item {
             Layout.preferredWidth: 168
 
             visible: !emptyState.hasSeries && (!emptyState.pacsController || emptyState.pacsController.localEnabled)
-            enabled: !emptyState.scanning
-            text: emptyState.scanning ? "正在扫描…" : "打开 DICOM 文件夹"
-            objectName: "homeOpenFolder"
+            enabled: true
+            text: emptyState.scanning ? "取消导入" : "打开影像…"
+            id: openImport
+            objectName: "homeOpenImport"
             iconName: "nav-load-file"
             iconSize: 17
             normalColor: Theme.primaryButtonBackground
@@ -119,19 +120,7 @@ Item {
             focusBorderColor: Theme.primaryButtonBorder
             textColor: Theme.textOnPrimary
 
-            onClicked: emptyState.panelController.openFolderDialog()
-        }
-        Components.AppButton {
-            objectName: "homeOpenFiles"
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 168
-            visible: !emptyState.hasSeries && (!emptyState.pacsController || emptyState.pacsController.localEnabled)
-            enabled: !emptyState.scanning
-            text: "打开文件或压缩包…"
-            normalColor: "transparent"
-            baseBorderWidth: 1
-            baseBorderColor: Theme.controlBorder
-            onClicked: emptyState.panelController.openFilesDialog()
+            onClicked: emptyState.panelController.openImportDialog()
         }
         Components.AppButton {
             objectName: "homeOpenPacs"

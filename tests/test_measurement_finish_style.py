@@ -73,6 +73,20 @@ def test_release_uses_completed_style_while_remaining_selected(viewport, tmp_pat
             assert geometry.property("lineColor" if kind != "length" else "measurementColor") == QColor("#ffff00")
     _move_pointer(view, _scene(image_layer, 200, 230))
     assert not measure.has_active_transaction and not text._draft_id
+    if kind != "text":
+        assert measure.selectedMeasurementState == "completed"
+        original = measure.measurementItems
+        # Clicking even the already-selected result changes styling, not its geometry.
+        QTest.mouseClick(view, Qt.LeftButton, pos=_scene(image_layer, 35, 40))
+        QTest.qWait(40)
+        geometry = rendered_geometry(view, kind)
+        assert measure.selectedMeasurementState == "draft"
+        assert geometry.property("isSelected") and not geometry.property("isDraft")
+        assert geometry.property("draftStyle") and geometry.property("dashed")
+        assert not measure.has_active_transaction and measure.measurementItems == original
+        if kind != "arrow":
+            assert geometry.property("measurementColor" if kind == "length" else "lineColor") == QColor("#00ffff")
+        assert view.grabWindow().save(str(tmp_path / (kind + "-clicked-selected-draft.png")))
     if kind not in ("text", "angle"):
         # Re-entering a real edit uses the editing style; release restores completion again.
         start, end = _scene(image_layer, 35, 40), _scene(image_layer, 45, 55)
@@ -134,11 +148,11 @@ def test_version_matches_runtime_build_and_settings_header(scene, tmp_path):
         project = tomllib.load(f)["project"]
     with (ROOT / "uv.lock").open("rb") as f:
         locked = next(p for p in tomllib.load(f)["package"] if p["name"] == project["name"])
-    assert __version__ == project["version"] == locked["version"] == "0.4.0"
+    assert __version__ == project["version"] == locked["version"]
     assert app.settingsController.applicationVersion == __version__
     app.workspaceController.openSettings()
     label = find(window, "settingsApplicationVersion")
-    assert label.property("text") == "Voxenra 0.4.0"
+    assert label.property("text") == f"Voxenra {__version__}"
     assert label.isVisible()
     app.settingsController.setValue("layout", "settingsNavigationWidth", 156)
     window.resize(1000, 600)

@@ -261,3 +261,30 @@ def test_ellipse_hit_test_ignores_diagonal_and_bounding_rectangle_edges():
                                endpoint_tolerance=1, line_tolerance=1) is None
     assert controller.hit_test(ImagePoint(50, 0), slice_index=3,
                                endpoint_tolerance=1, line_tolerance=1) is not None
+
+
+def test_selection_click_is_draft_style_without_an_edit_transaction():
+    controller = MeasurementController()
+    uid = _create_length(controller)
+    original = controller.measurementItems
+    assert controller.selectedMeasurementState == "completed"
+    for _ in range(2):
+        _tap(controller, ImagePoint(5, 0), _context())
+        assert controller.selectedMeasurementId == uid
+        assert controller.selectedMeasurementState == "draft"
+        assert not controller.has_active_transaction
+        assert controller.measurementItems == original
+        controller.clear_selection()
+        assert controller.selectedMeasurementState == "none"
+    _tap(controller, ImagePoint(5, 0), _context())
+    controller.begin(_position(10, 0), _context())
+    controller.update(_drag(_position(10, 0), _position(20, 0)))
+    controller.cancel_transaction()
+    assert controller.selectedMeasurementState == "draft"
+    assert controller.measurementItems == original
+    controller.begin(_position(10, 0), _context())
+    controller.end(_position(20, 0))
+    assert controller.selectedMeasurementState == "completed"
+    assert controller.measurementItems[0]["label"] == "20.0 mm"
+    controller.set_current_slice(4)
+    assert controller.selectedMeasurementState == "none"

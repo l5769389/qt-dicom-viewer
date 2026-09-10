@@ -26,7 +26,9 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
-        text: "松开完成并选中 · 在空白处拖动可新建\nEsc 取消绘制 · Delete / Backspace 删除所选"
+        text: "松开为选中已完成，点击为选中草稿\n"
+            + (Qt.platform.os === "osx" ? "⌘+C / ⌘+V" : "Ctrl+C / Ctrl+V") + " 复制 / 粘贴所选\n"
+            + "Esc 取消绘制 · Delete / Backspace 删除"
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap

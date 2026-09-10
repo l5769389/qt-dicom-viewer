@@ -12,7 +12,7 @@ SettingsSplit {
     SettingsSection {
         Layout.fillWidth: true
         title: "测量线条"
-        description: "绘制或拖动编辑时使用编辑样式；松开完成后使用完成样式，选中时保留控制点。"
+        description: "松开后为选中已完成，使用完成样式；再次点击为选中草稿，使用编辑样式并保留控制点。"
         SettingColor { Layout.fillWidth: true; title: "绘制 / 编辑"; settingName: "measurement-editingColor"; value: root.values.editingColor; onEdited: color => root.settingsController.setValue("measurement", "editingColor", color) }
         Components.AppCheckBox { objectName: "setting-measurement-editingDash"; text: "绘制 / 编辑时使用虚线"; checked: root.values.editingDash; onClicked: root.settingsController.setValue("measurement", "editingDash", checked) }
         SettingColor { Layout.fillWidth: true; title: "完成后"; settingName: "measurement-completedColor"; value: root.values.completedColor; onEdited: color => root.settingsController.setValue("measurement", "completedColor", color) }

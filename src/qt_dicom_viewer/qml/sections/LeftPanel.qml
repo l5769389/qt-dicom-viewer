@@ -18,7 +18,7 @@ Rectangle {
     readonly property string activeSeriesUid: panelController.activeSeriesUid
     readonly property string activeSeriesModality: panelController.activeSeriesModality
     readonly property var navigationActions: [
-        {label: "打开文件夹", type: "file", icon: "nav-load-file", supported: true},
+        {label: "打开影像", type: "file", icon: "nav-load-file", supported: true},
         {label: "PACS 浏览器", type: "pacs", icon: "nav-pacs", supported: true},
         {label: "2D 视图", type: "2d", icon: "nav-view-2d", supported: true},
         {label: "MPR 视图", type: "mpr", icon: "nav-view-mpr", supported: true},
@@ -105,7 +105,7 @@ Rectangle {
         Layout.fillHeight: true
         Layout.preferredWidth: 1
         Layout.minimumWidth: 0
-        label: actionData.label
+        label: isFileAction && leftPanel.panelController.scanning ? "取消导入" : actionData.label
         shortLabel: actionData.label
         iconSize: Theme.navigationIconSize
         checked: (isFileAction || isPacsAction) && leftPanel.activeSource === actionData.type
@@ -115,7 +115,7 @@ Rectangle {
         iconName: actionData.icon
         placeholder: !actionData.supported
         actionEnabled: isFileAction
-            ? !leftPanel.panelController.scanning
+            ? true
             : isPacsAction ? leftPanel.workspaceController !== null
             : leftPanel.activeSeriesUid !== ""
                 && actionData.supported
@@ -131,7 +131,7 @@ Rectangle {
             if (isFileAction || isPacsAction)
                 leftPanel.selectedSource = actionData.type
             if (isFileAction)
-                leftPanel.panelController.openFolderDialog()
+                leftPanel.panelController.openImportDialog()
             else if (isPacsAction)
                 leftPanel.workspaceController.openPacs()
             else if (actionData.type === "fusion")
@@ -143,7 +143,7 @@ Rectangle {
                 )
         }
 
-        tooltipText: actionData.label
+        tooltipText: label
 
     }
 
@@ -399,7 +399,7 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: seriesList.count === 0
                 text: leftPanel.panelController.patientSearch.trim() !== "" ? "没有匹配的患者"
-                    : leftPanel.panelController.scanning ? "正在扫描 DICOM…" : "打开 DICOM 文件夹\n以查看患者和序列"
+                    : leftPanel.panelController.scanning ? "正在扫描 DICOM…" : "打开影像或拖入文件\n以查看患者和序列"
                 color: Theme.textSubtle
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter

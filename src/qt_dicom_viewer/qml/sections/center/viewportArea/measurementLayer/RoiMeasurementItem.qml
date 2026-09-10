@@ -7,7 +7,8 @@ Item {
     id: root
     property var preferences: ({})
     readonly property var styleSettings: preferences.measurement ?? ({})
-    readonly property bool dashed: isDraft ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
+    property bool draftStyle: isDraft
+    readonly property bool dashed: draftStyle ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
     required property var corners
     required property bool isDraft
@@ -15,7 +16,7 @@ Item {
     property bool showMetrics: true
     property string shortLabel: ""
     readonly property Item labelItem: showMetrics ? metricCard : compactLabel
-    readonly property color lineColor: isDraft ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
+    readonly property color lineColor: draftStyle ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
 
     readonly property string outlinePath: {
         if (root.corners.length !== 4)

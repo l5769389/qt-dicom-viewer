@@ -7,7 +7,8 @@ Item {
 
     property var preferences: ({})
     readonly property var styleSettings: preferences.measurement ?? ({})
-    readonly property bool dashed: isDraft ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
+    property bool draftStyle: isDraft
+    readonly property bool dashed: draftStyle ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
 
     required property var isDraft
@@ -19,7 +20,7 @@ Item {
     ]
 
     readonly property color measurementColor:
-        measurement.type === "arrow" ? (styleSettings.annotationColor ?? "#ffd166") : isDraft
+        measurement.type === "arrow" ? (styleSettings.annotationColor ?? "#ffd166") : draftStyle
             ? (styleSettings.editingColor ?? Theme.measurementSelected)
             : (styleSettings.completedColor ?? Theme.measurementPrimary)
 

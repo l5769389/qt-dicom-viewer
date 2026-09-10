@@ -47,6 +47,9 @@ class MeasurementController(QObject):
         self._measurements: dict[str, Measurement] = {}
         self._active_transaction: MeasurementTransaction | None = None
         self._selected_measurement_id: str | None = None
+        # Selection styling is independent of the committed geometry / drag transaction.
+        self._selected_measurement_state = "none"
+        self._selection_before_edit = "completed"
         self._hover_hit: MeasurementHit | None = None
         self._length_operation = LengthMeasureOperation()
         self._angle_operation = AngleMeasureOperation()
@@ -138,6 +141,11 @@ class MeasurementController(QObject):
     @Property(str, notify=selectionChanged)
     def selectedMeasurementId(self) -> str:
         return self._selected_measurement_id or ""
+
+    @Property(str, notify=selectionChanged)
+    def selectedMeasurementState(self) -> str:
+        """none / completed after release / draft after an explicit selection click."""
+        return self._selected_measurement_state
 
     @Property("QVariantMap", notify=hoverChanged)
     def hoverHit(self) -> dict:
@@ -318,6 +326,7 @@ class MeasurementController(QObject):
         self._measurements[measurement.measurement_id] = measurement
         self._measurement_frames[measurement.measurement_id] = self._frame_key
         self._selected_measurement_id = measurement.measurement_id
+        self._selected_measurement_state = "completed"
         self._active_transaction = None
         self._drag_reference = None
         self._drag_start = None
@@ -326,12 +335,52 @@ class MeasurementController(QObject):
         self.selectionChanged.emit()
         self.measurementCommitted.emit(measurement)
 
+    def selected_copy(self) -> dict | None:
+        measurement = self._measurements.get(self._selected_measurement_id)
+        if self.has_active_transaction or measurement is None or not self._visible(measurement):
+            return None
+        kind = "angle" if isinstance(measurement, AngleMeasurement) else measurement.kind.value
+        return {"kind": kind, "points": [[p.column, p.row] for p in measurement.points]}
+
+    def paste_points(self, points: list[ImagePoint], context: MeasureContext) -> str:
+        if self.has_active_transaction:
+            return ""
+        operation = {MeasurementKind.LENGTH: self._length_operation,
+                     MeasurementKind.ARROW: self._length_operation,
+                     MeasurementKind.ANGLE: self._angle_operation,
+                     MeasurementKind.RECT: self._roi_operation,
+                     MeasurementKind.ELLIPSE: self._roi_operation}[context.measurement_kind]
+        draft = operation.create_draft(point=points[0], context=context)
+        draft.points = points
+        position = PointerPosition(Point(0, 0), points[0])
+        # A zero translation recomputes length, angle or ROI statistics on the target frame.
+        draft = operation.update_draft(draft=draft,
+            target=MeasurementEditTarget(EditTargetKind.OUTLINE),
+            drag_event=DragUpdateEvent(position, position, Offset(0, 0), Offset(0, 0)), context=context)
+        measurement = operation.commit(draft)
+        if not operation.is_valid(measurement):
+            return ""
+        self._measurements[measurement.measurement_id] = measurement
+        self._measurement_frames[measurement.measurement_id] = self._frame_key
+        self.measurementsChanged.emit()
+        self.select_completed(measurement.measurement_id)
+        self.measurementCommitted.emit(measurement)
+        return measurement.measurement_id
+
+    def select_completed(self, measurement_id: str) -> None:
+        if measurement_id in self._measurements:
+            self._selected_measurement_id = measurement_id
+            self._selected_measurement_state = "completed"
+            self.selectionChanged.emit()
+
     def cancel_transaction(self) -> None:
         transaction = self._active_transaction
         if transaction is None:
             return
         self._selected_measurement_id = (transaction.draft.measurement_id
                                          if isinstance(transaction, EditMeasurementTransaction) else None)
+        self._selected_measurement_state = (self._selection_before_edit
+                                           if self._selected_measurement_id else "none")
         self._active_transaction = None
         self._drag_reference = None
         self._drag_start = None
@@ -342,6 +391,7 @@ class MeasurementController(QObject):
     def clear_selection(self) -> None:
         if self._selected_measurement_id is not None:
             self._selected_measurement_id = None
+            self._selected_measurement_state = "none"
             self.selectionChanged.emit()
 
     def clear_all(self) -> None:
@@ -351,6 +401,7 @@ class MeasurementController(QObject):
         self._drag_reference = None
         self._drag_start = None
         self._selected_measurement_id = None
+        self._selected_measurement_state = "none"
         self.measurementsChanged.emit()
         self.activeTransactionChanged.emit()
         self.selectionChanged.emit()
@@ -391,8 +442,11 @@ class MeasurementController(QObject):
             self.measurementsChanged.emit()
 
     def select(self, hit: MeasurementHit) -> None:
-        if hit.measurement_id in self._measurements and hit.measurement_id != self._selected_measurement_id:
+        if hit.measurement_id in self._measurements and (
+                hit.measurement_id != self._selected_measurement_id
+                or self._selected_measurement_state != "draft"):
             self._selected_measurement_id = hit.measurement_id
+            self._selected_measurement_state = "draft"
             self.selectionChanged.emit()
 
     @Slot("QVariantList")
@@ -509,13 +563,18 @@ class MeasurementController(QObject):
             target=MeasurementEditTarget(EditTargetKind.CONTROL_POINT, endpoint),
         )
         self._selected_measurement_id = None
+        self._selected_measurement_state = "none"
         self.activeTransactionChanged.emit()
         self.selectionChanged.emit()
 
     def _begin_edit_transaction(self, *, hit: MeasurementHit, context: MeasureContext) -> None:
         measurement = self._measurements[hit.measurement_id]
         draft = self._operation(measurement).create_edit_draft(measurement)
+        self._selection_before_edit = (self._selected_measurement_state
+                                       if self._selected_measurement_id == measurement.measurement_id
+                                       else "completed")
         self._selected_measurement_id = measurement.measurement_id
+        self._selected_measurement_state = "draft"
         self._active_transaction = EditMeasurementTransaction(context=context, draft=draft, target=hit.target)
         # 编辑期间只显示草稿，提交或取消后再恢复正式图形。
         self.measurementsChanged.emit()

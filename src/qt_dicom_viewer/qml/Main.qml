@@ -48,56 +48,12 @@ ApplicationWindow {
     Shortcut {
         sequences: [StandardKey.Open]
         enabled: window.pacsController?.localEnabled !== false && !window.panelController.scanning
-        onActivated: window.panelController.openFilesDialog()
-    }
-    Rectangle {
-        id: importBanner
-        objectName: "localImportBanner"
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.margins: 10
-        height: visible ? 36 : 0
-        visible: (window.panelController.statusMessage ?? "") !== ""
-        color: Theme.panelBackgroundStrong
-        radius: 6
-        border.color: window.panelController.importError ? Theme.dangerColor : Theme.borderDefault
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 6
-            spacing: 8
-            BusyIndicator {
-                Layout.preferredWidth: 22
-                Layout.preferredHeight: 22
-                visible: window.panelController.scanning
-                running: visible
-            }
-            Text {
-                objectName: "localImportMessage"
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                text: window.panelController.statusMessage ?? ""
-                textFormat: Text.PlainText
-                elide: Text.ElideRight
-                color: window.panelController.importError ? Theme.dangerColor : Theme.textSecondary
-                font.pixelSize: 12
-            }
-            Components.AppButton {
-                objectName: "localImportCancel"
-                text: window.panelController.scanning ? "取消导入" : "关闭"
-                compact: true
-                normalColor: "transparent"
-                onClicked: window.panelController.scanning ? window.panelController.cancelImport()
-                    : window.panelController.dismissImportStatus()
-            }
-        }
+        onActivated: window.panelController.openImportDialog()
     }
     RowLayout {
         id: workspaceRow
         anchors.fill: parent
         anchors.margins: 10
-        anchors.topMargin: importBanner.visible ? 54 : 10
         spacing: 8
 
         Sections.SidebarContainer {

@@ -7,6 +7,8 @@ Item {
     required property var measurement
     required property bool isDraft
     required property bool isSelected
+    property bool selectedDraft: false
+    readonly property bool draftStyle: isDraft || selectedDraft
     required property var coordinateMapper
     required property var transformState
     property var preferences: ({})
@@ -56,6 +58,7 @@ Item {
         measurement: root.measurement
         mappedPoints: root.mappedPoints
         isDraft: root.isDraft
+        draftStyle: root.draftStyle
         isSelected: root.isSelected
     }
     AngleMeasurementItem {
@@ -66,6 +69,7 @@ Item {
         measurement: root.measurement
         mappedPoints: root.mappedPoints
         isDraft: root.isDraft
+        draftStyle: root.draftStyle
         isSelected: root.isSelected
     }
     RoiMeasurementItem {
@@ -78,6 +82,7 @@ Item {
         measurement: root.measurement
         corners: root.corners
         isDraft: root.isDraft
+        draftStyle: root.draftStyle
         isSelected: root.isSelected
     }
 }

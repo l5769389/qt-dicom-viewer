@@ -7,6 +7,7 @@ from qt_dicom_viewer.core.dicom_scanner import _build_series_from_map
 from PySide6.QtCore import QObject, Signal, QThread, QTimer, Slot, Property, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFileDialog
+from qt_dicom_viewer.ui.dialogs.local_import_dialog import select_import_paths
 
 from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesRecord
 from qt_dicom_viewer.application.series_catalog import SeriesCatalog
@@ -39,6 +40,7 @@ class PanelController(QObject):
         self._scanning = False
         self._status_message = ""
         self._import_error = False
+        self._last_import_directory = ""
         self._import_store = LocalImportStore()
         self._import_base = {}
         self._last_import_snapshot = None
@@ -185,6 +187,19 @@ class PanelController(QObject):
         if not self.canImportUrls(urls): return False
         self._start_import([QUrl(url).toLocalFile() for url in urls])
         return True
+
+    @Slot()
+    def openImportDialog(self):
+        if self._closing:
+            return
+        if self._scanning:
+            self.cancelImport()
+            return
+        paths = select_import_paths(self._last_import_directory)
+        if paths:
+            from pathlib import Path
+            self._last_import_directory = str(Path(paths[0]).parent)
+            self._start_import(paths)
 
     @Slot()
     def openFilesDialog(self):

@@ -230,6 +230,28 @@ class TextAnnotationController(QObject):
         self.annotationsChanged.emit()
         self.selectionChanged.emit()
 
+    def selected_copy(self) -> dict | None:
+        annotation = self._annotations.get(self._selected_id)
+        if (self._draft_id or annotation is None or annotation.frame_key != self._frame_key
+                or annotation.slice_index != self._current_slice):
+            return None
+        return {"kind": "text", "points": [[annotation.tail_column, annotation.tail_row],
+                [annotation.head_column, annotation.head_row]], "text": annotation.text,
+                "color": annotation.color, "fontSize": annotation.font_size}
+
+    def paste_copy(self, payload, points) -> str:
+        if self._draft_id or self._frame_key is None or self._current_slice is None:
+            return ""
+        (tail_column, tail_row), (head_column, head_row) = points
+        if math.hypot(head_column - tail_column, head_row - tail_row) < 0.5:
+            return ""
+        annotation = TextAnnotation(str(uuid4()), self._current_slice, tail_column, tail_row,
+            head_column, head_row, payload["text"], payload["color"], payload["fontSize"], self._frame_key)
+        self._annotations[annotation.annotation_id] = annotation
+        self.selectAnnotation(annotation.annotation_id)
+        self.annotationsChanged.emit()
+        return annotation.annotation_id
+
     def beginAnnotation(self, tail_column: float, tail_row: float) -> bool:
         if (
             self._current_slice is None

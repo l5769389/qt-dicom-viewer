@@ -159,7 +159,6 @@ def test_series_selection_and_status_updates_preserve_scroll(scene, pacs_server)
 
 
 def test_segmented_sources_and_advanced_filter_footer(scene, monkeypatch, tmp_path):
-    from PySide6.QtWidgets import QFileDialog
     window, app, warnings = scene
     window.resize(1000, 600)
     folder = find(window, "sidebarOpenFolder")
@@ -169,7 +168,7 @@ def test_segmented_sources_and_advanced_filter_footer(scene, monkeypatch, tmp_pa
     click(window, pacs)
     assert app.workspaceController.activeTabType == "pacs"
     assert pacs.property("checked") and not folder.property("checked")
-    monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *args: "")
+    monkeypatch.setattr("qt_dicom_viewer.ui.controller.panel_controller.select_import_paths", lambda *args: [])
     click(window, folder)
     assert folder.property("checked") and not pacs.property("checked")
     click(window, pacs)

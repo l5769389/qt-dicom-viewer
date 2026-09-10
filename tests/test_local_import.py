@@ -288,16 +288,16 @@ def test_busy_drop_cancel_failure_and_manual_file_selection(
     assert drop_files(window, [series.first_file])
     wait_until(entered.is_set)
     assert not drop_files(window, [series.first_file])
-    click(window, find(window, "localImportCancel"))
+    click(window, find(window, "sidebarOpenFolder"))
     release.set()
     wait_until(lambda: not panel.scanning)
     assert "取消" in panel.statusMessage and not panel.hasSeries
     monkeypatch.setattr(panel._import_store, "prepare", prepare)
     monkeypatch.setattr(
-        "qt_dicom_viewer.ui.controller.panel_controller.QFileDialog.getOpenFileNames",
-        lambda *args: ([str(i.path) for i in series.instances], "DICOM"),
+        "qt_dicom_viewer.ui.controller.panel_controller.select_import_paths",
+        lambda *args: [str(i.path) for i in series.instances],
     )
-    click(window, find(window, "homeOpenFiles"))
+    click(window, find(window, "homeOpenImport"))
     wait_until(lambda: not panel.scanning)
     assert panel.hasSeries and not panel.importError
     bad = tmp_path / "corrupt.zip"
@@ -305,9 +305,8 @@ def test_busy_drop_cancel_failure_and_manual_file_selection(
     assert drop_files(window, [bad])
     wait_until(lambda: not panel.scanning)
     assert panel.importError and panel.hasSeries
-    assert find(window, "localImportMessage").property("text")
-    click(window, find(window, "localImportCancel"))
-    assert panel.statusMessage == ""
+    from test_tag_qml import descendants
+    assert not any(i.objectName() == "localImportBanner" for i in descendants(window.contentItem()))
     assert not warnings, warnings
 
 
@@ -363,7 +362,7 @@ def test_shutdown_cancels_extraction_before_removing_cache(
     reason="Requires a native desktop OpenGL window",
 )
 @pytest.mark.parametrize("kind", ["ct", "pet", "fusion"])
-def test_native_volume_receives_file_drop(scene, paired_series, tmp_path, kind):
+def test_native_volume_receives_file_drop(scene, paired_series, tmp_path, kind, monkeypatch):
     from qt_dicom_viewer.model import DicomFolderScanSnapshot
 
     window, app, warnings = scene
@@ -399,5 +398,29 @@ def test_native_volume_receives_file_drop(scene, paired_series, tmp_path, kind):
         app._series_catalog.get_series(incoming.series_instance_uid).dicom_file_count
         == 2
     )
+    assert workspace.activeViewport is view and view.loadState == "ready"
+    # The single mixed picker must open above VTK from either rail width.
+    from PySide6.QtCore import QTimer
+    from qt_dicom_viewer.ui.dialogs.local_import_dialog import LocalImportDialog
+    errors, opened = [], []
+    for entry in ("sidebarOpenFolder", "compactSidebarImport"):
+        if entry == "compactSidebarImport":
+            click(window, find(window, "sidebarToggle"))
+        def inspect_picker():
+            dialog = QApplication.activeModalWidget()
+            try:
+                assert isinstance(dialog, LocalImportDialog)
+                assert dialog.isVisible()
+                opened.append(entry)
+                assert dialog.grab().save(str(tmp_path / (entry + "-picker.png")))
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                if dialog is not None:
+                    dialog.reject()
+        QTimer.singleShot(250, inspect_picker)
+        click(window, find(window, entry))
+    assert not errors, errors
+    assert opened == ["sidebarOpenFolder", "compactSidebarImport"]
     assert workspace.activeViewport is view and view.loadState == "ready"
     assert not warnings, warnings

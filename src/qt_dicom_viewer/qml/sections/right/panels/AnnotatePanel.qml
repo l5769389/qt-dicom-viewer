@@ -44,7 +44,8 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
-        text: annotatePanel.viewportController.activeInteraction === "annotate:text" ? "拖动绘制文字箭头，单击箭身编辑。" : "拖动绘制箭头，选中后可移动或调整端点。"
+        text: (annotatePanel.textMode ? "拖动绘制文字箭头，单击箭身编辑。" : "拖动绘制箭头，选中后可移动或调整端点。")
+            + "\n" + (Qt.platform.os === "osx" ? "⌘+C / ⌘+V" : "Ctrl+C / Ctrl+V") + " 复制 / 粘贴所选"
         color: Theme.textSubtle
         font.pixelSize: 11
         wrapMode: Text.Wrap

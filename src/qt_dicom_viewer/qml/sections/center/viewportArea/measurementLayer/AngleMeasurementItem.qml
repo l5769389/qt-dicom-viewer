@@ -7,13 +7,14 @@ Item {
     id: root
     property var preferences: ({})
     readonly property var styleSettings: preferences.measurement ?? ({})
-    readonly property bool dashed: isDraft ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
+    property bool draftStyle: isDraft
+    readonly property bool dashed: draftStyle ? (styleSettings.editingDash ?? true) : (styleSettings.completedDash ?? false)
     required property var measurement
     required property var mappedPoints
     required property bool isDraft
     required property bool isSelected
     property alias labelItem: measurementLabel
-    readonly property color lineColor: isDraft ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
+    readonly property color lineColor: draftStyle ? (styleSettings.editingColor ?? Theme.measurementSelected) : (styleSettings.completedColor ?? Theme.measurementPrimary)
     readonly property point a: mappedPoints[0] ?? Qt.point(0, 0)
     readonly property point vertex: mappedPoints[1] ?? Qt.point(0, 0)
     readonly property point b: mappedPoints[2] ?? Qt.point(0, 0)

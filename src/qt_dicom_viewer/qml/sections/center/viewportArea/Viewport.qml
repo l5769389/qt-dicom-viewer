@@ -22,6 +22,14 @@ Item {
         event.accepted = true
     }
     Keys.onPressed: event => {
+        if (event.matches(StandardKey.Copy)) {
+            event.accepted = viewportRoot.viewportController?.copySelectedAnnotation() ?? false
+            return
+        }
+        if (event.matches(StandardKey.Paste)) {
+            event.accepted = viewportRoot.viewportController?.pasteAnnotation() ?? false
+            return
+        }
         if (event.key === Qt.Key_Backspace && viewportRoot.viewportController) {
             viewportRoot.viewportController.deleteSelectedMeasurement()
             event.accepted = true

@@ -182,6 +182,8 @@ class Image2DViewportController(ViewportController):
         self._content_key = None
         self._active_drag_start_position: PointerPosition | None = None
         self._annotation_drag_active = False
+        self._clipboard_payload = None
+        self._clipboard_pastes = 0
         self.transformChanged.connect(self._measure_controller.clearHover)
 
     @Property(QObject, constant=True)
@@ -1456,10 +1458,10 @@ class Image2DViewportController(ViewportController):
                                             endpoint_tolerance, line_tolerance)
 
     def _measurement_context(self, endpoint_tolerance: float,
-                             line_tolerance: float) -> MeasureContext | None:
+                             line_tolerance: float, *, kind: MeasurementKind | None = None) -> MeasureContext | None:
         frame = self._frame_meta
-        kind = MEASUREMENT_KINDS.get(self._tool_controller.active_interaction)
-        is_mtf = self._tool_controller.active_interaction == InteractionType.SERVICE_MTF
+        is_mtf = kind is None and self._tool_controller.active_interaction == InteractionType.SERVICE_MTF
+        kind = kind or MEASUREMENT_KINDS.get(self._tool_controller.active_interaction)
         if is_mtf and self._mtf_controller is not None:
             kind = MeasurementKind.RECT
         # 翻页但新图尚未返回时，不把旧像素误当成新切片的统计数据。
@@ -1480,6 +1482,58 @@ class Image2DViewportController(ViewportController):
                 )
             ),
         )
+
+    def _clipboard_ready(self):
+        return (self._frame_meta is not None and self._load_state == "ready"
+                and self._frame_meta.slice_index == self._state.slice_index
+                and self._active_drag_operation is None and not self._annotation_drag_active
+                and not self._measure_controller.has_active_transaction
+                and not self._text_annotation_controller._draft_id)
+
+    @Slot(result=bool)
+    def copySelectedAnnotation(self) -> bool:
+        if not self._clipboard_ready():
+            return False
+        from qt_dicom_viewer.ui.annotation_clipboard import write_annotation
+        payload = (self._text_annotation_controller.selected_copy()
+                   or self._measure_controller.selected_copy())
+        if payload is None:
+            return False
+        write_annotation(payload)
+        self._clipboard_payload = None
+        self._clipboard_pastes = 0
+        return True
+
+    @Slot(result=bool)
+    def pasteAnnotation(self) -> bool:
+        if not self._clipboard_ready():
+            return False
+        from qt_dicom_viewer.ui.annotation_clipboard import read_annotation
+        payload = read_annotation()
+        if payload is None:
+            return False
+        count = self._clipboard_pastes + 1 if payload == self._clipboard_payload else 1
+        # Keep copies distinct without changing geometry dimensions; values are recomputed below.
+        offset = 10 * count
+        points = [[p[0] + offset, p[1] + offset] for p in payload["points"]]
+        kind = payload["kind"]
+        if kind == "text":
+            uid = self._text_annotation_controller.paste_copy(payload, points)
+            if not uid:
+                return False
+            self._tool_controller.selectInteraction("annotate:text")
+            self._text_annotation_controller.selectAnnotation(uid)
+        else:
+            context = self._measurement_context(0, 0, kind=MeasurementKind(kind))
+            if context is None:
+                return False
+            uid = self._measure_controller.paste_points([ImagePoint(*p) for p in points], context)
+            if not uid:
+                return False
+            self._tool_controller.selectInteraction(("annotate:" if kind == "arrow" else "measure:") + kind)
+            self._measure_controller.select_completed(uid)
+        self._clipboard_payload, self._clipboard_pastes = payload, count
+        return True
 
     @Slot()
     def cancelMeasurement(self) -> None:
