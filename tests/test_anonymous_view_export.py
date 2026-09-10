@@ -24,7 +24,9 @@ def capture(item):
 
 
 def pixels(image):
-    return image.convertToFormat(QImage.Format_RGBA8888).bits().tobytes()
+    # bits() borrows the QImage buffer; keep its owner alive while copying.
+    converted = image.convertToFormat(QImage.Format_RGBA8888)
+    return converted.bits().tobytes()
 
 
 @pytest.fixture
