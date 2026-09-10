@@ -127,6 +127,8 @@ ColumnLayout {
 
             delegate: Basic.Button {
                 id: colorButton
+                hoverEnabled: true
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
                 required property string modelData
                 objectName: "annotationColor-" + modelData.slice(1)
                 width: colorPalette.swatchSize
@@ -144,9 +146,13 @@ ColumnLayout {
 
                 background: Rectangle {
                     radius: width / 2
-                    color: colorButton.modelData
-                    border.width: colorButton.checked ? 3 : 1
-                    border.color: colorButton.checked ? Theme.selectionBorder : Theme.controlBorder
+                    color: colorButton.down ? Qt.darker(colorButton.modelData, 1.3)
+                        : colorButton.hovered ? Qt.lighter(colorButton.modelData, 1.15) : colorButton.modelData
+                    border.width: colorButton.checked || colorButton.hovered ? 3 : 1
+                    border.color: colorButton.down ? Theme.primaryColor
+                        : colorButton.hovered ? Theme.textPrimary
+                        : colorButton.checked ? Theme.selectionBorder : Theme.controlBorder
+                    Behavior on color { ColorAnimation { duration: 80 } }
                 }
             }
         }

@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
 import "../../../theme"
+import "../../../components" as Components
 
 Item {
     id: root
@@ -23,7 +24,7 @@ Item {
 
         Repeater {
             model: root.controller ? root.controller.directionOptions : []
-            delegate: Basic.Button {
+            delegate: Components.AppButton {
                 id: directionButton
                 required property var modelData
                 objectName: "volumeFace-" + modelData.face
@@ -50,13 +51,9 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                     }
                 }
-                background: Rectangle {
-                    radius: 6
-                    color: directionButton.checked ? Theme.selectionBackground
-                        : directionButton.hovered ? Theme.controlHover : Theme.controlBackground
-                    border.width: 1
-                    border.color: directionButton.checked ? directionButton.modelData.color : Theme.controlBorder
-                }
+                baseBorderWidth: 1
+                baseBorderColor: Theme.controlBorder
+                activeBorderColor: modelData.color
             }
         }
     }

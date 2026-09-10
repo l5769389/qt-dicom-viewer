@@ -88,7 +88,7 @@ ColumnLayout {
                 { value: "sum", label: "Sum" }
             ]
 
-            delegate: Basic.Button {
+            delegate: Components.AppButton {
                 id: modeButton
                 required property var modelData
 
@@ -116,18 +116,11 @@ ColumnLayout {
                     elide: Text.ElideRight
                 }
 
-                background: Rectangle {
-                    color: modeButton.checked
-                        ? Theme.primarySoft
-                        : modeButton.hovered
-                            ? Theme.controlHover
-                            : "transparent"
-                    border.color: modeButton.checked
-                        ? Theme.selectionBorder
-                        : Theme.controlBorder
-                    border.width: 1
-                    radius: 8
-                }
+                normalColor: "transparent"
+                activeColor: Theme.primarySoft
+                baseBorderWidth: 1
+                baseBorderColor: Theme.controlBorder
+                cornerRadius: 8
 
                 onClicked: {
                     mipPanel.toolController?.setMprProjectionMode(

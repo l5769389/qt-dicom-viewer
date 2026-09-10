@@ -99,6 +99,9 @@ def test_service_menu_has_no_title_or_explanation_and_only_selects_entries(servi
 
     _click(view, primary_service)
     assert controller.activePanel == "service"
+    assert tinted_service_icon.parentItem().property("iconColor").name() == "#7bd8ff"
+    QTest.mouseMove(view, QPointF(2, view.height() - 2).toPoint())
+    QTest.qWait(30)
     assert tinted_service_icon.parentItem().property("iconColor").name() == "#66d0ff"
     _assert_service_panel_has_only_top_aligned_buttons(view)
 

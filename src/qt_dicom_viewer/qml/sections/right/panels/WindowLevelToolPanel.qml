@@ -271,7 +271,7 @@ ColumnLayout {
         interactive: false
         model: windowPanel.presets
 
-        delegate: Basic.ItemDelegate
+        delegate: Components.AppButton
         {
             id: presetItem
 
@@ -357,18 +357,8 @@ ColumnLayout {
                 }
             }
 
-            background: Rectangle {
-                color: presetItem.pressed
-                    ? Theme.controlPressed
-                    : presetItem.checked
-                        ? Theme.selectionBackground
-                    : presetItem.hovered
-                        ? Theme.controlHover
-                        : "transparent"
-                radius: 5
-                border.width: presetItem.visualFocus ? 2 : presetItem.checked ? 1 : 0
-                border.color: presetItem.visualFocus ? Theme.focusBorder : Theme.selectionBorder
-            }
+            normalColor: "transparent"
+            cornerRadius: 5
         }
     }
     Item {

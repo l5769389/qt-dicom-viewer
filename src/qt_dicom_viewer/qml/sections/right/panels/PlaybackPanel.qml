@@ -241,7 +241,7 @@ ColumnLayout {
                     ? playbackPanel.tabController.phaseItems
                     : []
 
-                delegate: Basic.Button {
+                delegate: Components.AppButton {
                     id: phaseButton
 
                     required property var modelData
@@ -272,37 +272,19 @@ ColumnLayout {
                         verticalAlignment: Text.AlignVCenter
                     }
 
-                    background: Rectangle {
-                        radius: 6
-                        color: phaseButton.checked
-                            ? Theme.successSurface
-                            : phaseButton.hovered
-                                ? Theme.controlHover
-                                : Theme.panelBackgroundStrong
-                        border.width: 1
-                        border.color: phaseButton.checked
-                            ? Theme.successColor
-                            : Theme.borderSubtle
-
-                        Behavior on color {
-                            ColorAnimation { duration: 100 }
-                        }
-
-                        Behavior on border.color {
-                            ColorAnimation { duration: 100 }
-                        }
-
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.top: parent.top
-                            anchors.topMargin: 4
-                            width: 6
-                            height: 6
-                            radius: 3
-                            color: phaseButton.checked
-                                ? Theme.successColor
-                                : Theme.textDisabled
-                        }
+                    normalColor: Theme.panelBackgroundStrong
+                    activeColor: Theme.successSurface
+                    activeHoverColor: Qt.lighter(Theme.successSurface, 1.25)
+                    activePressedColor: Qt.darker(Theme.successSurface, 1.2)
+                    activeBorderColor: Theme.successColor
+                    baseBorderWidth: 1
+                    baseBorderColor: Theme.borderSubtle
+                    Rectangle {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: parent.top
+                        anchors.topMargin: 4
+                        width: 6; height: 6; radius: 3
+                        color: phaseButton.checked ? Theme.successColor : Theme.textDisabled
                     }
                 }
 

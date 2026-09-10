@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../theme"
+import "../../../components" as Components
 
 ColumnLayout {
     id: pseudoColorPanel
@@ -25,7 +26,7 @@ ColumnLayout {
         model: pseudoColorPanel.viewportController
             ? pseudoColorPanel.viewportController.colorMapOptions : []
 
-        delegate: Basic.Button {
+        delegate: Components.AppButton {
             id: colorMapButton
             required property var modelData
             objectName: "colorMap-" + modelData.colorMap
@@ -86,16 +87,8 @@ ColumnLayout {
                 }
             }
 
-            background: Rectangle {
-                color: colorMapButton.checked
-                    ? Theme.selectionBackground
-                    : colorMapButton.hovered
-                        ? Theme.controlHover : "transparent"
-                border.color: colorMapButton.checked
-                    ? Theme.selectionBorder : "transparent"
-                border.width: 1
-                radius: 5
-            }
+            normalColor: "transparent"
+            cornerRadius: 5
         }
     }
 

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic as Basic
 import "../../../theme"
+import "../../../components" as Components
 
 Canvas {
     id: chart
@@ -29,7 +30,7 @@ Canvas {
         Row {
             anchors.right: parent.right
             spacing: 4
-            Basic.Button {
+            Components.AppButton {
                 id: xLegend
                 objectName: "mtfLegend-x"
                 implicitWidth: 43
@@ -44,18 +45,15 @@ Canvas {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                background: Rectangle {
-                    radius: 4
-                    color: xLegend.hovered ? Theme.controlHover : "transparent"
-                    border.width: xLegend.visualFocus ? 1 : 0
-                    border.color: Theme.focusBorder
-                }
+                normalColor: "transparent"
+                cornerRadius: 4
+                padding: 0
                 Basic.ToolTip.visible: hovered
                 Basic.ToolTip.delay: 600
                 Basic.ToolTip.timeout: 2000
                 Basic.ToolTip.text: chart.showX ? "隐藏 X 曲线" : "显示 X 曲线"
             }
-            Basic.Button {
+            Components.AppButton {
                 id: yLegend
                 objectName: "mtfLegend-y"
                 implicitWidth: 43
@@ -70,12 +68,9 @@ Canvas {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                background: Rectangle {
-                    radius: 4
-                    color: yLegend.hovered ? Theme.controlHover : "transparent"
-                    border.width: yLegend.visualFocus ? 1 : 0
-                    border.color: Theme.focusBorder
-                }
+                normalColor: "transparent"
+                cornerRadius: 4
+                padding: 0
                 Basic.ToolTip.visible: hovered
                 Basic.ToolTip.delay: 600
                 Basic.ToolTip.timeout: 2000

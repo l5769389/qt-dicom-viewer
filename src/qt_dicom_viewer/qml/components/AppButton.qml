@@ -24,6 +24,10 @@ Basic.Button {
     property color hoverColor: Theme.controlHover
     property color pressedColor: Theme.controlPressed
     property color activeColor: Theme.selectionBackground
+    property color activeHoverColor: Theme.selectionHover
+    property color activePressedColor: Theme.selectionPressed
+    property color hoverBorderColor: Theme.controlHoverBorder
+    property color pressedBorderColor: Theme.selectionBorder
     property color disabledColor: Theme.controlDisabled
     property color textColor: Theme.textPrimary
     property color disabledTextColor: Theme.textDisabled
@@ -39,6 +43,7 @@ Basic.Button {
         control.text.length > 0
 
     hoverEnabled: true
+    HoverHandler { cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
     focusPolicy: control.momentary
         ? Qt.TabFocus
         : Qt.StrongFocus
@@ -62,9 +67,9 @@ Basic.Button {
             if (!control.enabled)
                 return control.disabledColor
             if (control.down)
-                return control.pressedColor
+                return control.checked ? control.activePressedColor : control.pressedColor
             if (control.checked)
-                return control.activeColor
+                return control.hovered ? control.activeHoverColor : control.activeColor
             if (control.hovered)
                 return control.hoverColor
             return control.normalColor
@@ -72,11 +77,13 @@ Basic.Button {
 
         border.width: Math.max(
             control.baseBorderWidth,
-            control.visualFocus ? 2 : control.checked ? 1 : 0
+            control.visualFocus ? 2 : control.enabled && (control.checked || control.hovered || control.down) ? 1 : 0
         )
         border.color: control.visualFocus ? control.focusBorderColor
-            : control.checked ? control.activeBorderColor
-            : control.baseBorderColor
+            : control.enabled && control.down ? control.pressedBorderColor
+            : control.enabled && control.hovered ? control.hoverBorderColor
+            : control.checked ? control.activeBorderColor : control.baseBorderColor
+        Behavior on border.color { ColorAnimation { duration: 80 } }
 
         Behavior on color {
             ColorAnimation { duration: 90 }

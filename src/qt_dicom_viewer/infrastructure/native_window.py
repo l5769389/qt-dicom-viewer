@@ -3,7 +3,7 @@ import ctypes
 import logging
 import sys
 
-from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtGui import QGuiApplication, QWindow
 from shiboken6 import isValid
 
@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class NativeWindowChrome(QObject):
-    """Match Cocoa chrome to the dark client area and retain native window controls.
+    """Keep native controls and match each platform's caption to the dark UI.
 
-    ExpandedClientAreaHint/NoTitleBarBackgroundHint do not hide NSWindow's
-    title on macOS. Qt's native handle is an NSView only with the Cocoa plugin.
+    Windows uses a complete native caption for dragging, snap and system buttons.
+    Cocoa keeps native traffic lights alongside the QML brand and hides its title.
     Reapply after Qt updates the platform window, including full-screen changes.
     """
 
@@ -24,8 +24,20 @@ class NativeWindowChrome(QObject):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._apply)
-        self._enabled = sys.platform == "darwin" and QGuiApplication.platformName() == "cocoa"
-        if self._enabled:
+        platform = QGuiApplication.platformName()
+        self._cocoa_enabled = sys.platform == "darwin" and platform == "cocoa"
+        self._windows_enabled = sys.platform == "win32" and platform == "windows"
+        self._enabled = self._cocoa_enabled or self._windows_enabled
+        if self._windows_enabled:
+            # Qt must also know the theme, otherwise a later activation/theme
+            # event can restore light native caption-button hover backgrounds.
+            QGuiApplication.styleHints().setColorScheme(Qt.ColorScheme.Dark)
+            self._dwm = ctypes.WinDLL("dwmapi", use_last_error=True)
+            self._dwm_set_attribute = self._dwm.DwmSetWindowAttribute
+            self._dwm_set_attribute.argtypes = [ctypes.c_void_p, ctypes.c_uint,
+                                                ctypes.c_void_p, ctypes.c_uint]
+            self._dwm_set_attribute.restype = ctypes.c_int32
+        if self._cocoa_enabled:
             self._objc = ctypes.CDLL("/usr/lib/libobjc.A.dylib")
             self._objc.sel_registerName.restype = ctypes.c_void_p
             self._objc.sel_registerName.argtypes = [ctypes.c_char_p]
@@ -47,6 +59,7 @@ class NativeWindowChrome(QObject):
                 ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double)(("objc_msgSend", self._objc))
             self._window_selector = self._objc.sel_registerName(b"window")
             self._visibility_selector = self._objc.sel_registerName(b"setTitleVisibility:")
+        if self._enabled:
             window.installEventFilter(self)
             window.windowTitleChanged.connect(self._schedule)
             window.visibilityChanged.connect(self._schedule)
@@ -60,7 +73,8 @@ class NativeWindowChrome(QObject):
             self._timer.start(0)
 
     def eventFilter(self, watched, event):
-        if event.type() in (QEvent.Show, QEvent.WinIdChange, QEvent.WindowStateChange):
+        if event.type() in (QEvent.Show, QEvent.WinIdChange, QEvent.WindowStateChange,
+                            QEvent.ThemeChange, QEvent.ApplicationPaletteChange):
             self._schedule()
         return False
 
@@ -68,6 +82,9 @@ class NativeWindowChrome(QObject):
         if not self._enabled or not isValid(self._window):
             return
         try:
+            if self._windows_enabled:
+                self._apply_windows()
+                return
             ns_view = int(self._window.winId())
             if ns_view:
                 ns_window = self._view_window(ns_view, self._window_selector)
@@ -90,3 +107,21 @@ class NativeWindowChrome(QObject):
                     self._set_object(ns_window, sel(b"setBackgroundColor:"), background)
         except (OSError, TypeError, ValueError):
             logger.exception("Unable to apply native window appearance")
+
+    def _set_windows_attribute(self, hwnd, attribute, value):
+        data = ctypes.c_uint32(value)
+        return self._dwm_set_attribute(hwnd, attribute, ctypes.byref(data), ctypes.sizeof(data))
+
+    def _apply_windows(self):
+        hwnd = int(self._window.winId())
+        if not hwnd:
+            return
+        # DWMWA_USE_IMMERSIVE_DARK_MODE; pre-20H1 Windows 10 used attribute 19.
+        if self._set_windows_attribute(hwnd, 20, 1) != 0:
+            self._set_windows_attribute(hwnd, 19, 1)
+        background = self._window.color()
+        caption = background.red() | (background.green() << 8) | (background.blue() << 16)
+        # COLORREF is 0x00BBGGRR. Windows 11 supports these exact caption colors;
+        # older Windows safely keeps the dark native palette when unsupported.
+        self._set_windows_attribute(hwnd, 35, caption)  # DWMWA_CAPTION_COLOR
+        self._set_windows_attribute(hwnd, 36, 0x00F5F1ED)  # DWMWA_TEXT_COLOR: #edf1f5

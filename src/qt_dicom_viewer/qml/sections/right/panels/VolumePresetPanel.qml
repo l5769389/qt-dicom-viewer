@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic as Basic
 import "../../../theme"
+import "../../../components" as Components
 
 Item {
     id: root
@@ -44,7 +45,7 @@ Item {
                     font.pixelSize: 13
                     verticalAlignment: Text.AlignVCenter
                 }
-                Basic.Button {
+                Components.AppButton {
                     id: presetButton
                     objectName: "volumePreset-" + entry.modelData.presetId
                     width: parent.width
@@ -62,11 +63,8 @@ Item {
                         color: presetButton.enabled ? Theme.textPrimary : Theme.textDisabled
                         verticalAlignment: Text.AlignVCenter
                     }
-                    background: Rectangle {
-                        radius: 5
-                        color: presetButton.checked ? Theme.selectionBackground
-                            : presetButton.hovered ? Theme.controlHover : "transparent"
-                    }
+                    normalColor: "transparent"
+                    cornerRadius: 5
                 }
             }
         }

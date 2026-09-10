@@ -25,7 +25,7 @@ Components.AppButton {
             anchors.centerIn: parent
             iconName: actionButton.iconName
             iconSize: actionButton.iconSize
-            iconColor: !actionButton.enabled ? Theme.iconDisabled : actionButton.checked ? Theme.iconActive : actionButton.hovered ? Theme.iconHover : Theme.iconDefault
+            iconColor: !actionButton.enabled ? Theme.iconDisabled : actionButton.down ? Theme.iconActive : actionButton.hovered ? (actionButton.checked ? Theme.primaryHover : Theme.iconHover) : actionButton.checked ? Theme.iconActive : Theme.iconDefault
         }
     }
     Basic.ToolTip {

@@ -22,9 +22,11 @@ ApplicationWindow {
     height: 760
     minimumWidth: 1000
     minimumHeight: 600
+    readonly property bool nativeTitleBar: Qt.platform.os === "windows"
     flags: Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint
         | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
-        | Qt.WindowFullscreenButtonHint | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
+        | (nativeTitleBar ? 0
+            : Qt.WindowFullscreenButtonHint | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint)
     topPadding: header ? header.height : 32
     function toggleFullScreen() {
         if (visibility === Window.FullScreen) showNormal()
@@ -44,6 +46,9 @@ ApplicationWindow {
 
     header: Components.ApplicationTitleBar {
         targetWindow: window
+        // Windows owns the only caption, including branding and hit testing.
+        visible: !window.nativeTitleBar
+        height: visible ? implicitHeight : 0
     }
     Shortcut {
         sequences: [StandardKey.Open]

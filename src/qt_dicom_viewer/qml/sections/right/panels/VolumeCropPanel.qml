@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as Basic
 import "../../../theme"
+import "../../../components" as Components
 import "../components" as Controls
 
 Item {
@@ -32,7 +33,7 @@ Item {
                 { mode: "inside", label: "内部裁剪", hint: "移除圈选区域内的影像" },
                 { mode: "outside", label: "外部裁剪", hint: "保留圈选区域内的影像" }
             ]
-            delegate: Basic.Button {
+            delegate: Components.AppButton {
                 id: action
                 required property var modelData
                 objectName: "volumeCrop-" + modelData.mode
@@ -60,13 +61,8 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                     }
                 }
-                background: Rectangle {
-                    radius: 6
-                    color: action.checked || action.down ? Theme.selectionBackground
-                        : action.hovered && action.enabled ? Theme.controlHover : Theme.controlBackground
-                    border.width: 1
-                    border.color: action.checked ? Theme.selectionBorder : Theme.controlBorder
-                }
+                baseBorderWidth: 1
+                baseBorderColor: Theme.controlBorder
             }
         }
 

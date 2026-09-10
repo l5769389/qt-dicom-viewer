@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../../../theme"
+import "../../../components" as Components
 
 ColumnLayout {
     id: panel
@@ -16,7 +17,7 @@ ColumnLayout {
         return value === null || value === undefined ? missing : Number(value).toFixed(3)
     }
 
-    component SelectorButton: Basic.Button {
+    component SelectorButton: Components.AppButton {
         id: selector
         required property string value
         required property string label
@@ -32,12 +33,10 @@ ColumnLayout {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
-        background: Rectangle {
-            radius: 5
-            color: selector.selected ? Theme.selectionBackground : Theme.controlBackground
-            border.width: 1
-            border.color: selector.selected ? Theme.selectionBorder : Theme.controlBorder
-        }
+        checked: selected
+        baseBorderWidth: 1
+        baseBorderColor: Theme.controlBorder
+        cornerRadius: 5
     }
 
     Rectangle {

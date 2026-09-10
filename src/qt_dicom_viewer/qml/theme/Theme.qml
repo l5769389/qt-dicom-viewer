@@ -60,6 +60,7 @@ QtObject {
     // Selection / active interaction. A selected item is not a status message.
     readonly property color selectionBackground: "#203b4c"
     readonly property color selectionHover: "#28485b"
+    readonly property color selectionPressed: "#173044"
     readonly property color selectionBorder: "#579fc6"
     readonly property color activeIndicator: primaryColor
     readonly property color iconDefault: "#b0bfcc"
