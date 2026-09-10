@@ -10,10 +10,10 @@
 
 | 平台 | v1.0.0 下载 |
 | --- | --- |
-| macOS · Apple Silicon | [DMG 安装包](https://github.com/l5769389/qt-dicom-viewer/releases/download/v1.0.0/Voxenra-1.0.0-macos-arm64.dmg) |
-| Windows · x64 | [安装包](https://github.com/l5769389/qt-dicom-viewer/releases/download/v1.0.0/Voxenra-1.0.0-windows-x64-setup.exe) · [便携版](https://github.com/l5769389/qt-dicom-viewer/releases/download/v1.0.0/Voxenra-1.0.0-windows-x64-portable.exe) |
+| macOS · Apple Silicon | [DMG 安装包](https://github.com/l5769389/voxenra/releases/download/v1.0.0/Voxenra-1.0.0-macos-arm64.dmg) |
+| Windows · x64 | [安装包](https://github.com/l5769389/voxenra/releases/download/v1.0.0/Voxenra-1.0.0-windows-x64-setup.exe) · [便携版](https://github.com/l5769389/voxenra/releases/download/v1.0.0/Voxenra-1.0.0-windows-x64-portable.exe) |
 
-[查看 v1.0.0 主要更新](https://github.com/l5769389/qt-dicom-viewer/releases/tag/v1.0.0)
+[查看 v1.0.0 主要更新](https://github.com/l5769389/voxenra/releases/tag/v1.0.0)
 
 ## 文件加载与数据源
 
