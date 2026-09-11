@@ -1,5 +1,7 @@
 <RCC>
     <qresource>
+        <file>src/qt_dicom_viewer/qml/components/AppDialog.qml</file>
+        <file>src/qt_dicom_viewer/qml/components/AppDialogFooter.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/ScrollToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/ZoomToolPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/assets/cursors/annotate-arrow.svg</file>
@@ -21,6 +23,7 @@
         <file>src/qt_dicom_viewer/qml/assets/cursors/segmentation.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/cursors/strokeColor.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/cursors/voi.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/cursors/volume-crop.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/cursors/window.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/cursors/zoom.svg</file>
         <file>Voxenra.qmlproject</file>
@@ -28,27 +31,6 @@
         <file>src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.png</file>
         <file>src/qt_dicom_viewer/qml/assets/brand/voxenra-mark.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/open-folder.svg</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/service.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/mtf.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/qa.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/mip.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-load-file.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-2d.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-mpr.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-3d.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-tile.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-4d.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/nav-view-tag.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-fusion.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-pseudocolor.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-measure.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-service.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-mtf.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-remove-bed.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-segmentation.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-voi.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-qa.png</file>
-        <file>src/qt_dicom_viewer/qml/assets/icons/tool-mip.png</file>
         <file>src/qt_dicom_viewer/qml/components/AppButton.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppSlider.qml</file>
         <file>src/qt_dicom_viewer/qml/components/AppScrollBar.qml</file>
@@ -139,13 +121,11 @@
         <file>src/qt_dicom_viewer/qml/sections/settings/ScaleSettingsPage.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingColor.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingSlider.qml</file>
-        <file>src/qt_dicom_viewer/qml/sections/settings/SettingsCard.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/WindowTemplatesPage.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/ColorBar.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/center/viewportArea/TextAnnotationLayer.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/PseudoColorPanel.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/right/panels/ViewportSettingsPanel.qml</file>
-        <file>src/qt_dicom_viewer/qml/components/MprIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/components/ColorMapIcon.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingsSection.qml</file>
         <file>src/qt_dicom_viewer/qml/sections/settings/SettingsSplit.qml</file>
@@ -201,6 +181,7 @@
         <file>src/qt_dicom_viewer/qml/assets/icons/clear.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/crop-inside.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/crop-outside.svg</file>
+        <file>src/qt_dicom_viewer/qml/assets/icons/crosshair-rotate.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/icons/save.svg</file>
         <file>src/qt_dicom_viewer/qml/assets/help/manual.json</file>
         <file>src/qt_dicom_viewer/qml/assets/help/measurement.png</file>

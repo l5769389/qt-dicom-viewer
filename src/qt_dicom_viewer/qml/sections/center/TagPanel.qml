@@ -16,6 +16,7 @@ Rectangle {
     property bool restoring: true
     property string detailTitle: ""
     property string detailValue: ""
+    property string detailMetadata: ""
     readonly property real treeWidth: Math.max(
         270, (width - 28) * 0.45, 210 + tagController.tagModel.maxVisibleDepth * 16)
     readonly property real tableWidth: Math.max(width - 30, treeWidth + vrWidth + 220)
@@ -329,7 +330,8 @@ Rectangle {
                             TapHandler {
                                 onTapped: panel.tagController.selectNode(row.nodeId)
                                 onDoubleTapped: {
-                                    panel.detailTitle = row.tagNumber + "  " + row.tagName
+                                    panel.detailTitle = row.tagName
+                                    panel.detailMetadata = row.tagNumber + (row.vr ? " · VR " + row.vr : "")
                                     panel.detailValue = row.valueText
                                     detailDialog.open()
                                 }
@@ -448,28 +450,40 @@ Rectangle {
         }
     }
 
-    Basic.Dialog {
+    Components.AppDialog {
         id: detailDialog
         objectName: "tagValueDialog"
         anchors.centerIn: parent
-        width: Math.min(panel.width - 40, 850)
-        height: Math.min(panel.height - 40, 460)
+        width: Math.max(0, Math.min(panel.width - 32, 640))
+        height: Math.min(Math.max(0, panel.height - 32),
+            header.implicitHeight + footer.implicitHeight + topPadding + bottomPadding
+            + spacing * 2 + Math.max(80, Math.min(320, fullValue.implicitHeight)))
+        padding: 16
+        spacing: 0
         modal: true
+        Basic.Overlay.modal: Rectangle { color: "#99000000" }
         title: panel.detailTitle
-        standardButtons: Basic.Dialog.Close
-        palette.window: Theme.elevatedBackground
-        palette.windowText: Theme.textPrimary
-        palette.button: Theme.controlBackground
-        palette.buttonText: Theme.textPrimary
-        background: Rectangle {
-            color: Theme.panelBackgroundStrong
-            border.color: Theme.borderStrong
-            radius: 8
-        }
+        subtitle: panel.detailMetadata
+        closeButtonName: "tagCloseValue"
+        onOpened: fullValue.forceActiveFocus()
+
         contentItem: Basic.ScrollView {
+            id: valueScroll
+            objectName: "tagValueScroll"
             clip: true
+            contentWidth: availableWidth
+            Basic.ScrollBar.horizontal.policy: Basic.ScrollBar.AlwaysOff
+            Basic.ScrollBar.vertical: Components.AppScrollBar {}
+            background: Rectangle {
+                color: Theme.workspaceBackground
+                border.color: Theme.borderDefault
+                radius: Theme.controlRadius
+            }
             Basic.TextArea {
+                id: fullValue
                 objectName: "tagFullValue"
+                width: valueScroll.availableWidth
+                padding: 12
                 text: panel.detailValue
                 textFormat: TextEdit.PlainText
                 readOnly: true
@@ -477,8 +491,25 @@ Rectangle {
                 wrapMode: TextEdit.WrapAnywhere
                 color: Theme.textPrimary
                 selectionColor: Theme.selectionBackground
+                selectedTextColor: Theme.textPrimary
                 font.family: "monospace"
                 font.pixelSize: 13
+                background: null
+                Accessible.name: "标签完整值"
+            }
+        }
+        footer: Components.AppDialogFooter {
+            Components.AppButton {
+                objectName: "tagCopyValue"
+                text: "复制值"
+                actionRole: "primary"
+                compact: true
+                enabled: panel.detailValue.length > 0
+                onClicked: {
+                    fullValue.selectAll()
+                    fullValue.copy()
+                    fullValue.deselect()
+                }
             }
         }
     }

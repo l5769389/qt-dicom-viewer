@@ -154,8 +154,8 @@ TOOL_CATALOG: tuple[ToolDefinition, ...] = (
     ),
     ToolDefinition(
         tool_type=ToolType.VOLUME_CROP,
-        label="分割",
-        icon_name="segmentation",
+        label="裁剪",
+        icon_name="volume-crop",
         behavior=ToolBehavior.INTERACTION_PANEL,
         default_interaction=InteractionType.VOLUME_CROP,
         supported_tab_types=frozenset((TabType.THREE_D,)),

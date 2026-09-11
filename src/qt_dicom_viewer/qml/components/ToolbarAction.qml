@@ -39,7 +39,9 @@ Item {
         objectName: action.buttonObjectName
         anchors.fill: parent
         anchors.margins: action.segmented ? 3 : 0
-        cornerRadius: action.segmented ? 3 : Theme.controlRadius
+        cornerRadius: Theme.controlRadius
+        hoverBorderWidth: 0
+        pressedBorderWidth: 0
         activeColor: action.segmented ? "transparent" : Theme.selectionBackground
         activeBorderColor: action.segmented ? "transparent" : Theme.selectionBorder
         enabled: action.actionEnabled && !action.placeholder
@@ -53,13 +55,18 @@ Item {
             : action.prominent ? Theme.folderSurface : "transparent"
         disabledColor: action.primaryAction ? Theme.primaryButtonDisabled : "transparent"
         hoverColor: action.primaryAction ? Theme.primaryButtonHover
+            : action.segmented ? Theme.primarySoftHover
             : action.resetAction ? Theme.resetActionHover : Theme.controlHover
         pressedColor: action.primaryAction ? Theme.primaryButtonPressed
+            : action.segmented ? Theme.selectionPressed
             : action.resetAction ? Theme.resetActionPressed : Theme.controlPressed
-        activeHoverColor: action.resetAction ? Theme.resetActionHover : Theme.selectionHover
+        activeHoverColor: action.segmented ? Theme.primarySoftHover
+            : action.resetAction ? Theme.resetActionHover : Theme.selectionHover
         activePressedColor: action.resetAction ? Theme.resetActionPressed : Theme.selectionPressed
-        hoverBorderColor: action.resetAction ? Theme.resetActionBorder : Theme.controlHoverBorder
-        pressedBorderColor: action.resetAction ? Theme.resetActionBorder : Theme.selectionBorder
+        hoverBorderColor: action.segmented ? "transparent"
+            : action.resetAction ? Theme.resetActionBorder : Theme.selectionBorder
+        pressedBorderColor: action.segmented ? "transparent"
+            : action.resetAction ? Theme.resetActionBorder : Theme.selectionBorder
         Accessible.name: action.label
         Accessible.description: action.tooltipText
         onClicked: action.triggered()
@@ -81,6 +88,7 @@ Item {
                         iconSize: action.iconSize
                         detailColor: action.iconName === "fusion" ? Theme.fusionAccent : "transparent"
                         iconColor: !button.enabled ? action.disabledIconColor
+                            : action.segmented ? (button.hovered || button.down ? Theme.primaryHover : action.normalIconColor)
                             : action.resetAction && button.hovered ? Theme.resetActionColor
                             : button.down ? Theme.iconActive
                             : button.hovered ? (button.checked && !action.segmented ? Theme.primaryHover : Theme.iconHover)

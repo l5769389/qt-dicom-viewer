@@ -708,14 +708,3 @@ def _instance_sort_key(
         return 0, spatial_position, instance_number, str(instance.path)
 
     return 1, float(instance_number), instance_number, str(instance.path)
-
-
-def _series_sort_key(series: DicomSeriesRecord) -> tuple[str, str, int, str, str]:
-    series_number = series.series_number if series.series_number is not None else 1_000_000
-    return (
-        series.patient_name,
-        series.study_description,
-        series_number,
-        series.series_description,
-        series.series_instance_uid,
-    )

@@ -100,6 +100,8 @@ QtObject {
     readonly property color warningSurface: "#3d3119"
     readonly property color dangerColor: "#ef7777"
     readonly property color dangerSurface: "#412124"
+    readonly property color dangerButtonHover: "#5b2a2f"
+    readonly property color dangerButtonPressed: "#32191d"
 
     // 重置保留琥珀图标提示；常态使用中性表面，避免抢占影像注意力。
     readonly property color resetActionColor: "#f3c66b"
@@ -113,10 +115,4 @@ QtObject {
     readonly property color measurementPrimary: "#ffd45c"
     readonly property color measurementSelected: "#66d0ff"
     readonly property color measurementHandle: "#f8fbff"
-
-    // Temporary compatibility aliases for existing components.
-    readonly property color hoverColor: controlHover
-    readonly property color activeColor: selectionBackground
-    readonly property color panelColor: panelBackground
-    readonly property color textColor: textPrimary
 }

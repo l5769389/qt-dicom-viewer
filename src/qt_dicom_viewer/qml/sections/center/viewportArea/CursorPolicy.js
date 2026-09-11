@@ -14,5 +14,5 @@ function resolve(interaction, region, crosshair, measurement) {
         "annotate:arrow":"annotate-arrow", "service:mtf":"mtf", "service:qa":"qa"}
     if (drawing[interaction]) return measurement || drawing[interaction]
     return ({window:"window", scroll:"scroll", pan:"pan", zoom:"zoom",
-        "mpr:rotate3d":"rotate-3d", "volume:rotate":"rotate-3d", "volume:crop":"segmentation"})[interaction] || ""
+        "mpr:rotate3d":"rotate-3d", "volume:rotate":"rotate-3d", "volume:crop":"volume-crop"})[interaction] || ""
 }

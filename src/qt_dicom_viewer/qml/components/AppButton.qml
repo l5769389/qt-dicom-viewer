@@ -11,6 +11,7 @@ Basic.Button {
     id: control
     Layout.minimumWidth: 0
 
+    property string actionRole: "neutral"
     property bool compact: false
     property bool momentary: false
     property string iconName: ""
@@ -18,23 +19,29 @@ Basic.Button {
     property real minimumButtonWidth: 40
     property real cornerRadius: Theme.controlRadius
     property real fontPixelSize: 13
-    property int fontWeight: Font.Normal
+    property int fontWeight: actionRole === "primary" ? Font.DemiBold : Font.Normal
 
-    property color normalColor: Theme.controlBackground
-    property color hoverColor: Theme.controlHover
-    property color pressedColor: Theme.controlPressed
+    property color normalColor: actionRole === "primary" ? Theme.primaryButtonBackground
+        : actionRole === "danger" ? Theme.dangerSurface : Theme.controlBackground
+    property color hoverColor: actionRole === "primary" ? Theme.primaryButtonHover
+        : actionRole === "danger" ? Theme.dangerButtonHover : Theme.controlHover
+    property color pressedColor: actionRole === "primary" ? Theme.primaryButtonPressed
+        : actionRole === "danger" ? Theme.dangerButtonPressed : Theme.controlPressed
     property color activeColor: Theme.selectionBackground
     property color activeHoverColor: Theme.selectionHover
     property color activePressedColor: Theme.selectionPressed
     property color hoverBorderColor: Theme.controlHoverBorder
     property color pressedBorderColor: Theme.selectionBorder
-    property color disabledColor: Theme.controlDisabled
-    property color textColor: Theme.textPrimary
+    property color disabledColor: actionRole === "primary" ? Theme.primaryButtonDisabled : Theme.controlDisabled
+    property color textColor: actionRole === "primary" ? Theme.textOnPrimary
+        : actionRole === "danger" ? Theme.dangerColor : Theme.textPrimary
     property color disabledTextColor: Theme.textDisabled
     property color focusBorderColor: Theme.focusBorder
     property color activeBorderColor: Theme.selectionBorder
     property color baseBorderColor: Theme.borderDefault
     property real baseBorderWidth: 0
+    property real hoverBorderWidth: 1
+    property real pressedBorderWidth: 1
 
     readonly property bool hasIcon:
         control.iconName !== "" || control.icon.source.toString() !== ""
@@ -77,7 +84,8 @@ Basic.Button {
 
         border.width: Math.max(
             control.baseBorderWidth,
-            control.visualFocus ? 2 : control.enabled && (control.checked || control.hovered || control.down) ? 1 : 0
+            control.visualFocus ? 2 : !control.enabled ? 0 : control.checked ? 1
+                : control.down ? control.pressedBorderWidth : control.hovered ? control.hoverBorderWidth : 0
         )
         border.color: control.visualFocus ? control.focusBorderColor
             : control.enabled && control.down ? control.pressedBorderColor

@@ -12,8 +12,6 @@ Item {
     readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
     readonly property bool isPseudocolorIcon: ["pseudocolor", "pseudocolor-gray"].includes(iconName)
     readonly property bool isSvgIcon: !isPseudocolorIcon
-    readonly property bool isNavigationIcon: iconName.startsWith("nav-") || iconName === "fusion"
-    readonly property string rasterSource: ""
     implicitWidth: iconSize
     implicitHeight: iconSize
     width: iconSize

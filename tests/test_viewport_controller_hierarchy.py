@@ -708,8 +708,8 @@ def test_tab_updates_shared_frame_and_rerenders_all_mpr_views() -> None:
 
     axial.crosshairCenterChangeRequested.emit((11.0, 22.0, 33.0))
 
-    assert tab._target_mpr_frame is not None
-    assert tab._target_mpr_frame.center_patient == (11.0, 22.0, 33.0)
+    assert tab._target_mpr_state.frame is not None
+    assert tab._target_mpr_state.frame.center_patient == (11.0, 22.0, 33.0)
     assert len(requests) == 3
     assert all(isinstance(request, MprRenderRequest) for request in requests)
     assert all(

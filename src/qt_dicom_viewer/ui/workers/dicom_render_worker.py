@@ -425,6 +425,3 @@ class DicomRenderWorker(QObject):
                 volume=volume,
             )
         )
-
-    def _handle_load_process(self, image_data) -> None:
-        return  image_data

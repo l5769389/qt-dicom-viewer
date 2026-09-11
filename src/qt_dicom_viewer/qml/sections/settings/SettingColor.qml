@@ -42,7 +42,18 @@ RowLayout {
             background: Rectangle { color: Theme.elevatedBackground; border.color: Theme.borderStrong; radius: 6 }
             contentItem: ColumnLayout {
                 spacing: 8
-                Text { text: root.title; color: Theme.textSecondary; font.pixelSize: 12 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; text: root.title; color: Theme.textSecondary; font.pixelSize: 12; elide: Text.ElideRight }
+                    Components.AppButton {
+                        objectName: "colorPickerClose-" + root.settingName
+                        iconName: "close"; iconSize: 14
+                        Layout.preferredWidth: 24; Layout.preferredHeight: 24
+                        minimumButtonWidth: 24; compact: true
+                        normalColor: "transparent"; Accessible.name: "关闭"
+                        onClicked: palette.close()
+                    }
+                }
                 GridLayout {
                     columns: 4; rowSpacing: 6; columnSpacing: 6
                     Repeater {

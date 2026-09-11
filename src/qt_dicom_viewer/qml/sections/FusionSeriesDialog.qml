@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import "../components" as Components
 import "../theme"
 
-Basic.Dialog {
+Components.AppDialog {
     id: dialog
     objectName: "fusionSeriesDialog"
     required property var controller
@@ -17,6 +17,8 @@ Basic.Dialog {
     modal: true
     Basic.Overlay.modal: Rectangle { color: "#99000000" }
     title: "PET/CT 融合"
+    titleIcon: "fusion"
+    subtitle: "选择配对序列 · CT 固定层 / PET 移动层"
 
     function syncVisibility() {
         if (controller.fusionDialogOpen && !visible) open()
@@ -104,36 +106,6 @@ Basic.Dialog {
         }
     }
 
-    background: Rectangle {
-        color: Theme.panelBackground
-        border.color: Theme.borderDefault
-        radius: 10
-    }
-    header: Item {
-        implicitHeight: 72
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
-            Components.AppIcon {
-                iconName: "fusion"
-                iconSize: 28
-                iconColor: Theme.primaryColor
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                Text { text: "PET/CT 融合"; color: Theme.textPrimary; font.pixelSize: 18; font.weight: Font.DemiBold }
-                Text {
-                    Layout.fillWidth: true
-                    text: "选择配对序列 · CT 固定层 / PET 移动层"
-                    color: Theme.textMuted
-                    font.pixelSize: 12
-                    wrapMode: Text.Wrap
-                }
-            }
-        }
-    }
     contentItem: ColumnLayout {
         spacing: 10
         Rectangle {
@@ -250,38 +222,29 @@ Basic.Dialog {
             text: "已核对两个来源，确认进行人工配对"
         }
     }
-    footer: Item {
-        implicitHeight: 66
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 8
-            Text {
-                Layout.fillWidth: true
-                text: "序列缩略图 · 配对后进入融合视图"
-                color: Theme.textSubtle
-                font.pixelSize: 11
-            }
-            Components.AppButton {
-                objectName: "cancelFusion"
-                text: "取消"
-                minimumButtonWidth: 80
-                baseBorderWidth: 1
-                onClicked: dialog.controller.cancelFusion()
-            }
-            Components.AppButton {
-                objectName: "confirmFusion"
-                text: "融合浏览"
-                iconName: "fusion"
-                minimumButtonWidth: 112
-                normalColor: Theme.primaryButtonBackground
-                hoverColor: Theme.primaryButtonHover
-                pressedColor: Theme.primaryButtonPressed
-                disabledColor: Theme.primaryButtonDisabled
-                enabled: dialog.controller.fusionCanConfirm
-                    && (dialog.controller.fusionIdentityWarning === "" || identityCheck.checked)
-                onClicked: dialog.controller.confirmFusion(identityCheck.checked)
-            }
+    footer: Components.AppDialogFooter {
+        leading: Text {
+            Layout.fillWidth: true
+            text: "序列缩略图 · 配对后进入融合视图"
+            color: Theme.textSubtle
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
+        Components.AppButton {
+            objectName: "cancelFusion"
+            text: "取消"
+            minimumButtonWidth: 80
+            onClicked: dialog.controller.cancelFusion()
+        }
+        Components.AppButton {
+            objectName: "confirmFusion"
+            text: "融合浏览"
+            iconName: "fusion"
+            actionRole: "primary"
+            minimumButtonWidth: 112
+            enabled: dialog.controller.fusionCanConfirm
+                && (dialog.controller.fusionIdentityWarning === "" || identityCheck.checked)
+            onClicked: dialog.controller.confirmFusion(identityCheck.checked)
         }
     }
 }

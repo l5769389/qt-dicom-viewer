@@ -70,3 +70,31 @@ def test_primary_and_secondary_tools_feedback(display_panel, tmp_path):
     assert controller.activeColorMap == "blackbody"
     assert view.grabWindow().save(str(tmp_path / "button-feedback.png"))
     assert not warnings, "\n".join(warnings)
+
+
+def test_grouped_source_actions_have_no_nested_hover_outline(navigation_scene, tmp_path):
+    from PySide6.QtQml import QQmlProperty
+    window, workspace, series, warnings = navigation_scene
+    from PySide6.QtCore import QObject, Property
+    class Sources(QObject):
+        localEnabled = Property(bool, lambda self: True, constant=True)
+        pacsEnabled = Property(bool, lambda self: True, constant=True)
+    sources = Sources()
+    find(window, "leftPanel").setProperty("pacsController", sources)
+    QTest.qWait(50)
+    for name in ("sidebarOpenFolder", "sidebarPacs"):
+        button = find(window, name)
+        feedback(window, button)
+        point = button.mapToScene(QPointF(button.width() / 2, button.height() / 2)).toPoint()
+        QTest.mouseMove(window, point)
+        QTest.qWait(120)
+        background = button.property("background")
+        assert QQmlProperty.read(background, "border.width") == 0 or QQmlProperty.read(
+            background, "border.color").alpha() == 0
+        assert window.grabWindow().save(str(tmp_path / (name + "-hover.png")))
+    # Keyboard focus still has an explicit, visible focus indication.
+    button.forceActiveFocus(Qt.TabFocusReason)
+    QTest.qWait(120)
+    assert QQmlProperty.read(background, "border.width") == 2
+    assert QQmlProperty.read(background, "border.color").alpha() > 0
+    assert not warnings, "\n".join(warnings)

@@ -142,7 +142,7 @@ def test_native_volume_sidebar_drag_and_png(scene, paired_series, tmp_path, kind
     tools = workspace.activeTab.toolController
     available = {definition["toolType"] for definition in tools.tools}
     for tool, cursor_kind in (("pan", "pan"), ("zoom", "zoom"), ("volume-rotate", "rotate-3d"),
-                              ("volume-crop", "segmentation"), ("window", "window")):
+                              ("volume-crop", "volume-crop"), ("window", "window")):
         if tool not in available:
             continue
         tools.activateTool(tool)

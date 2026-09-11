@@ -68,7 +68,7 @@ Basic.ScrollView {
             Components.AppButton {
                 objectName: "pacsAddProfile"
                 text: "+  新增配置"
-                normalColor: Theme.primaryButtonBackground
+                actionRole: "primary"
                 enabled: !page.pacsController.busy
                 onClicked: profileDialog.edit(null)
             }
@@ -160,9 +160,10 @@ Basic.ScrollView {
                             onClicked: page.pacsController.setDefault(card.modelData.id)
                         }
                         Components.AppButton {
+                            objectName: "pacsDelete-" + card.modelData.id
                             text: "删除"
                             compact: true
-                            textColor: Theme.dangerColor
+                            actionRole: "danger"
                             enabled: !page.pacsController.busy
                             onClicked: {
                                 deleteDialog.profileId = card.modelData.id;
@@ -209,20 +210,18 @@ Basic.ScrollView {
         id: profileDialog
         pacsController: page.pacsController
     }
-    Basic.Dialog {
+    Components.AppDialog {
         id: deleteDialog
+        objectName: "deletePacsDialog"
+        title: "删除 PACS 配置"
         property string profileId: ""
         property string profileName: ""
         parent: Basic.Overlay.overlay
         anchors.centerIn: parent
-        width: 370
-        padding: 20
+        width: Math.min(370, parent.width - 32)
+        padding: 16
         modal: true
-        background: Rectangle {
-            color: Theme.panelBackgroundStrong
-            border.color: Theme.borderStrong
-            radius: 9
-        }
+
         contentItem: ColumnLayout {
             spacing: 12
             Text {
@@ -238,21 +237,21 @@ Basic.ScrollView {
                 color: Theme.textMuted
                 font.pixelSize: 12
             }
-            RowLayout {
-                Item {
-                    Layout.fillWidth: true
-                }
-                Components.AppButton {
-                    text: "取消"
-                    onClicked: deleteDialog.close()
-                }
-                Components.AppButton {
-                    text: "删除配置"
-                    textColor: Theme.dangerColor
-                    onClicked: {
-                        page.pacsController.deleteProfile(deleteDialog.profileId);
-                        deleteDialog.close();
-                    }
+
+        }
+        footer: Components.AppDialogFooter {
+            Components.AppButton {
+                objectName: "cancelDeletePacs"
+                text: "取消"
+                onClicked: deleteDialog.reject()
+            }
+            Components.AppButton {
+                objectName: "confirmDeletePacs"
+                text: "删除配置"
+                actionRole: "danger"
+                onClicked: {
+                    page.pacsController.deleteProfile(deleteDialog.profileId)
+                    deleteDialog.accept()
                 }
             }
         }

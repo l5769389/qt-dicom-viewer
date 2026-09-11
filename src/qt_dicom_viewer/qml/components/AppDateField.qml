@@ -49,6 +49,18 @@ AppTextField {
             spacing: 8
             RowLayout {
                 Layout.fillWidth: true
+                Text { Layout.fillWidth: true; text: "选择日期"; color: Theme.textSecondary; font.pixelSize: 12 }
+                AppButton {
+                    objectName: root.objectName + "-close"
+                    iconName: "close"; iconSize: 14
+                    Layout.preferredWidth: 24; Layout.preferredHeight: 24
+                    minimumButtonWidth: 24; compact: true
+                    normalColor: "transparent"; Accessible.name: "关闭"
+                    onClicked: calendar.close()
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
                 AppButton { text: "‹"; minimumButtonWidth: 24; compact: true; Accessible.name: "上个月"; onClicked: calendar.moveMonth(-1) }
                 AppNumberField {
                     objectName: root.objectName + "-year"

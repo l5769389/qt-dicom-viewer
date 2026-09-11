@@ -6,7 +6,7 @@ import pytest
 from PySide6.QtCore import QItemSelectionModel, QTimer, Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 from shiboken6 import delete
 
 from qt_dicom_viewer.ui.dialogs.local_import_dialog import LocalImportDialog
@@ -181,3 +181,27 @@ def test_mixed_picker_imports_folder_file_and_rar_together(scene, tmp_path):
     )
     assert all(i.path.exists() for i in series.instances)
     assert not warnings, warnings
+
+
+def test_picker_uses_native_close_and_fixed_cancel_confirm_order(qt_app, tmp_path):
+    dialog = LocalImportDialog(str(tmp_path))
+    dialog.show()
+    try:
+        QTest.qWait(50)
+        for width, height in ((620, 400), (880, 560)):
+            dialog.resize(width, height)
+            QTest.qWait(30)
+            cancel, confirm = dialog.cancel_button, dialog.open_button
+            assert dialog.findChild(QPushButton, "importDismiss") is None
+            assert not dialog.windowFlags() & Qt.FramelessWindowHint
+            assert dialog.windowFlags() & Qt.WindowCloseButtonHint
+            assert cancel.geometry().right() < confirm.geometry().left()
+            assert cancel.geometry().center().y() == confirm.geometry().center().y()
+            assert confirm.geometry().right() == width - 17
+            assert confirm.geometry().bottom() == height - 17
+        assert dialog.grab().save(str(tmp_path / "picker-dialog-actions.png"))
+        assert dialog.close()
+        assert dialog.result() == QDialog.Rejected and not dialog.paths
+    finally:
+        dialog.close()
+        delete(dialog)

@@ -74,9 +74,10 @@ def test_real_workspaces_use_shortcuts_and_preserve_other_tabs(sidebar_scene, ki
     if kind != "montage":
         click(window, find(window, "primaryTool-scroll"))
         click(window, find(window, "scrollShortcut-last"))
-        assert current.sliceIndex == current.sliceCount - 1
+        # MPR publishes its displayed slice after the background reformat completes.
+        wait_until(lambda: current.sliceIndex == current.sliceCount - 1)
         click(window, find(window, "scrollShortcut-first"))
-        assert current.sliceIndex == 0
+        wait_until(lambda: current.sliceIndex == 0)
     else:
         current.applyTransformAction("rotate:mirror-v")
         QTest.qWait(30)

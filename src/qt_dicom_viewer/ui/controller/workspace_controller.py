@@ -95,14 +95,15 @@ class WorkspaceController(QObject):
         if loading is not None:
             loading.close()
         self.loadingStatesChanged.emit()
-        tab.dispose()
-        tab.deleteLater()
         self._tab_mru = [key for key in self._tab_mru if key != tab_id]
         if tab_id == self._active_tab_id:
             self._active_tab_id = self._tab_mru[0] if self._tab_mru else ""
             self.activeTabChanged.emit()
             self.activeViewportChanged.emit()
         self.tabsChanged.emit()
+        # Unbind QML pages and tools before disposing their native/Python owners.
+        tab.dispose()
+        tab.deleteLater()
 
     @Slot(str)
     def submit(self, render_request: RenderRequest):

@@ -24,7 +24,6 @@ from qt_dicom_viewer.core.mpr_rotation import (
     rotate_mpr_state_3d,
 )
 from qt_dicom_viewer.model.dicom_core import (
-    MprFrame,
     MprState,
     MprViewAnchors,
     Vector3,
@@ -957,10 +956,3 @@ class TabController(QObject):
         for viewport in self._viewport_dict.values():
             if isinstance(viewport, MprViewportController):
                 viewport.apply_mpr_state(state)
-
-    @property
-    def _target_mpr_frame(self) -> MprFrame | None:
-        """兼容旧测试和调试代码；新的单一真值来源是 MprState。"""
-        if self._target_mpr_state is None:
-            return None
-        return self._target_mpr_state.frame

@@ -100,7 +100,7 @@ def test_batch_delete_keeps_checked_hidden_items_tabs_and_source_files(sidebar_s
     assert not clear.isEnabled() and ws.activeTab is original_tab
     panel._update_series_record(DicomFolderScanSnapshot(records[0].first_file.parent, 9, 9, 0, records))
     assert not panel.hasSeries
-    panel._start_folder_scan(str(records[0].first_file.parent))
+    panel._start_import([str(records[0].first_file.parent)])
     wait_until(lambda: not panel.scanning and panel.hasSeries)
     assert len(panel.seriesItems) == 3
     assert not warnings, warnings
@@ -254,9 +254,16 @@ def test_window_preset_content_is_centered_and_actions_remain_distinct(display_p
     assert secondary.property("baseBorderWidth") == 1
     _click(view, secondary)
     cancel = _find(root, "cancelSaveWindowTemplate")
-    assert cancel.property("normalColor").alpha() == 0
+    save = _find(root, "quickSaveWindowTemplate")
+    assert cancel.property("normalColor") != save.property("normalColor")
+    assert cancel.property("hoverColor") != save.property("hoverColor")
+    assert cancel.property("pressedColor") != save.property("pressedColor")
     assert cancel.property("baseBorderWidth") == 0
     QTest.qWait(80)
+    cancel_position = cancel.mapToScene(QPointF())
+    save_position = save.mapToScene(QPointF())
+    assert cancel_position.y() == pytest.approx(save_position.y(), abs=0.5)
+    assert cancel_position.x() + cancel.width() < save_position.x()
     rows = [item for item in descendants(root) if item.objectName().startswith("windowPreset-")]
     assert rows
     for row in rows:

@@ -55,7 +55,7 @@ ColumnLayout {
                         }
                         Components.AppButton {
                             objectName: "windowDelete-" + entry.modelData.presetId
-                            visible: !entry.modelData.builtin; text: "删除"; compact: true
+                            visible: !entry.modelData.builtin; text: "删除"; compact: true; actionRole: "danger"
                             Layout.preferredWidth: 46; Layout.preferredHeight: 28
                             onClicked: { root.settingsController.deleteWindowTemplate(entry.modelData.presetId); if (root.editingId === entry.modelData.presetId) root.clearEditor() }
                         }
@@ -90,16 +90,22 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
+            Text { text: root.settingsController.values.window.custom.length + " / 20"; color: Theme.textSubtle; font.pixelSize: 11 }
+            Item { Layout.fillWidth: true }
+            Components.AppButton {
+                objectName: "cancelWindowTemplate"
+                visible: !!root.editingId
+                text: "取消"
+                onClicked: root.clearEditor()
+            }
             Components.AppButton {
                 objectName: "saveWindowTemplate"
+                actionRole: "primary"
                 text: root.editingId ? "保存模板" : "添加模板"
                 onClicked: {
                     if (root.settingsController.saveWindowTemplate(root.editingId, name.text, ww.text.trim() ? Number(ww.text) : NaN, wl.text.trim() ? Number(wl.text) : NaN)) root.clearEditor()
                 }
             }
-            Components.AppButton { visible: !!root.editingId; text: "取消"; onClicked: root.clearEditor() }
-            Item { Layout.fillWidth: true }
-            Text { text: root.settingsController.values.window.custom.length + " / 20"; color: Theme.textSubtle; font.pixelSize: 11 }
         }
     }
 }

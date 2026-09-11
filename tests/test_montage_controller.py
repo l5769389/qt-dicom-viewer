@@ -415,3 +415,36 @@ def test_workspace_opens_2d_at_slice_without_initial_slice_request(tmp_path) -> 
     assert viewport.panX == 0.25
     assert viewport.zoom == 2.0
     assert viewport.rotationDegrees == 90.0
+
+
+def test_bootstrap_before_grid_exists_can_reload_first_tile() -> None:
+    controller = _controller()
+    requests, removals = [], []
+    controller.renderRequested.connect(requests.append)
+    controller.imageRemovalRequested.connect(removals.append)
+    # Workspace first resolves loading before the asynchronous QML grid exists.
+    controller.request_first_loader()
+    _accept(controller, requests.pop(0))
+    assert controller.hasWindow
+    assert controller._slice_model.item(0)["loadState"] == "empty"
+    assert removals == [controller.image_key(0)]
+    controller.setVisibleRange(0, 3)
+    assert requests[0].slice_index == 0
+    _accept(controller, requests.pop(0))
+    assert controller._slice_model.item(0)["loadState"] == "ready"
+
+
+def test_display_change_during_early_bootstrap_keeps_latest_request() -> None:
+    controller = _controller()
+    requests = []
+    controller.renderRequested.connect(requests.append)
+    controller.request_first_loader()
+    old = requests.pop(0)
+    controller.applyColorMap('blackbody')
+    assert not controller.accepts_result(_result(old))
+    assert len(requests) == 1 and requests[0].color_map == 'blackbody'
+    _accept(controller, requests.pop(0))
+    controller.setVisibleRange(0, 3)
+    assert requests[0].slice_index == 0
+    _accept(controller, requests.pop(0))
+    assert controller._slice_model.item(0)["loadState"] == "ready"

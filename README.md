@@ -8,14 +8,14 @@
 
 ## 下载
 
-| 平台 | v1.0.0 下载 |
+| 平台 | v1.0.1 下载 |
 | --- | --- |
-| macOS · Apple Silicon | [DMG 安装包](https://github.com/l5769389/voxenra/releases/download/v1.0.0/Voxenra-1.0.0-macos-arm64.dmg) |
-| Windows · x64 | [安装包](https://github.com/l5769389/voxenra/releases/download/v1.0.0/Voxenra-1.0.0-windows-x64-setup.exe) · [便携版](https://github.com/l5769389/voxenra/releases/download/v1.0.0/Voxenra-1.0.0-windows-x64-portable.exe) |
+| macOS · Apple Silicon | [DMG 安装包](https://github.com/l5769389/voxenra/releases/download/v1.0.1/Voxenra-1.0.1-macos-arm64.dmg) |
+| Windows · x64 | [安装包](https://github.com/l5769389/voxenra/releases/download/v1.0.1/Voxenra-1.0.1-windows-x64-setup.exe) · [便携版](https://github.com/l5769389/voxenra/releases/download/v1.0.1/Voxenra-1.0.1-windows-x64-portable.exe) |
 
-[查看 v1.0.0 主要更新](https://github.com/l5769389/voxenra/releases/tag/v1.0.0)
+[查看 v1.0.1 主要更新](https://github.com/l5769389/voxenra/releases/tag/v1.0.1)
 
-v1.0.0 已重新打包，包含导入进度、批量导入稳定性、Windows 默认安装目录和安装包体积优化；此前已下载该版本的用户可重新下载安装包。
+v1.0.1 修复平铺首格加载与鼠标指针重叠，统一弹窗操作，重做导入结果界面，并清理旧图标与冗余代码。
 
 ## 文件加载与数据源
 
@@ -82,7 +82,7 @@ v1.0.0 已重新打包，包含导入进度、批量导入稳定性、Windows �
 
 每行可显示 **2～6 张切片**，默认 4 张，滚动时按可见范围加载。调窗、伪彩、反白、平移、缩放与旋转统一应用到各张切片。
 
-顶部序列详情可展开 / 收起，收起后保留标题、切片数、窗值、模态与列数选择；每格仅保留切片信息。点击某张切片打开对应 2D 视图并定位到该层，继续进行测量与标注。
+顶部序列详情可展开 / 收起，收起后保留标题、切片数、窗值、模态与列数选择；每格仅保留切片信息。双击某张切片打开对应 2D 视图并定位到该层，继续进行测量与标注。
 
 ### MPR 与 4D
 
@@ -153,7 +153,7 @@ PET 重建当前面向经典单帧静态 / 全身 PET，不包含动态或门控
 
 ### DICOM 标签浏览
 
-在独立 Tag 页签中逐实例浏览元数据，展开嵌套序列，按标签编号、名称、关键字或值搜索。标签按需读取，可与影像页签切换使用。
+在独立 Tag 页签中逐实例浏览元数据，展开嵌套序列，按标签编号、名称、关键字或值搜索。标签按需读取，可与影像页签切换使用。双击标签查看完整值，短值紧凑显示，长值可滚动、选择或一键复制。
 
 ## 导出
 

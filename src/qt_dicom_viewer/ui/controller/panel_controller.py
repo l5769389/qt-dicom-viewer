@@ -4,7 +4,6 @@ from qt_dicom_viewer.core.local_import import LocalImportStore
 
 from PySide6.QtCore import QObject, Signal, QThread, QTimer, Slot, Property, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QFileDialog
 from qt_dicom_viewer.ui.dialogs.local_import_dialog import select_import_paths
 
 from qt_dicom_viewer.model import DicomFolderScanSnapshot, DicomSeriesRecord
@@ -72,9 +71,6 @@ class PanelController(QObject):
         if self._thumbnail_service is not None:
             self._thumbnail_service.finished.connect(self._accept_thumbnail)
 
-
-    def _start_folder_scan(self, folder: str) -> None:
-        self._start_import([folder])
 
     def _start_import(self, paths):
         if self._closing or self._scanning or not paths:
@@ -187,10 +183,6 @@ class PanelController(QObject):
         self.statusMessageChanged.emit()
 
     @Slot()
-    def dismissImportStatus(self):
-        if not self._scanning: self._set_status("")
-
-    @Slot()
     def cancelImport(self):
         if self._scan_thread:
             self._set_status("正在取消导入…")
@@ -219,13 +211,6 @@ class PanelController(QObject):
             from pathlib import Path
             self._last_import_directory = str(Path(paths[0]).parent)
             self._start_import(paths)
-
-    @Slot()
-    def openFilesDialog(self):
-        if self._scanning: return
-        files, _ = QFileDialog.getOpenFileNames(None, "打开 DICOM 文件或压缩包", "",
-            "DICOM 与压缩包 (*.dcm *.dicom *.ima *.zip *.rar *.7z *.tar *.gz *.tgz *.bz2 *.tbz2 *.xz *.txz);;所有文件 (*)")
-        if files: self._start_import(files)
 
     def cleanup_imports(self):
         self._import_store.cleanup()
@@ -579,16 +564,6 @@ class PanelController(QObject):
             first_uid = snapshot.series[0].series_instance_uid
             self.selectSeries(first_uid)
             self.openSeriesView(first_uid, "2d")
-
-    @Slot()
-    def openFolderDialog(self) -> None:
-        if self._scanning:
-            return
-        folder = QFileDialog.getExistingDirectory(None, "打开 DICOM 文件夹")
-        if not folder:
-            return
-
-        self._start_folder_scan(folder)
 
     @Property("QVariantList", notify=seriesItemsChanged)
     def seriesItems(self):

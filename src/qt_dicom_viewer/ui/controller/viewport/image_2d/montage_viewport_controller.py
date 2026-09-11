@@ -532,7 +532,9 @@ class MontageViewportController(ViewportController):
             or (not bootstrap and slice_index not in self._retained_indices)
         ):
             self._active_request = None
-            if slice_index in self._retained_indices:
+            if slice_index not in self._retained_indices:
+                self._slice_model.clear_image(slice_index)
+            if slice_index in self._retained_indices or bootstrap:
                 self._dirty_indices.add(slice_index)
             self._start_next_request()
             return False
@@ -573,6 +575,10 @@ class MontageViewportController(ViewportController):
                 error_text="",
             )
         else:
+            # The initial slice can finish before the asynchronous grid exists.
+            # A discarded image is empty, not still loading; the future visible
+            # range must be able to request it again.
+            self._slice_model.clear_image(slice_index)
             self.imageRemovalRequested.emit(result.image_key)
         self._start_next_request()
 
@@ -584,7 +590,7 @@ class MontageViewportController(ViewportController):
         self._active_request = None
         if (
             request_revision != self._display_revision
-            and slice_index in self._retained_indices
+            and (slice_index in self._retained_indices or self._baseline_window is None)
         ):
             self._dirty_indices.add(slice_index)
         elif slice_index in self._retained_indices:
@@ -593,6 +599,8 @@ class MontageViewportController(ViewportController):
                 load_state="error",
                 error_text=str(failure.error) or "切片加载失败",
             )
+        else:
+            self._slice_model.clear_image(slice_index)
         self._start_next_request()
 
     @staticmethod

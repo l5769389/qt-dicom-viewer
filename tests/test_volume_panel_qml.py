@@ -123,7 +123,10 @@ def test_freehand_crop_actions_and_bottom_reset(panel, qt_app, tmp_path):
     click(view, "primaryTool-volume-crop")
     assert tools.activePanel == "volume-crop" and tools.activeInteraction == "volume:crop"
     assert "voi" not in {t["toolType"] for t in tools.tools}
-    assert tools.activeToolLabel == "分割"
+    assert tools.activeToolLabel == "裁剪"
+    button = find(view, "primaryTool-volume-crop")
+    glyph = next(item for item in _visual_children(button) if item.objectName() == "toolbarGlyph")
+    assert glyph.property("iconName") == "volume-crop"
     assert not any(x.objectName() == "volumeCrop-clear" for x in _visual_children(view.rootObject()))
     assert find(view, "volumeCrop-inside").isEnabled()
     assert find(view, "volumeCrop-outside").isEnabled()

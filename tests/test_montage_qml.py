@@ -32,7 +32,7 @@ def test_montage_qml_exposes_grid_controls_and_navigation() -> None:
     assert "model: [2, 3, 4, 5, 6]" in qml
     assert "setVisibleRange(first, last)" in qml
     assert "openSlice(" in qml
-    assert 'objectName: "montageWheelArea"' in qml
+    assert 'objectName: "montageWheelHandler"' in qml
     assert "onWheel: wheelEvent =>" in qml
     assert "montageGrid.contentY = Math.max" in qml
     assert 'tile.loadState === "error"' in qml

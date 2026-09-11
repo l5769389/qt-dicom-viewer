@@ -131,7 +131,7 @@ class VolumeViewportHost(QWidget):
 
     def _update_cursor(self):
         kind = {"pan": "pan", "zoom": "zoom", "window": "window",
-                "volume:crop": "segmentation", "volume:rotate": "rotate-3d"}.get(
+                "volume:crop": "volume-crop", "volume:rotate": "rotate-3d"}.get(
                     self.controller.activeInteraction)
         self.vtk_widget.setCursor(tool_cursor(kind, self.vtk_widget.devicePixelRatioF())
                                   if kind else Qt.ArrowCursor)

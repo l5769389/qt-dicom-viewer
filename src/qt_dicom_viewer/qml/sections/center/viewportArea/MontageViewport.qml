@@ -200,6 +200,12 @@ Item {
 
         Rectangle {
             id: gridViewport
+            property Item hoveredTile: null
+            property Item draggedTile: null
+            readonly property Item cursorTile: draggedTile || hoveredTile
+            readonly property point cursorPosition: draggedTile
+                ? draggedTile.mapToItem(gridViewport, draggedTile.dragPosition)
+                : gridHover.point.position
 
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -301,6 +307,7 @@ Item {
                         }
 
                         Image {
+                            objectName: "montageSliceImage-" + tile.sliceIndex
                             anchors.fill: parent
                             source: tile.imageSource
                             fillMode: Image.PreserveAspectFit
@@ -333,7 +340,9 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Basic.Button {
+                    Components.AppButton {
+                        id: retryButton
+                        objectName: "montageRetry-" + tile.sliceIndex
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "重试"
                         onClicked: montageRoot.viewportController.retrySlice(
@@ -365,29 +374,32 @@ Item {
 
                 readonly property string cursorKind: CursorPolicy.resolve(
                     montageRoot.viewportController.activeInteraction, "", "", "")
-                CursorGlyph {
-                    objectName: "montageToolCursor"
-                    iconName: tile.cursorKind
-                    width: 40; height: 32
-                    x: (tileDrag.active ? tileDrag.centroid.position.x : tileHover.point.position.x) - 2
-                    y: (tileDrag.active ? tileDrag.centroid.position.y : tileHover.point.position.y) - 2
-                    visible: !!iconName && (tileHover.hovered || tileDrag.active)
-                    z: 100
+                readonly property point dragPosition: tileDrag.centroid.position
+                Component.onDestruction: {
+                    if (gridViewport.hoveredTile === tile) gridViewport.hoveredTile = null
+                    if (gridViewport.draggedTile === tile) gridViewport.draggedTile = null
                 }
                 HoverHandler {
                     id: tileHover
+                    enabled: !retryButton.hovered
                     cursorShape: tile.cursorKind ? Qt.BlankCursor : Qt.ArrowCursor
+                    onHoveredChanged: {
+                        if (hovered) gridViewport.hoveredTile = tile
+                        else if (gridViewport.hoveredTile === tile) gridViewport.hoveredTile = null
+                    }
                 }
 
                 TapHandler {
+                    enabled: !retryButton.hovered
                     acceptedButtons: Qt.LeftButton
-                    onTapped: montageRoot.viewportController.openSlice(
+                    onDoubleTapped: montageRoot.viewportController.openSlice(
                         tile.sliceIndex
                     )
                 }
 
                 DragHandler {
                     id: tileDrag
+                    enabled: active || !retryButton.hovered
                     cursorShape: tile.cursorKind ? Qt.BlankCursor : Qt.ArrowCursor
                     target: null
                     acceptedButtons: Qt.LeftButton
@@ -397,6 +409,7 @@ Item {
 
                     onActiveChanged: {
                         if (active) {
+                            gridViewport.draggedTile = tile
                             lastPosition = centroid.position
                             montageRoot.viewportController.beginInteraction(
                                 centroid.pressPosition.x,
@@ -406,6 +419,7 @@ Item {
                                 tile.height
                             )
                         } else {
+                            if (gridViewport.draggedTile === tile) gridViewport.draggedTile = null
                             montageRoot.viewportController.endInteraction(
                                 centroid.position.x,
                                 centroid.position.y
@@ -433,15 +447,28 @@ Item {
             }
             }
 
-            MouseArea {
-                id: wheelArea
-                objectName: "montageWheelArea"
-
-                anchors.fill: parent
+            // One cursor for the whole grid: crossing tile edges must not
+            // duplicate it or clip the pointer/tool badge against a tile.
+            HoverHandler { id: gridHover }
+            CursorGlyph {
+                objectName: "montageToolCursor"
+                iconName: gridViewport.cursorTile ? gridViewport.cursorTile.cursorKind : ""
+                width: 40; height: 32
+                x: gridViewport.cursorPosition.x - 2
+                y: gridViewport.cursorPosition.y - 2
+                visible: !!iconName && (gridHover.hovered || gridViewport.draggedTile !== null)
                 z: 100
-                acceptedButtons: Qt.NoButton
-                hoverEnabled: false
-                scrollGestureEnabled: true
+            }
+
+            // A full-size MouseArea also owns the system cursor, even with
+            // NoButton and hover disabled. Only consume wheel events here so
+            // the image handlers can hide it while drawing the tool cursor.
+            WheelHandler {
+                objectName: "montageWheelHandler"
+                target: null
+                orientation: Qt.Vertical
+                blocking: true
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
 
                 onWheel: wheelEvent => {
                     const pixelStep = wheelEvent.pixelDelta.y !== 0

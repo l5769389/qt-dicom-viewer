@@ -126,3 +126,38 @@ def test_image_and_volume_tab_transitions_keep_controller_types_separate(sidebar
     workspace.createTab(records[0].series_instance_uid, 'Volume reopened', TabType.THREE_D)
     QTest.qWait(60)
     assert not warnings, warnings
+
+
+def test_closing_active_volume_detaches_qml_before_disposing_controller(sidebar_scene, monkeypatch):
+    from qt_dicom_viewer.model import TabType
+    from qt_dicom_viewer.ui.controller.viewport.volume_viewport_controller import VolumeViewportController
+    from test_dicom_tags import wait_until
+
+    monkeypatch.setattr(VolumeViewportController, "ensureNativeView", lambda self: None)
+    monkeypatch.setattr(VolumeViewportController, "setNativeVisible", lambda self, visible: None)
+    window, app, records, warnings = sidebar_scene
+    workspace = app.workspaceController
+    uid = records[0].series_instance_uid
+    workspace.createTab(uid, "Image", TabType.TWO_D)
+    image_view = workspace.activeViewport
+    wait_until(lambda: image_view.loadState == "ready")
+    workspace.createTab(uid, "Volume", TabType.THREE_D)
+    volume_id, volume_view = workspace.activeTabId, workspace.activeViewport
+    wait_until(lambda: volume_view.loadState == "ready")
+    disposed = []
+    original_dispose = volume_view.dispose
+
+    def dispose_after_detaching():
+        # QML must receive the next controller while the outgoing QObject is alive.
+        assert workspace.activeViewport is image_view
+        assert window.property("viewportController") is image_view
+        disposed.append(True)
+        original_dispose()
+
+    monkeypatch.setattr(volume_view, "dispose", dispose_after_detaching)
+    workspace.closeTab(volume_id)
+    assert disposed == [True]
+    workspace.createTab(uid, "Volume reopened", TabType.THREE_D)
+    wait_until(lambda: workspace.activeViewport.loadState == "ready")
+    assert workspace.activeViewport is not volume_view
+    assert not warnings, warnings

@@ -5,8 +5,11 @@ import QtQuick.Layouts
 import "../../components" as Components
 import "../../theme"
 
-Basic.Dialog {
+Components.AppDialog {
     id: dialog
+    objectName: "pacsProfileDialog"
+    title: profileId ? "编辑 PACS 配置" : "新增 PACS 配置"
+    closeEnabled: !pacsController.busy
     required property var pacsController
     property string profileId: ""
     property string saveError: ""
@@ -16,16 +19,9 @@ Basic.Dialog {
     anchors.centerIn: parent
     width: Math.min(540, parent.width - 40)
     height: Math.min(665, parent.height - 36)
-    padding: 22
+    padding: 16
     modal: true
-    Basic.Overlay.modal: Rectangle { color: "#88000000" }
     focus: true
-    closePolicy: pacsController.busy ? Basic.Popup.NoAutoClose : Basic.Popup.CloseOnEscape
-    background: Rectangle {
-        color: Theme.panelBackgroundStrong
-        border.color: Theme.borderStrong
-        radius: 12
-    }
 
     function edit(profile) {
         saveError = "";
@@ -57,27 +53,13 @@ Basic.Dialog {
 
     contentItem: ColumnLayout {
         spacing: 12
-        RowLayout {
-            Layout.fillWidth: true
-            Text {
-                Layout.fillWidth: true
-                text: dialog.profileId ? "编辑 PACS 配置" : "新增 PACS 配置"
-                color: Theme.textPrimary
-                font.pixelSize: 21
-                font.bold: true
-            }
-            Components.AppButton {
-                text: "×"
-                compact: true
-                enabled: !dialog.pacsController.busy
-                onClicked: dialog.close()
-            }
-        }
+
         Basic.ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             id: profileScroll
             contentWidth: availableWidth
+            Basic.ScrollBar.horizontal.policy: Basic.ScrollBar.AlwaysOff
             rightPadding: 12
             Basic.ScrollBar.vertical: Components.AppScrollBar {}
             clip: true
@@ -199,32 +181,29 @@ Basic.Dialog {
                 : dialog.pacsController.draftTestResult.state === "success" ? Theme.successColor : Theme.textSecondary
             wrapMode: Text.Wrap; font.pixelSize: 12
         }
-        RowLayout {
-            Layout.fillWidth: true
-            Components.AppButton {
-                objectName: "pacsTestDraft"
-                text: dialog.pacsController.busy ? "测试中…" : "测试连接"
-                enabled: !dialog.pacsController.busy
-                onClicked: { dialog.saveError = ""; dialog.pacsController.testDraft(dialog.values()) }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-            Components.AppButton {
-                text: "取消"
-                enabled: !dialog.pacsController.busy
-                onClicked: dialog.close()
-            }
-            Components.AppButton {
-                objectName: "pacsSaveProfile"
-                text: "保存配置"
-                normalColor: Theme.primaryButtonBackground
-                enabled: !dialog.pacsController.busy
-                onClicked: {
-                    if (dialog.pacsController.saveProfile(dialog.values()))
-                        dialog.close();
-                    else dialog.saveError = dialog.pacsController.message;
-                }
+
+    }
+    footer: Components.AppDialogFooter {
+        leading: Components.AppButton {
+            objectName: "pacsTestDraft"
+            text: dialog.pacsController.busy ? "测试中…" : "测试连接"
+            enabled: !dialog.pacsController.busy
+            onClicked: { dialog.saveError = ""; dialog.pacsController.testDraft(dialog.values()) }
+        }
+        Components.AppButton {
+            objectName: "pacsCancelProfile"
+            text: "取消"
+            enabled: !dialog.pacsController.busy
+            onClicked: dialog.reject()
+        }
+        Components.AppButton {
+            objectName: "pacsSaveProfile"
+            text: "保存配置"
+            actionRole: "primary"
+            enabled: !dialog.pacsController.busy
+            onClicked: {
+                if (dialog.pacsController.saveProfile(dialog.values())) dialog.accept()
+                else dialog.saveError = dialog.pacsController.message
             }
         }
     }

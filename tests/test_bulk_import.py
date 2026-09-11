@@ -4,7 +4,8 @@ from pathlib import Path
 from threading import Event
 
 import pytest
-from PySide6.QtCore import QObject, QPointF, QTimer, QUrl
+from PySide6.QtCore import QObject, QPointF, QTimer, QUrl, QMetaObject
+from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
 
 from qt_dicom_viewer.core import dicom_scanner as scanner
@@ -196,10 +197,11 @@ def test_task_window_size_and_buttons_stay_fixed_for_long_progress_and_errors(sc
         (True, False, "正在读取影像 · 100,000 / 100,000 个文件\n识别 99,999 个 DICOM · 跳过 1 个文件"),
         (False, True, "无法读取：" + "很长的目录名称" * 80),
         (False, True, "Cannot read: " + "VeryLongPathWithoutAnySpaces/" * 60),
+        (False, False, "已取消导入；已载入的序列仍可使用。"),
         (False, False, "已导入 1 个序列"),
     ]
     try:
-        for scanning, error, text in cases:
+        for index, (scanning, error, text) in enumerate(cases):
             panel._set_status(text, error)
             panel._set_scanning(scanning)
             QTest.qWait(60)
@@ -209,7 +211,17 @@ def test_task_window_size_and_buttons_stay_fixed_for_long_progress_and_errors(sc
             assert close.mapToScene(QPointF(close.width(), close.height())).y() < popup.height()
             if error:
                 assert area.property("contentHeight") > area.height()  # Full error remains scrollable.
-        assert popup.grabWindow().save(str(tmp_path / 'voxenra-progress-fixed.png'))
+            frame = popup.grabWindow()
+            for x, y in ((0, 0), (frame.width() - 1, 0), (0, frame.height() - 1),
+                         (frame.width() - 1, frame.height() - 1)):
+                assert frame.pixelColor(x, y) == QColor("#1b2128")  # No nested rounded frame.
+            assert frame.save(str(tmp_path / f"import-state-{index}.png"))
+        QMetaObject.invokeMethod(message, "selectAll")
+        assert message.property("selectedText") == panel.statusMessage
+        assert close.property("text") == "关闭" and close.isVisible()
+        click(popup, close)
+        wait_until(lambda: not panel.importTaskOpen)
+        assert not popup.isVisible()
     finally:
         panel._set_scanning(False)
         panel.closeImportTask()

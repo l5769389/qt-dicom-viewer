@@ -62,6 +62,7 @@ Rectangle {
                     // loading the next page during the same active-tab signal delivery.
                     active = false
                     sourceComponent = null
+                    loadedTab = null
                     Qt.callLater(loadCurrentTab)
                 }
                 function loadCurrentTab() {

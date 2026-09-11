@@ -7,7 +7,6 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
-    QDialogButtonBox,
     QFileSystemModel,
     QHBoxLayout,
     QLabel,
@@ -52,9 +51,18 @@ class LocalImportDialog(QDialog):
                 border: 1px solid #36414d; border-radius: 4px; }
             QPushButton:hover { background: #2b3743; }
             QPushButton:disabled { color: #73808c; }
-            QPushButton:default { background: #237fbd; border-color: #579fc6; }
+            QPushButton#importOpen { background: #21698f; color: #f8fafc; border-color: #579fc6; }
+            QPushButton#importOpen:hover { background: #2b82ad; }
+            QPushButton#importOpen:pressed { background: #195574; }
+            QPushButton#importOpen:disabled { background: #183344; color: #73808c; }
         """)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+        # The native dialog caption owns the only close control on every platform.
+        heading = QLabel("选择影像来源")
+        heading.setStyleSheet("font-size: 16px; font-weight: 600; color: #edf1f5;")
+        layout.addWidget(heading)
         location = QHBoxLayout()
         for title, navigate in (
             ("上一级", self.up),
@@ -96,14 +104,22 @@ class LocalImportDialog(QDialog):
         self.selection_label = QLabel()
         self.selection_label.setObjectName("importSelectionSummary")
         layout.addWidget(self.selection_label)
-        buttons = QDialogButtonBox(QDialogButtonBox.Open | QDialogButtonBox.Cancel)
-        self.open_button = buttons.button(QDialogButtonBox.Open)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        buttons.addStretch(1)
+        self.cancel_button = QPushButton("取消")
+        self.cancel_button.setObjectName("importCancel")
+        self.cancel_button.setAutoDefault(False)
+        self.cancel_button.setMinimumWidth(80)
+        self.cancel_button.clicked.connect(self.reject)
+        buttons.addWidget(self.cancel_button)
+        self.open_button = QPushButton()
         self.open_button.setObjectName("importOpen")
+        self.open_button.setMinimumWidth(144)
         self.open_button.setDefault(True)
-        buttons.button(QDialogButtonBox.Cancel).setText("取消")
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self.open_button.clicked.connect(self.accept)
+        buttons.addWidget(self.open_button)
+        layout.addLayout(buttons)
         initial = (
             directory
             or QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)

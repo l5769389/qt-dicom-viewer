@@ -318,10 +318,12 @@ def test_pan_and_zoom_share_pointer_tip_hotspot(viewport, tmp_path):
     interaction = root.findChild(QQuickItem, "viewportInteractionLayer")
     assert interaction.property("customCursorActive")
     assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    assert view.cursor().shape() == Qt.BlankCursor
     pos = _scene(pixel_layer, 60, 65)
     QTest.mousePress(view, Qt.LeftButton, Qt.NoModifier, pos)
     QTest.qWait(20)
     assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    assert view.cursor().shape() == Qt.BlankCursor
     QTest.mouseRelease(view, Qt.LeftButton, Qt.NoModifier, pos)
     assert root.findChild(QQuickItem, "viewportCursorPointer") is None
     assert view.grabWindow().save(str(tmp_path / "pan-cursor.png"))
@@ -347,6 +349,7 @@ def test_unified_cursor_policy_has_vectors_for_every_operation_and_no_raster_bad
         ("scroll", "", "", "", "scroll"),
         ("pan", "", "", "", "pan"),
         ("mpr:rotate3d", "", "", "", "rotate-3d"),
+        ("volume:crop", "", "", "", "volume-crop"),
         ("window", "", "center", "", "crosshair-move"),
         ("zoom", "", "verticalLine", "", "crosshair-rotate"),
         ("measure:rect", "", "", "pan", "pan"),
@@ -404,6 +407,7 @@ def test_click_unselected_roi_interior_shows_move_cursor_without_an_extra_move(v
     assert interaction.property("hoverCursorKind") == "pan"
     assert interaction.property("customCursorActive") is True
     assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    assert view.cursor().shape() == Qt.BlankCursor
     assert measurement.measurementItems == [original]
     _move_pointer(view, _scene(pixel_layer, 30, 35))
     assert measurement.hoverHit["kind"] == "controlPoint"
@@ -505,6 +509,7 @@ def test_region_creation_uses_same_composite_pointer(viewport, tmp_path, kind):
     interaction.setProperty("activeInteraction", "mpr:" + kind)
     interaction.setProperty("regionCursorKind", kind)
     assert interaction.property("effectiveCursorShape") == Qt.BlankCursor.value
+    assert view.cursor().shape() == Qt.BlankCursor
     icon = root.findChild(QQuickItem, "viewportCursorOperationIcon")
     assert icon.isVisible() and (icon.width(), icon.height()) == (40, 32)
     hotspot = interaction.mapToScene(interaction.property("cursorPosition"))

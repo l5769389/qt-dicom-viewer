@@ -335,11 +335,6 @@ class DicomLoader:
             pixel_value_meta=pixel_value_meta,
         )
 
-    def _iter_get_pixel_data(self, ordered_instance_paths: list[Path]):
-        for file_path in ordered_instance_paths:
-            dataset = _read_series_dataset(file_path)
-            yield dataset
-
     @staticmethod
     def to_modality_pixels(dataset: FileDataset) -> np.ndarray:
         """Convert stored pixels with the DICOM Modality LUT/rescale."""

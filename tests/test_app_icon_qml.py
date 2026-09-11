@@ -31,7 +31,7 @@ def test_tool_svgs_render_and_recolor_when_icon_name_changes(qt_app):
         for name in names:
             root = view.rootObject()
             root.setProperty("iconName", name)
-            assert root.property("isSvgIcon") and not root.property("rasterSource")
+            assert root.property("isSvgIcon")
             for color in [QColor("#b8c3cf"), QColor("#00cfff")]:
                 root.setProperty("iconColor", color)
                 QTest.qWait(120)

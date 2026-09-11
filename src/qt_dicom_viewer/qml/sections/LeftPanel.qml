@@ -251,7 +251,6 @@ Rectangle {
             text: "已选 " + leftPanel.panelController.selectedSeriesUids.length + " 个序列 · 勾选可多选"
         }
 
-
         ListView {
             id: seriesList
             objectName: "sidebarSeriesList"
@@ -699,26 +698,21 @@ Rectangle {
 
     FusionSeriesDialog { controller: leftPanel.panelController }
 
-    Basic.Dialog {
+    Components.AppDialog {
         id: directoryErrorDialog
         objectName: "seriesDirectoryErrorDialog"
         parent: Basic.Overlay.overlay
         anchors.centerIn: parent
-        width: 360
+        width: Math.min(360, parent.width - 32)
         height: 160
         title: "无法打开目录"
         modal: true
-        standardButtons: Basic.Dialog.Ok
         contentItem: Text {
             text: "序列来源目录不存在或系统无法打开该目录。"
             color: Theme.textPrimary
             font.pixelSize: 13
             wrapMode: Text.Wrap
         }
-        background: Rectangle {
-            color: Theme.panelBackgroundStrong
-            border.color: Theme.borderDefault
-            radius: 8
-        }
+
     }
 }

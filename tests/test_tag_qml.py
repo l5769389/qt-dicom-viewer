@@ -320,3 +320,56 @@ def test_tag_search_scroll_and_quick_tab_switches_keep_delegates_alive(scene):
     assert find(window, "tagSearch").property("text") == "Patient"
     assert controller.tagModel.matchCount > 0
     assert not warnings, "\n".join(warnings)
+
+
+def test_value_dialog_adapts_to_content_and_copies_plain_text(scene, tmp_path):
+    from PySide6.QtGui import QGuiApplication
+    window, workspace, series, warnings = scene
+    controller = open_tags(window, workspace, series)
+    type_text(window, find(window, "tagSearch"), "MediaStorageSOPClassUID")
+    row = rows(controller.tagModel)[0]
+    item = find(window, "tagRow-" + row["nodeId"])
+    pos = item.mapToScene(QPointF(item.width() - 80, item.height() / 2)).toPoint()
+    QTest.mouseDClick(window, Qt.LeftButton, Qt.NoModifier, pos)
+    value = find(window, "tagFullValue")
+    dialog = window.findChild(QObject, "tagValueDialog")
+    panel = find(window, "tagPanel")
+    assert dialog.property("visible")
+    assert dialog.property("height") < 260
+    assert dialog.property("width") <= 640
+    assert row["tagNumber"] in panel.property("detailMetadata")
+    copy = find(window, "tagCopyValue")
+    close = find(window, "tagCloseValue")
+    assert copy.width() < 120 and close.width() < 100
+    assert close.mapToScene(QPointF()).y() < value.mapToScene(QPointF()).y()
+    assert close.mapToScene(QPointF(close.width(), 0)).x() == copy.mapToScene(QPointF(copy.width(), 0)).x()
+    assert window.grabWindow().save(str(tmp_path / "tag-detail-short.png"))
+    clipboard = QGuiApplication.clipboard()
+    previous = clipboard.text()
+    try:
+        click(window, copy)
+        assert clipboard.text() == row["valueText"]
+        assert dialog.property("visible")
+        # Long lines and multiline values stay selectable and scroll within the
+        # available space, even at the minimum workspace size.
+        window.resize(1000, 600)
+        long_value = ("很长的标签值 <b>plain text</b> " * 50 + "\n") * 15
+        panel.setProperty("detailValue", long_value)
+        QTest.qWait(60)
+        scroll = find(window, "tagValueScroll")
+        assert value.property("text") == long_value
+        assert value.height() > scroll.height()
+        assert dialog.property("height") <= panel.height() - 32
+        assert float(scroll.property("contentWidth")) <= scroll.width()
+        for target in (scroll, copy, close):
+            point = target.mapToScene(QPointF(target.width(), target.height()))
+            assert point.x() <= window.width() and point.y() <= window.height()
+        assert window.grabWindow().save(str(tmp_path / "tag-detail-long.png"))
+        click(window, copy)
+        assert clipboard.text() == long_value
+        QTest.keyClick(window, Qt.Key_Escape)
+        QTest.qWait(60)
+        assert not dialog.property("visible")
+    finally:
+        clipboard.setText(previous)
+    assert not warnings, "\n".join(warnings)

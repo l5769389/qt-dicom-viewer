@@ -173,22 +173,15 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 Components.AppButton {
-                    objectName: "quickSaveWindowTemplate"
-                    normalColor: Theme.primaryButtonBackground
-                    hoverColor: Theme.primaryButtonHover
-                    pressedColor: Theme.primaryButtonPressed
-                    disabledColor: Theme.primaryButtonDisabled
-                    textColor: Theme.textOnPrimary
-                    fontWeight: Font.DemiBold
-                    text: "保存"; compact: true; Layout.fillWidth: true
-                    onClicked: windowPanel.saveTemplate()
-                }
-                Components.AppButton {
                     objectName: "cancelSaveWindowTemplate"
                     text: "取消"; compact: true; Layout.fillWidth: true
-                    normalColor: "transparent"
-                    textColor: Theme.textMuted
                     onClicked: { windowPanel.namingTemplate = false; windowPanel.errorText = "" }
+                }
+                Components.AppButton {
+                    objectName: "quickSaveWindowTemplate"
+                    actionRole: "primary"
+                    text: "保存"; compact: true; Layout.fillWidth: true
+                    onClicked: windowPanel.saveTemplate()
                 }
             }
         }
